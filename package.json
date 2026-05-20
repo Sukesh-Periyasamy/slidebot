@@ -23,12 +23,19 @@
     "@slidebot/eslint-config": "workspace:*",
     "@slidebot/prettier-config": "workspace:*",
     "@slidebot/tsconfig": "workspace:*",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "@vitest/ui": "^4.1.7",
     "husky": "^9.1.6",
+    "jsdom": "^29.1.1",
     "lint-staged": "^15.2.10",
     "prettier": "^3.3.3",
     "rimraf": "^6.0.1",
     "turbo": "^2.3.3",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [

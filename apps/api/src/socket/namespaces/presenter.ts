@@ -10,7 +10,7 @@ import { logger } from '../../config/logger';
 import { roomManager } from '../room-manager';
 import { getPresenceColor } from '@slidebot/shared-utils';
 import { attachHeartbeat } from '../heartbeat';
-import { initiatePresenterGrace } from '../reconnect-handler';
+import { handleReconnect, initiatePresenterGrace } from '../reconnect-handler';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -175,6 +175,7 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
 
         // Update socket data
         socket.data.currentDeckId = deckId;
+        socket.data.currentSessionId = session.sessionId;
 
         callback({ ok: true, session, members: [], isPresenter: true });
 
@@ -203,8 +204,9 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
           return;
         }
 
-        const session = await handleJoinSession(
-          extSocket,
+        const result = await handleReconnect(
+          ns,
+          extSocket.id,
           userId,
           displayName,
           avatarUrl,
@@ -212,19 +214,22 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
           targetSessionId
         );
 
-        if (!session) {
+        if (!result.restored || !result.session) {
           callback({ ok: false, error: 'Session not found or ended' });
           return;
         }
 
-        const members = await roomManager.getMembers(targetSessionId);
-        const isPresenter = session.presenterId === userId;
+        await extSocket.join(`session:${targetSessionId}`);
+        if ((extSocket as any).data) {
+          (extSocket as any).data.currentDeckId = deckId;
+          (extSocket as any).data.currentSessionId = targetSessionId;
+        }
 
         callback({
           ok: true,
-          session,
-          members: members.map(toMemberPayload),
-          isPresenter,
+          session: result.session as any,
+          members: result.members as any,
+          isPresenter: result.wasPresenter,
         });
       } catch (err) {
         logger.error({ err }, 'session:join error');
@@ -372,7 +377,10 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
       logger.info({ userId, reason }, 'User disconnected from /presenter');
 
       // Find any active sessions this user was in
-      const rooms = Array.from(socket.rooms).filter((r) => r.startsWith('session:'));
+      let rooms = Array.from(socket.rooms).filter((r) => r.startsWith('session:'));
+      if (rooms.length === 0 && socket.data.currentSessionId) {
+        rooms = [`session:${socket.data.currentSessionId}`];
+      }
 
       for (const room of rooms) {
         const sessionId = room.replace('session:', '');
@@ -385,7 +393,7 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
         // We keep member for grace period so reconnect can restore cleanly
         if (!wasPresenter) {
           await roomManager.removeMember(sessionId, userId);
-          extSocket.to(room).emit(
+          ns.to(room).emit(
             'participant:left' as never,
             {
               sessionId,
@@ -396,7 +404,7 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
         } else {
           // Presenter disconnected — start grace period
           // Don't remove member yet; they may reconnect within GRACE_MS
-          extSocket.to(room).emit(
+          ns.to(room).emit(
             'presenter:disconnected' as never,
             {
               sessionId,
@@ -445,6 +453,9 @@ async function handleJoinSession(
   });
 
   await socket.join(`session:${sessionId}`);
+  if ((socket as any).data) {
+    (socket as any).data.currentSessionId = sessionId;
+  }
 
   // Notify existing members
   socket.to(`session:${sessionId}`).emit('participant:joined', {

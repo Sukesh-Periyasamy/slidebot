@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
-    "test": "jest",
+    "test": "vitest run",
     "clean": "rimraf dist",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -24,6 +24,7 @@
     "@slidebot/shared-schemas": "workspace:*",
     "@slidebot/shared-types": "workspace:*",
     "@slidebot/shared-utils": "workspace:*",
+    "@socket.io/redis-adapter": "^8.3.0",
     "@supabase/supabase-js": "^2.45.4",
     "bullmq": "^5.17.0",
     "cors": "^2.8.5",
@@ -38,7 +39,6 @@
     "pino-pretty": "^11.3.0",
     "socket.io": "^4.8.0",
     "socket.io-redis": "^6.1.1",
-    "@socket.io/redis-adapter": "^8.3.0",
     "yjs": "^13.6.20",
     "zod": "^3.23.8"
   },
@@ -47,10 +47,13 @@
     "@slidebot/tsconfig": "workspace:*",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
+    "@types/ioredis-mock": "^8.2.7",
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.7.5",
+    "ioredis-mock": "^8.13.1",
     "prisma": "^5.21.0",
     "rimraf": "^6.0.1",
+    "socket.io-client": "^4.8.0",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3"
   }

@@ -14,6 +14,7 @@ import { logger } from '../config/logger';
 import { env } from '../config/env';
 import { socketAuthMiddleware } from './middleware/socketAuth';
 import { registerCollaborationHandlers } from './namespaces/collaboration';
+import { registerPresenterHandlers } from './namespaces/presenter';
 
 /**
  * Initialize Socket.IO server with Redis adapter for horizontal scaling.
@@ -56,6 +57,11 @@ export function initializeSocket(
   const collabNs = io.of('/collaboration');
   collabNs.use(socketAuthMiddleware);
   registerCollaborationHandlers(collabNs);
+
+  // /presenter — presentation lifecycle and navigation
+  const presenterNs = io.of('/presenter');
+  presenterNs.use(socketAuthMiddleware);
+  registerPresenterHandlers(presenterNs);
 
   // Health / connection logging
   io.on('connection', (socket) => {

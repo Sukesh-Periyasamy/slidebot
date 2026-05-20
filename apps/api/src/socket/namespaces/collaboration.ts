@@ -301,8 +301,17 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
     socket.on('disconnect', (reason) => {
       logger.info({ userId, reason }, 'User disconnected from /collaboration');
 
-      if (socket.data.currentDeckId) {
-        socket.to(ROOMS.deck(socket.data.currentDeckId)).emit('user_left', { userId });
+      // Note: In Socket.IO, socket.rooms is usually empty on disconnect
+      // but we saved the currentDeckId in socket.data when they joined.
+      let rooms = Array.from(socket.rooms).filter((r) => r.startsWith('deck:'));
+      if (rooms.length === 0 && socket.data.currentDeckId) {
+        rooms = [`deck:${socket.data.currentDeckId}`];
+      }
+
+      for (const room of rooms) {
+        socket.to(room).emit('user_left', {
+          user: { userId },
+        });
       }
     });
   });
