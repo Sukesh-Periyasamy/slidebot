@@ -8,23 +8,29 @@
 - Resolution of critical race conditions in Socket.IO reconnect logic (grace periods, disconnected rooms, and presence restoration).
 - Hardened Playwright E2E suite with deterministic sync assertions and real auth persistence for RoomPage.
 - Built the SlideBot Chrome Extension Popup UI (integrated with the background script for Meet detection and session state).
+- Assembled RoomPage and virtualized ThumbnailSidebar slide viewer navigation interfaces.
+- Production Hardening Phase completed:
+  - Eliminated state-dependent reactive WebSocket listener leaks in web hooks (`useSyncEngine.ts` and `useAnnotationSync.ts`).
+  - Added a token-bucket rate limiter (`annotation-throttle.ts`) to restrict incoming client actions (draw, laser, cursor move) to 120/sec per socket to handle flood conditions.
+  - Implemented service worker double-registration guards and UI shadow host duplicate-mount guards.
+  - Created and ran test coverage for long-session stability, memory leak verification, rate-limiting assertion, and reconnect storm resilience.
+  - Established a scalability reporting suite verifying p99 latency < 200ms at multi-client scales.
 
 ## What is currently in progress
-- The Chrome Extension Popup UI has been completed and verified. The project is currently idle, waiting for the next feature to be picked up.
+- The Production Hardening Phase is fully complete. The project is currently idle, waiting for database integration and persistence features to be picked up.
 
 ## Exact place development stopped
-- Development stopped after building and verifying the Extension Popup UI. The extension builds successfully with Vite and CRX.
+- Development stopped after establishing full monorepo typechecking, resolving hook-level and listener-level resource leaks, integrating the server rate-limiting bucket, and completing the stress-testing suites.
 
 ## Known blockers
 - None currently.
 
 ## Bugs/issues
-- No active bugs. Typechecking and build succeed.
+- No active bugs. Typechecking and tests succeed cleanly.
 
 ## Immediate next steps
-- Phase 2/3: Transition to building out the user interfaces for the web application.
-- High priority feature waiting to be built:
-  1. **Thumbnail Sidebar Navigation**: Virtualized slide navigation system for the web app.
+- **Annotation Persistence & Sync**: Establish database schema mappings for slides and room drawings using Prisma and Supabase.
+- Integrate real-time state synchronization or Yjs/Prisma state reconciliation to persist drawing records across room lifetimes.
 
 ## Recommended continuation flow
 - Read `PROJECT_MEMORY.md` to understand design philosophies.

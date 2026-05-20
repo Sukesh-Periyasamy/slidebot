@@ -8,21 +8,25 @@
 - [x] WebSocket testing harness creation (`room-simulator`, `reconnect-simulator`).
 - [x] WebSocket reliability hardening (reconnects, ghost connection cleanup, handoffs).
 - [x] Hardened Playwright E2E suite with deterministic sync assertions and real auth persistence.
-- [x] Build Chrome Extension Popup UI.
+- [x] Build Chrome Extension Popup UI (Meet detection, authentication flows, and session controls).
+- [x] Assemble RoomPage experience and ThumbnailSidebar navigation.
+- [x] Production Hardening Phase:
+  - [x] Resolved WebSocket listener memory leaks in React hooks (`useSyncEngine.ts` and `useAnnotationSync.ts`).
+  - [x] Added backend annotation flood rate-limiting (120 events/s/socket token bucket).
+  - [x] Guarded extension background worker and UI overlay shadow DOM against double-registration/mounting.
+  - [x] Created stability, reconnect storm, memory, and scalability testing suites.
 
 ## Pending Tasks
-- [ ] Build Thumbnail Sidebar Navigation (virtualized).
-- [ ] Assemble the complete RoomPage experience (slide viewer, annotation canvas, toolbars).
 - [ ] Implement robust annotation persistence (Prisma + Yjs reconciliation).
 - [ ] Optimize canvas performance for heavy annotation loads.
 
 ## Priority Levels
-- **High**: Thumbnail Sidebar Navigation, Complete RoomPage assembly.
-- **Medium**: Complete RoomPage assembly, E2E Testing.
-- **Low**: Advanced AI features (prioritize reliability over AI).
+- **High**: Annotation persistence & Prisma synchronization.
+- **Medium**: E2E Testing of annotation canvas and persistence.
+- **Low**: Advanced AI features.
 
 ## TODO Items
-- Audit frontend component re-renders to ensure multiplayer synchronization does not degrade canvas performance.
+- Audit frontend canvas component re-renders to ensure high-frequency annotations do not degrade frame rates.
 - Expand Vitest coverage for standard REST API endpoints once built out.
 
 ## Future Improvements
