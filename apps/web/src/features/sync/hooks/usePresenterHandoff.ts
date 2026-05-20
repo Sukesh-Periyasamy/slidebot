@@ -37,9 +37,7 @@ export function usePresenterHandoff(engine: ReturnType<typeof useSyncEngine>) {
   const cancelHandoff = useSyncStore((s) => s.cancelHandoff);
 
   // Members eligible to receive handoff (everyone except current presenter)
-  const eligibleMembers = members.filter(
-    (m) => m.userId !== user?.id && m.isConnected
-  );
+  const eligibleMembers = members.filter((m) => m.userId !== user?.id && m.isConnected);
 
   // Initiate handoff to a specific user
   const initiateHandoff = useCallback(

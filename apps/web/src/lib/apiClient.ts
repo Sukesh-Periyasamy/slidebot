@@ -6,7 +6,7 @@ import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axio
 
 import { supabase } from './supabase';
 
-const BASE_URL = import.meta.env['VITE_API_URL'] as string ?? 'http://localhost:4000';
+const BASE_URL = (import.meta.env['VITE_API_URL'] as string) ?? 'http://localhost:4000';
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: `${BASE_URL}/api/v1`,

@@ -15,8 +15,8 @@ const queryClient = new QueryClient({
         if (status && status >= 400 && status < 500) return false;
         return failureCount < 2;
       },
-      staleTime: 30_000,       // 30s before refetch
-      gcTime: 5 * 60_000,     // 5min garbage collection
+      staleTime: 30_000, // 30s before refetch
+      gcTime: 5 * 60_000, // 5min garbage collection
       refetchOnWindowFocus: true,
     },
     mutations: {
@@ -39,14 +39,14 @@ function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // 2. Subscribe to auth state changes (login, logout, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session, session?.user ?? null);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session, session?.user ?? null);
 
-        // Invalidate all queries on auth change
-        void queryClient.invalidateQueries();
-      }
-    );
+      // Invalidate all queries on auth change
+      void queryClient.invalidateQueries();
+    });
 
     return () => subscription.unsubscribe();
   }, [setSession]);
@@ -65,9 +65,7 @@ interface AppProvidersProps {
 export function AppProviders({ children }: AppProvidersProps) {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        {children}
-      </AuthProvider>
+      <AuthProvider>{children}</AuthProvider>
       {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
   );

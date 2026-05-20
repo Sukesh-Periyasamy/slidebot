@@ -136,14 +136,14 @@ Every slide change is broadcast to all participants via WebSocket with **sequenc
 
 Draw, highlight, add arrows and text — all synced in real-time across all participants via Konva.js canvas layers over the slide viewer.
 
-| Tool | Description |
-|------|-------------|
-| ✏️ Freehand | Smooth Catmull-Rom spline drawing |
-| 🖊️ Highlight | Semi-transparent rectangular highlights |
-| ➡️ Arrow | Directional arrow annotations |
-| 🔤 Text | Text labels anywhere on the slide |
-| ⚡ Laser | Ephemeral laser pointer with fading trail |
-| 🧹 Eraser | Remove annotations selectively |
+| Tool         | Description                               |
+| ------------ | ----------------------------------------- |
+| ✏️ Freehand  | Smooth Catmull-Rom spline drawing         |
+| 🖊️ Highlight | Semi-transparent rectangular highlights   |
+| ➡️ Arrow     | Directional arrow annotations             |
+| 🔤 Text      | Text labels anywhere on the slide         |
+| ⚡ Laser     | Ephemeral laser pointer with fading trail |
+| 🧹 Eraser    | Remove annotations selectively            |
 
 </details>
 
@@ -501,12 +501,12 @@ slidebot/                          # Turborepo monorepo root
 
 Before you begin, ensure you have:
 
-| Tool | Version | Install |
-|------|---------|---------|
-| Node.js | `>= 20.x` | [nodejs.org](https://nodejs.org) |
-| pnpm | `>= 9.x` | `npm i -g pnpm` |
-| Docker | Latest | [docker.com](https://docker.com) |
-| Git | Latest | [git-scm.com](https://git-scm.com) |
+| Tool    | Version   | Install                            |
+| ------- | --------- | ---------------------------------- |
+| Node.js | `>= 20.x` | [nodejs.org](https://nodejs.org)   |
+| pnpm    | `>= 9.x`  | `npm i -g pnpm`                    |
+| Docker  | Latest    | [docker.com](https://docker.com)   |
+| Git     | Latest    | [git-scm.com](https://git-scm.com) |
 
 ---
 
@@ -532,6 +532,7 @@ docker compose -f docker/docker-compose.yml up -d
 ```
 
 This starts:
+
 - **PostgreSQL** on `localhost:5432`
 - **Redis** on `localhost:6379`
 
@@ -574,10 +575,10 @@ pnpm --filter @slidebot/web dev
 
 ### Step 7 — Open the App
 
-| Service | URL |
-|---------|-----|
-| 🌐 Web App | http://localhost:3000 |
-| ⚙️ API | http://localhost:4000 |
+| Service       | URL                          |
+| ------------- | ---------------------------- |
+| 🌐 Web App    | http://localhost:3000        |
+| ⚙️ API        | http://localhost:4000        |
 | 📊 API Health | http://localhost:4000/health |
 
 ---
@@ -672,44 +673,44 @@ pnpm --filter @slidebot/extension build
 
 ### `/presenter` Namespace — Session & Slide Sync
 
-| Direction | Event | Payload | Description |
-|-----------|-------|---------|-------------|
-| `emit` | `session:join` | `{ deckId }` | Join or create session |
-| `emit` | `session:create` | `{ deckId, totalSlides }` | Create new session (becomes presenter) |
-| `emit` | `slide:goto` | `{ sessionId, slideIndex, sequenceNum }` | Navigate to slide (presenter only) |
-| `emit` | `presenter:handoff` | `{ sessionId, toUserId }` | Transfer presenter authority |
-| `emit` | `viewer:explore` | `{ sessionId }` | Enter exploration mode |
-| `emit` | `viewer:follow` | `{ sessionId }` | Return to following presenter |
-| `emit` | `session:end` | `{ sessionId }` | End session (presenter only) |
-| `on` | `session:state` | Full session snapshot | Received on join (idempotent sync) |
-| `on` | `slide:changed` | `{ slideIndex, sequenceNum }` | Presenter navigated |
-| `on` | `presenter:changed` | `{ newPresenterId, previousPresenterId }` | Authority transferred |
-| `on` | `presenter:disconnected` | `{ presenterId }` | Presenter lost connection |
-| `on` | `presenter:reconnected` | `{ presenterId }` | Presenter back within grace period |
-| `on` | `participant:joined` | `{ member }` | New user joined |
-| `on` | `participant:left` | `{ userId }` | User left |
-| `on` | `session:ended` | — | Presenter ended session |
+| Direction | Event                    | Payload                                   | Description                            |
+| --------- | ------------------------ | ----------------------------------------- | -------------------------------------- |
+| `emit`    | `session:join`           | `{ deckId }`                              | Join or create session                 |
+| `emit`    | `session:create`         | `{ deckId, totalSlides }`                 | Create new session (becomes presenter) |
+| `emit`    | `slide:goto`             | `{ sessionId, slideIndex, sequenceNum }`  | Navigate to slide (presenter only)     |
+| `emit`    | `presenter:handoff`      | `{ sessionId, toUserId }`                 | Transfer presenter authority           |
+| `emit`    | `viewer:explore`         | `{ sessionId }`                           | Enter exploration mode                 |
+| `emit`    | `viewer:follow`          | `{ sessionId }`                           | Return to following presenter          |
+| `emit`    | `session:end`            | `{ sessionId }`                           | End session (presenter only)           |
+| `on`      | `session:state`          | Full session snapshot                     | Received on join (idempotent sync)     |
+| `on`      | `slide:changed`          | `{ slideIndex, sequenceNum }`             | Presenter navigated                    |
+| `on`      | `presenter:changed`      | `{ newPresenterId, previousPresenterId }` | Authority transferred                  |
+| `on`      | `presenter:disconnected` | `{ presenterId }`                         | Presenter lost connection              |
+| `on`      | `presenter:reconnected`  | `{ presenterId }`                         | Presenter back within grace period     |
+| `on`      | `participant:joined`     | `{ member }`                              | New user joined                        |
+| `on`      | `participant:left`       | `{ userId }`                              | User left                              |
+| `on`      | `session:ended`          | —                                         | Presenter ended session                |
 
 ---
 
 ### `/collaboration` Namespace — Annotations & Cursors
 
-| Direction | Event | Payload | Description |
-|-----------|-------|---------|-------------|
-| `emit` | `annotation_start` | `{ annotationId, tool, color, slideId, initialPoint }` | Start drawing |
-| `emit` | `annotation_draw` | `{ slideId, points[] }` | Stream incremental points |
-| `emit` | `annotation_end` | `{ slideId, annotation }` | Commit completed annotation |
-| `emit` | `annotation_delete` | `{ slideId, annotationId }` | Delete annotation |
-| `emit` | `cursor_move` | `{ sessionId, slideId, position }` | Broadcast cursor (30fps) |
-| `emit` | `laser_move` | `{ sessionId, slideId, trail[] }` | Broadcast laser trail (60fps) |
-| `emit` | `laser_end` | `{ sessionId, slideId }` | Laser pointer released |
-| `on` | `annotation_started` | Remote user's annotation start | Render live stroke |
-| `on` | `annotation_drew` | Remote user's points | Append to live stroke |
-| `on` | `annotation_ended` | Committed annotation | Commit to store |
-| `on` | `annotation_deleted` | `{ annotationId }` | Remove annotation |
-| `on` | `cursor_update` | `{ userId, position }` | Update remote cursor |
-| `on` | `laser_update` | `{ userId, trail[] }` | Update laser trail |
-| `on` | `laser_ended` | `{ userId }` | Remove laser pointer |
+| Direction | Event                | Payload                                                | Description                   |
+| --------- | -------------------- | ------------------------------------------------------ | ----------------------------- |
+| `emit`    | `annotation_start`   | `{ annotationId, tool, color, slideId, initialPoint }` | Start drawing                 |
+| `emit`    | `annotation_draw`    | `{ slideId, points[] }`                                | Stream incremental points     |
+| `emit`    | `annotation_end`     | `{ slideId, annotation }`                              | Commit completed annotation   |
+| `emit`    | `annotation_delete`  | `{ slideId, annotationId }`                            | Delete annotation             |
+| `emit`    | `cursor_move`        | `{ sessionId, slideId, position }`                     | Broadcast cursor (30fps)      |
+| `emit`    | `laser_move`         | `{ sessionId, slideId, trail[] }`                      | Broadcast laser trail (60fps) |
+| `emit`    | `laser_end`          | `{ sessionId, slideId }`                               | Laser pointer released        |
+| `on`      | `annotation_started` | Remote user's annotation start                         | Render live stroke            |
+| `on`      | `annotation_drew`    | Remote user's points                                   | Append to live stroke         |
+| `on`      | `annotation_ended`   | Committed annotation                                   | Commit to store               |
+| `on`      | `annotation_deleted` | `{ annotationId }`                                     | Remove annotation             |
+| `on`      | `cursor_update`      | `{ userId, position }`                                 | Update remote cursor          |
+| `on`      | `laser_update`       | `{ userId, trail[] }`                                  | Update laser trail            |
+| `on`      | `laser_ended`        | `{ userId }`                                           | Remove laser pointer          |
 
 ---
 
@@ -733,6 +734,7 @@ Client disconnects
 ### 🔁 State, Not Pixels
 
 SlideBot synchronizes **presentation state** (slide index, annotations, presenter), not video pixels. This enables:
+
 - **10× lower bandwidth** than screen share
 - **Perfect fidelity** on any screen resolution
 - **Accessible** to participants with slow connections
@@ -740,6 +742,7 @@ SlideBot synchronizes **presentation state** (slide index, annotations, presente
 ### ⚡ Low-Latency First
 
 Every architectural decision is made with latency in mind:
+
 - Redis for session state (sub-millisecond reads)
 - Cursor positions throttled at 30fps (not 60fps) to balance smoothness vs bandwidth
 - Sequence numbers prevent stale event processing
@@ -863,14 +866,14 @@ git push origin feat/annotation-undo-redo
 
 ### Branch Naming
 
-| Prefix | Use Case | Example |
-|--------|----------|---------|
-| `feat/` | New feature | `feat/presenter-timer` |
-| `fix/` | Bug fix | `fix/cursor-drift-on-resize` |
-| `docs/` | Documentation | `docs/websocket-events` |
+| Prefix      | Use Case      | Example                       |
+| ----------- | ------------- | ----------------------------- |
+| `feat/`     | New feature   | `feat/presenter-timer`        |
+| `fix/`      | Bug fix       | `fix/cursor-drift-on-resize`  |
+| `docs/`     | Documentation | `docs/websocket-events`       |
 | `refactor/` | Code refactor | `refactor/room-manager-types` |
-| `chore/` | Tooling, deps | `chore/bump-socket-io-4.8` |
-| `test/` | Tests | `test/annotation-store-unit` |
+| `chore/`    | Tooling, deps | `chore/bump-socket-io-4.8`    |
+| `test/`     | Tests         | `test/annotation-store-unit`  |
 
 ### Commit Message Format
 
@@ -885,6 +888,7 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 ```
 
 **Examples:**
+
 ```
 feat(sync): add sequence number deduplication on reconnect
 fix(extension): prevent double overlay mount on Meet SPA navigation
@@ -991,19 +995,20 @@ Future:    Client → Yjs CRDT merge → Broadcast diff → All clients
 ```
 
 This enables:
+
 - **Offline-first** annotation editing
 - **P2P sync** via WebRTC data channels
 - **Conflict-free concurrent editing** (no presenter authority needed for annotations)
 
 ### Enterprise Scalability Targets
 
-| Metric | MVP | Phase 3 |
-|--------|-----|---------|
-| Concurrent users/session | 50 | 500 |
-| Sessions per server | 200 | 2,000 |
-| Annotation latency | <100ms | <30ms |
-| Reconnect recovery | 30s | Instant (CRDT) |
-| Annotation conflict resolution | Server-wins | CRDT-merge |
+| Metric                         | MVP         | Phase 3        |
+| ------------------------------ | ----------- | -------------- |
+| Concurrent users/session       | 50          | 500            |
+| Sessions per server            | 200         | 2,000          |
+| Annotation latency             | <100ms      | <30ms          |
+| Reconnect recovery             | 30s         | Instant (CRDT) |
+| Annotation conflict resolution | Server-wins | CRDT-merge     |
 
 ---
 

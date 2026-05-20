@@ -57,12 +57,7 @@ export interface LaserData {
   points: number[];
 }
 
-export type AnnotationData =
-  | FreehandData
-  | HighlightData
-  | ArrowData
-  | TextData
-  | LaserData;
+export type AnnotationData = FreehandData | HighlightData | ArrowData | TextData | LaserData;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Core annotation model

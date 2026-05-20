@@ -20,9 +20,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(
-    null
-  );
+  const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
   const { signInWithEmail, signUpWithEmail, signInWithGoogle, error } = useAuth();
 
@@ -80,8 +78,8 @@ export function LoginPage() {
             </span>
           </h1>
           <p className="text-lg text-surface-400 leading-relaxed">
-            Synchronized multiplayer presentations. Live cursors, real-time annotations,
-            presenter handoff — all with sub-50ms latency.
+            Synchronized multiplayer presentations. Live cursors, real-time annotations, presenter
+            handoff — all with sub-50ms latency.
           </p>
 
           {/* Feature list */}
@@ -164,7 +162,10 @@ export function LoginPage() {
             <form onSubmit={handleEmailSubmit} className="space-y-4">
               {mode === 'signup' && (
                 <div>
-                  <label htmlFor="displayName" className="block text-xs font-medium text-surface-300 mb-1.5">
+                  <label
+                    htmlFor="displayName"
+                    className="block text-xs font-medium text-surface-300 mb-1.5"
+                  >
                     Display Name
                   </label>
                   <input
@@ -180,7 +181,10 @@ export function LoginPage() {
               )}
 
               <div>
-                <label htmlFor="email" className="block text-xs font-medium text-surface-300 mb-1.5">
+                <label
+                  htmlFor="email"
+                  className="block text-xs font-medium text-surface-300 mb-1.5"
+                >
                   Email address
                 </label>
                 <input
@@ -196,7 +200,10 @@ export function LoginPage() {
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-xs font-medium text-surface-300 mb-1.5">
+                <label
+                  htmlFor="password"
+                  className="block text-xs font-medium text-surface-300 mb-1.5"
+                >
                   Password
                 </label>
                 <input
@@ -232,11 +239,7 @@ export function LoginPage() {
                 disabled={isSubmitting}
                 className="w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white transition-all hover:bg-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-900 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {isSubmitting
-                  ? 'Please wait...'
-                  : mode === 'signin'
-                    ? 'Sign in'
-                    : 'Create account'}
+                {isSubmitting ? 'Please wait...' : mode === 'signin' ? 'Sign in' : 'Create account'}
               </button>
             </form>
 
@@ -246,7 +249,10 @@ export function LoginPage() {
                 <>
                   No account?{' '}
                   <button
-                    onClick={() => { setMode('signup'); setMessage(null); }}
+                    onClick={() => {
+                      setMode('signup');
+                      setMessage(null);
+                    }}
                     className="text-brand-400 hover:text-brand-300 font-medium"
                   >
                     Sign up free
@@ -256,7 +262,10 @@ export function LoginPage() {
                 <>
                   Already have an account?{' '}
                   <button
-                    onClick={() => { setMode('signin'); setMessage(null); }}
+                    onClick={() => {
+                      setMode('signin');
+                      setMessage(null);
+                    }}
                     className="text-brand-400 hover:text-brand-300 font-medium"
                   >
                     Sign in

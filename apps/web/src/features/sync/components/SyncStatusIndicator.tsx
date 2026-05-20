@@ -84,10 +84,7 @@ export function SyncStatusIndicator() {
       </span>
 
       {/* Icon */}
-      <Icon
-        size={11}
-        className={spin ? 'animate-spin' : ''}
-      />
+      <Icon size={11} className={spin ? 'animate-spin' : ''} />
 
       {/* Label */}
       <span>{label}</span>

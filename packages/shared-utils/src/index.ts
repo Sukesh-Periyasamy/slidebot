@@ -10,8 +10,7 @@ export const generateId = (): string => uuidv4();
  * Generate a short ID (8 chars) — for readable room codes
  * @example generateShortId() // "a3f2b1c9"
  */
-export const generateShortId = (): string =>
-  Math.random().toString(36).substring(2, 10);
+export const generateShortId = (): string => Math.random().toString(36).substring(2, 10);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Date utilities
@@ -40,8 +39,7 @@ export const formatRelativeTime = (dateString: string): string => {
 /**
  * Format a date string to ISO 8601
  */
-export const toISOString = (date: Date = new Date()): string =>
-  date.toISOString();
+export const toISOString = (date: Date = new Date()): string => date.toISOString();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Color utilities
@@ -150,5 +148,4 @@ export const requireEnv = (key: string): string => {
 /**
  * Get an optional environment variable with fallback
  */
-export const getEnv = (key: string, fallback: string): string =>
-  process.env[key] ?? fallback;
+export const getEnv = (key: string, fallback: string): string => process.env[key] ?? fallback;

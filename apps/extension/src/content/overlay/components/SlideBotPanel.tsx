@@ -27,13 +27,21 @@ export function SlideBotPanel({
   return (
     <div className="sb-card sb-panel">
       {/* ── Header (drag handle) ─────────────────────────────────────────── */}
-      <div
-        className="sb-panel-header"
-        onPointerDown={onDragHandlePointerDown}
-      >
+      <div className="sb-panel-header" onPointerDown={onDragHandlePointerDown}>
         {/* Logo + title */}
         <div className="sb-flex sb-items-center sb-gap-2">
-          <div style={{ width: 22, height: 22, borderRadius: 6, background: '#6173F2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <div
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              background: '#6173F2',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
             <MiniLogo />
           </div>
           <span className="sb-font-semibold" style={{ fontSize: 13, color: 'var(--sb-text)' }}>
@@ -41,17 +49,21 @@ export function SlideBotPanel({
           </span>
 
           {/* Connection badge */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            background: status?.isConnected ? 'rgba(16, 185, 129, 0.12)' : 'rgba(107, 119, 141, 0.15)',
-            borderRadius: 20,
-            padding: '2px 7px',
-            fontSize: 10,
-            fontWeight: 500,
-            color: status?.isConnected ? '#10B981' : 'var(--sb-text-muted)',
-          }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              background: status?.isConnected
+                ? 'rgba(16, 185, 129, 0.12)'
+                : 'rgba(107, 119, 141, 0.15)',
+              borderRadius: 20,
+              padding: '2px 7px',
+              fontSize: 10,
+              fontWeight: 500,
+              color: status?.isConnected ? '#10B981' : 'var(--sb-text-muted)',
+            }}
+          >
             <span
               className="sb-dot"
               style={{
@@ -98,13 +110,15 @@ export function SlideBotPanel({
       </div>
 
       {/* ── Footer ───────────────────────────────────────────────────────── */}
-      <div style={{
-        padding: '8px 12px',
-        borderTop: '1px solid var(--sb-border)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}>
+      <div
+        style={{
+          padding: '8px 12px',
+          borderTop: '1px solid var(--sb-border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
         <span className="sb-text-xs sb-text-muted">
           {status?.meetCode ? `meet.google.com/${status.meetCode}` : 'Not in a meeting'}
         </span>

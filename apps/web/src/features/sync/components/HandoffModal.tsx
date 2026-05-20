@@ -19,9 +19,7 @@ export function HandoffModal({ isOpen, onClose, onHandoff }: HandoffModalProps) 
   const members = useSyncStore(selectMembers);
 
   // Only show connected non-self members
-  const eligibleMembers = members.filter(
-    (m) => m.userId !== user?.id && m.isConnected
-  );
+  const eligibleMembers = members.filter((m) => m.userId !== user?.id && m.isConnected);
 
   return (
     <AnimatePresence>
@@ -52,12 +50,8 @@ export function HandoffModal({ isOpen, onClose, onHandoff }: HandoffModalProps) 
                     <Crown size={14} className="text-brand-400" />
                   </div>
                   <div>
-                    <h2 className="text-sm font-semibold text-surface-100">
-                      Hand Off Presenter
-                    </h2>
-                    <p className="text-xs text-surface-500 mt-0.5">
-                      Instantly transfer control
-                    </p>
+                    <h2 className="text-sm font-semibold text-surface-100">Hand Off Presenter</h2>
+                    <p className="text-xs text-surface-500 mt-0.5">Instantly transfer control</p>
                   </div>
                 </div>
                 <button
@@ -106,7 +100,9 @@ export function HandoffModal({ isOpen, onClose, onHandoff }: HandoffModalProps) 
                               <Circle
                                 size={6}
                                 className={
-                                  member.isConnected ? 'fill-emerald-400 text-emerald-400' : 'fill-surface-600 text-surface-600'
+                                  member.isConnected
+                                    ? 'fill-emerald-400 text-emerald-400'
+                                    : 'fill-surface-600 text-surface-600'
                                 }
                               />
                               {member.isExploring ? 'Exploring' : 'Following'}

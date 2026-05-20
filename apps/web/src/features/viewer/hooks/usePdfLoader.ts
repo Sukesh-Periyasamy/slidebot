@@ -50,10 +50,7 @@ export function usePdfLoader() {
     [setPdfDoc, setIsLoading, setLoadError, reset]
   );
 
-  const loadFromUrl = useCallback(
-    (url: string) => loadDocument(url),
-    [loadDocument]
-  );
+  const loadFromUrl = useCallback((url: string) => loadDocument(url), [loadDocument]);
 
   const loadFromFile = useCallback(
     async (file: File) => {

@@ -36,7 +36,9 @@ export function Overlay() {
       if (message.type === MSG.HIDE_OVERLAY) setIsOpen(false);
       if (message.type === MSG.PUSH_SESSION_STATE) {
         setSession(message.payload);
-        setStatus((s) => s ? { ...s, isConnected: true, sessionId: message.payload.sessionId } : s);
+        setStatus((s) =>
+          s ? { ...s, isConnected: true, sessionId: message.payload.sessionId } : s
+        );
         // Auto-open on first session connect
         setIsOpen(true);
       }
@@ -44,36 +46,44 @@ export function Overlay() {
   }, []);
 
   // ── Dragging ──────────────────────────────────────────────────────────────
-  const dragRef = useRef<{ startX: number; startY: number; startRight: number; startBottom: number } | null>(null);
+  const dragRef = useRef<{
+    startX: number;
+    startY: number;
+    startRight: number;
+    startBottom: number;
+  } | null>(null);
 
-  const handleDragStart = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
-    dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      startRight: position.right,
-      startBottom: position.bottom,
-    };
+  const handleDragStart = useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault();
+      dragRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        startRight: position.right,
+        startBottom: position.bottom,
+      };
 
-    const handleMove = (ev: PointerEvent) => {
-      if (!dragRef.current) return;
-      const dx = ev.clientX - dragRef.current.startX;
-      const dy = ev.clientY - dragRef.current.startY;
-      setPosition({
-        right: Math.max(8, dragRef.current.startRight - dx),
-        bottom: Math.max(8, dragRef.current.startBottom - dy),
-      });
-    };
+      const handleMove = (ev: PointerEvent) => {
+        if (!dragRef.current) return;
+        const dx = ev.clientX - dragRef.current.startX;
+        const dy = ev.clientY - dragRef.current.startY;
+        setPosition({
+          right: Math.max(8, dragRef.current.startRight - dx),
+          bottom: Math.max(8, dragRef.current.startBottom - dy),
+        });
+      };
 
-    const handleUp = () => {
-      dragRef.current = null;
-      window.removeEventListener('pointermove', handleMove);
-      window.removeEventListener('pointerup', handleUp);
-    };
+      const handleUp = () => {
+        dragRef.current = null;
+        window.removeEventListener('pointermove', handleMove);
+        window.removeEventListener('pointerup', handleUp);
+      };
 
-    window.addEventListener('pointermove', handleMove);
-    window.addEventListener('pointerup', handleUp);
-  }, [position]);
+      window.addEventListener('pointermove', handleMove);
+      window.addEventListener('pointerup', handleUp);
+    },
+    [position]
+  );
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleOpenSlideBot = useCallback(() => {

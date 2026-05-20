@@ -104,13 +104,11 @@ export const useViewerStore = create<ViewerState>()(
 
       setIsRendering: (isRendering) => set({ isRendering }),
 
-      setLoadError: (loadError) =>
-        set({ loadError, isLoading: false, isRendering: false }),
+      setLoadError: (loadError) => set({ loadError, isLoading: false, isRendering: false }),
 
       setIsFullscreen: (isFullscreen) => set({ isFullscreen }),
 
-      toggleThumbnailStrip: () =>
-        set((s) => ({ isThumbnailStripOpen: !s.isThumbnailStripOpen })),
+      toggleThumbnailStrip: () => set((s) => ({ isThumbnailStripOpen: !s.isThumbnailStripOpen })),
 
       setControlsVisible: (areControlsVisible) => set({ areControlsVisible }),
 

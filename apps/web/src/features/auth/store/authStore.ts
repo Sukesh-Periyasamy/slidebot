@@ -54,10 +54,7 @@ export const useAuthStore = create<AuthState>()(
           id: supaUser.id,
           email: supaUser.email ?? '',
           displayName:
-            meta?.['full_name'] ??
-            meta?.['name'] ??
-            supaUser.email?.split('@')[0] ??
-            'Anonymous',
+            meta?.['full_name'] ?? meta?.['name'] ?? supaUser.email?.split('@')[0] ?? 'Anonymous',
           avatarUrl: meta?.['avatar_url'] ?? null,
         };
 
@@ -68,8 +65,7 @@ export const useAuthStore = create<AuthState>()(
 
       setError: (error) => set({ status: 'unauthenticated', error }),
 
-      clearAuth: () =>
-        set({ status: 'unauthenticated', user: null, session: null, error: null }),
+      clearAuth: () => set({ status: 'unauthenticated', user: null, session: null, error: null }),
     })),
     { name: 'AuthStore' }
   )

@@ -92,17 +92,12 @@ export type ExtensionMessage =
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Send a message to the background service worker from popup/content. */
-export function sendToBackground<T = unknown>(
-  message: ExtensionMessage
-): Promise<T> {
+export function sendToBackground<T = unknown>(message: ExtensionMessage): Promise<T> {
   return chrome.runtime.sendMessage(message) as Promise<T>;
 }
 
 /** Send a message from background to a specific tab's content script. */
-export function sendToTab<T = unknown>(
-  tabId: number,
-  message: ExtensionMessage
-): Promise<T> {
+export function sendToTab<T = unknown>(tabId: number, message: ExtensionMessage): Promise<T> {
   return chrome.tabs.sendMessage(tabId, message) as Promise<T>;
 }
 

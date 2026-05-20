@@ -8,12 +8,7 @@
  * - Handle extension lifecycle events
  */
 
-import {
-  MSG,
-  onMessage,
-  sendToTab,
-  type ExtensionStatus,
-} from '../shared/messages';
+import { MSG, onMessage, sendToTab, type ExtensionStatus } from '../shared/messages';
 import {
   saveAuthToken,
   clearAuthToken,
@@ -111,7 +106,6 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 
 onMessage(async (message, sender, sendResponse) => {
   switch (message.type) {
-
     // ── GET_STATUS — popup/content requests current state ─────────────────
     case MSG.GET_STATUS: {
       const authToken = await getAuthToken();

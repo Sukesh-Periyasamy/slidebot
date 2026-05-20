@@ -16,9 +16,9 @@ export type ConnectionStatus =
 
 export type HandoffStatus =
   | 'idle'
-  | 'requesting'  // Current user sent handoff
-  | 'receiving'   // Current user is receiving handoff
-  | 'confirming'  // Waiting for new presenter to confirm
+  | 'requesting' // Current user sent handoff
+  | 'receiving' // Current user is receiving handoff
+  | 'confirming' // Waiting for new presenter to confirm
   | 'complete';
 
 export interface SessionMember {
@@ -132,7 +132,9 @@ export const useSyncStore = create<SyncState>()(
           }),
 
         setReconnectAttempts: (reconnectAttempts) =>
-          set((s) => { s.reconnectAttempts = reconnectAttempts; }),
+          set((s) => {
+            s.reconnectAttempts = reconnectAttempts;
+          }),
 
         // ── Session lifecycle ─────────────────────────────────────────────
         initSession: (session, members, isPresenter) =>
@@ -176,10 +178,14 @@ export const useSyncStore = create<SyncState>()(
 
         // ── Members ───────────────────────────────────────────────────────
         addMember: (member) =>
-          set((s) => { s.members[member.userId] = member; }),
+          set((s) => {
+            s.members[member.userId] = member;
+          }),
 
         removeMember: (userId) =>
-          set((s) => { delete s.members[userId]; }),
+          set((s) => {
+            delete s.members[userId];
+          }),
 
         setMemberExploring: (userId, exploring) =>
           set((s) => {
@@ -193,10 +199,14 @@ export const useSyncStore = create<SyncState>()(
 
         // ── Own state ─────────────────────────────────────────────────────
         setIsPresenter: (isPresenter) =>
-          set((s) => { s.isPresenter = isPresenter; }),
+          set((s) => {
+            s.isPresenter = isPresenter;
+          }),
 
         setIsExploring: (isExploring) =>
-          set((s) => { s.isExploring = isExploring; }),
+          set((s) => {
+            s.isExploring = isExploring;
+          }),
 
         // ── Handoff ───────────────────────────────────────────────────────
         startHandoff: (targetUserId, targetName) =>
@@ -207,7 +217,9 @@ export const useSyncStore = create<SyncState>()(
           }),
 
         receiveHandoff: () =>
-          set((s) => { s.handoffStatus = 'receiving'; }),
+          set((s) => {
+            s.handoffStatus = 'receiving';
+          }),
 
         completeHandoff: () =>
           set((s) => {

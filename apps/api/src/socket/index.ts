@@ -19,28 +19,27 @@ import { registerCollaborationHandlers } from './namespaces/collaboration';
  * Initialize Socket.IO server with Redis adapter for horizontal scaling.
  * Attaches to the existing HTTP server.
  */
-export function initializeSocket(httpServer: HttpServer): Server<
-  ClientToServerEvents,
-  ServerToClientEvents,
-  Record<string, never>,
-  SocketData
-> {
-  const io = new Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>(
-    httpServer,
-    {
-      cors: {
-        origin: env.CORS_ORIGINS,
-        credentials: true,
-      },
-      // Prefer WebSocket, fall back to polling
-      transports: ['websocket', 'polling'],
-      // Ping timeout / interval
-      pingTimeout: 20_000,
-      pingInterval: 10_000,
-      // Limit payload size (protect against large Yjs updates)
-      maxHttpBufferSize: 5 * 1024 * 1024, // 5MB
-    }
-  );
+export function initializeSocket(
+  httpServer: HttpServer
+): Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData> {
+  const io = new Server<
+    ClientToServerEvents,
+    ServerToClientEvents,
+    Record<string, never>,
+    SocketData
+  >(httpServer, {
+    cors: {
+      origin: env.CORS_ORIGINS,
+      credentials: true,
+    },
+    // Prefer WebSocket, fall back to polling
+    transports: ['websocket', 'polling'],
+    // Ping timeout / interval
+    pingTimeout: 20_000,
+    pingInterval: 10_000,
+    // Limit payload size (protect against large Yjs updates)
+    maxHttpBufferSize: 5 * 1024 * 1024, // 5MB
+  });
 
   // ── Redis adapter (required for multi-instance scaling) ───────────────────
   const pubClient = getRedisClient();

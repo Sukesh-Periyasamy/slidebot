@@ -20,11 +20,7 @@ interface UsePdfRendererOptions {
  *
  * @returns { isRendering } — true while page is being drawn
  */
-export function usePdfRenderer({
-  canvasRef,
-  pageNumber,
-  fixedScale,
-}: UsePdfRendererOptions) {
+export function usePdfRenderer({ canvasRef, pageNumber, fixedScale }: UsePdfRendererOptions) {
   const pdfDoc = useViewerStore((s) => s.pdfDoc);
   const zoom = useViewerStore((s) => s.zoom);
   const containerScale = useViewerStore((s) => s.computedScale);

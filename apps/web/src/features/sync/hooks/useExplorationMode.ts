@@ -27,12 +27,12 @@ import type { useSyncEngine } from './useSyncEngine';
  */
 export function useExplorationMode(engine: ReturnType<typeof useSyncEngine>) {
   const isExploring = useSyncStore(selectIsExploring);
-  const presenterSlide = useSyncStore(selectCurrentSlide);  // 0-indexed
+  const presenterSlide = useSyncStore(selectCurrentSlide); // 0-indexed
   const presenterDisconnected = useSyncStore(selectPresenterDisconnected);
   const session = useSyncStore(selectSession);
   const isPresenter = useSyncStore((s) => s.isPresenter);
 
-  const viewerPage = useViewerStore((s) => s.currentPage);      // 1-indexed
+  const viewerPage = useViewerStore((s) => s.currentPage); // 1-indexed
   const totalPages = useViewerStore((s) => s.totalPages);
   const viewerSetPage = useViewerStore((s) => s.setCurrentPage);
 
@@ -106,7 +106,7 @@ export function useExplorationMode(engine: ReturnType<typeof useSyncEngine>) {
 
   // ── Sync state analysis ───────────────────────────────────────────────────
 
-  const localSlide = viewerPage - 1;   // 0-indexed for comparison
+  const localSlide = viewerPage - 1; // 0-indexed for comparison
   const slideDelta = localSlide - presenterSlide;
   const isOutOfSync = isExploring && slideDelta !== 0;
   const isBehindPresenter = slideDelta < 0;

@@ -4,5 +4,7 @@
   "private": true,
   "description": "Shared Prettier configuration for SlideBot monorepo",
   "main": "index.js",
-  "files": ["index.js"]
+  "files": [
+    "index.js"
+  ]
 }

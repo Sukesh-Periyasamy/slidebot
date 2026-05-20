@@ -249,16 +249,8 @@ export class RoomManager {
     return members.filter((m): m is SessionMember => m !== null);
   }
 
-  async setExplorationMode(
-    sessionId: string,
-    userId: string,
-    isExploring: boolean
-  ): Promise<void> {
-    await this.redis.hset(
-      keys.memberInfo(sessionId, userId),
-      'isExploring',
-      isExploring ? 1 : 0
-    );
+  async setExplorationMode(sessionId: string, userId: string, isExploring: boolean): Promise<void> {
+    await this.redis.hset(keys.memberInfo(sessionId, userId), 'isExploring', isExploring ? 1 : 0);
   }
 
   async getMemberCount(sessionId: string): Promise<number> {

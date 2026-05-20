@@ -44,12 +44,13 @@ export function SessionConnector({ onOpenSlideBot }: SessionConnectorProps) {
       {/* Illustration */}
       <div style={{ textAlign: 'center', padding: '4px 0' }}>
         <div style={{ fontSize: 32, marginBottom: 6 }}>📊</div>
-        <p className="sb-text-sm sb-font-medium" style={{ color: 'var(--sb-text)', marginBottom: 4 }}>
+        <p
+          className="sb-text-sm sb-font-medium"
+          style={{ color: 'var(--sb-text)', marginBottom: 4 }}
+        >
           Join a presentation
         </p>
-        <p className="sb-text-xs sb-text-muted">
-          Enter a session code or start a new presentation
-        </p>
+        <p className="sb-text-xs sb-text-muted">Enter a session code or start a new presentation</p>
       </div>
 
       {/* Session code input */}
@@ -67,7 +68,9 @@ export function SessionConnector({ onOpenSlideBot }: SessionConnectorProps) {
         />
 
         {error && (
-          <p className="sb-text-xs" style={{ color: '#EF4444' }}>{error}</p>
+          <p className="sb-text-xs" style={{ color: '#EF4444' }}>
+            {error}
+          </p>
         )}
 
         <button
@@ -87,10 +90,7 @@ export function SessionConnector({ onOpenSlideBot }: SessionConnectorProps) {
       </div>
 
       {/* Start new */}
-      <button
-        className="sb-btn sb-btn--secondary sb-w-full"
-        onClick={onOpenSlideBot}
-      >
+      <button className="sb-btn sb-btn--secondary sb-w-full" onClick={onOpenSlideBot}>
         Start a new presentation ↗
       </button>
     </div>

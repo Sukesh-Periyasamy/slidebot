@@ -11,9 +11,8 @@ interface SlideControlsProps {
 }
 
 export function SlideControls({ session, status }: SlideControlsProps) {
-  const progress = session.totalSlides > 0
-    ? ((session.currentSlide + 1) / session.totalSlides) * 100
-    : 0;
+  const progress =
+    session.totalSlides > 0 ? ((session.currentSlide + 1) / session.totalSlides) * 100 : 0;
 
   const isPresenter = status.sessionId === session.presenterId;
 

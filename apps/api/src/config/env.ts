@@ -23,9 +23,7 @@ const envSchema = z.object({
   REDIS_URL: z.string().default('redis://localhost:6379'),
 
   // Security
-  CORS_ORIGINS: z
-    .string()
-    .transform((val) => val.split(',').map((s) => s.trim())),
+  CORS_ORIGINS: z.string().transform((val) => val.split(',').map((s) => s.trim())),
   JWT_SECRET: z.string().min(32),
 
   // Rate limiting

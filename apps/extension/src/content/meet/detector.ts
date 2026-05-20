@@ -145,10 +145,7 @@ export class MeetDetector {
     const detect = () => {
       const bodyText = document.body.innerText;
 
-      if (
-        document.querySelector('[data-call-ended]') ||
-        bodyText.includes('The call has ended')
-      ) {
+      if (document.querySelector('[data-call-ended]') || bodyText.includes('The call has ended')) {
         if (this.currentState !== 'ended') {
           this.currentState = 'ended';
           this.notifyHandlers();

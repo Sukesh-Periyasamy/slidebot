@@ -26,7 +26,9 @@ enum AnnotationTool {
   highlight
   arrow
   text
-  pointer
+  laser
+  select
+  eraser
 }
 
 enum SessionStatus {
@@ -94,8 +96,9 @@ model Slide {
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   // Relations
-  deck        Deck         @relation(fields: [deckId], references: [id], onDelete: Cascade)
-  annotations Annotation[]
+  deck                Deck                  @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  annotations         Annotation[]
+  annotationSnapshot  AnnotationSnapshot?
 
   @@index([deckId, position])
   @@map("slides")
@@ -119,21 +122,48 @@ model DeckCollaborator {
 model Annotation {
   id          String         @id @default(uuid())
   slideId     String         @map("slide_id")
+  /// Optional: groups annotation to a specific presentation session
+  sessionId   String?        @map("session_id")
   userId      String         @map("user_id")
+  displayName String         @default("") @map("display_name")
   tool        AnnotationTool
   color       String
   strokeWidth Float          @map("stroke_width")
-  /// JSON payload: { points, rect, text, position } depending on tool
+  opacity     Float          @default(1.0)
+  /// JSON payload — discriminated union per AnnotationData frontend type
   data        Json           @default("{}")
   isEphemeral Boolean        @default(false) @map("is_ephemeral")
+  deletedAt   DateTime?      @map("deleted_at")
   createdAt   DateTime       @default(now()) @map("created_at")
 
   // Relations
-  slide Slide @relation(fields: [slideId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id])
+  slide   Slide                @relation(fields: [slideId], references: [id], onDelete: Cascade)
+  user    User                 @relation(fields: [userId], references: [id])
+  session PresentationSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
   @@index([slideId])
+  @@index([sessionId])
+  @@index([slideId, deletedAt])
   @@map("annotations")
+}
+
+/// Pre-built JSON snapshot of all non-ephemeral annotations for a slide.
+/// Regenerated whenever a non-ephemeral annotation is added/deleted.
+/// Used for fast reconnect / rejoin restore (single SELECT instead of full scan).
+model AnnotationSnapshot {
+  id          String   @id @default(uuid())
+  slideId     String   @unique @map("slide_id")
+  sessionId   String?  @map("session_id")
+  /// Full JSON array of Annotation objects
+  payload     Json     @default("[]")
+  annotationCount Int  @default(0) @map("annotation_count")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  slide   Slide                @relation(fields: [slideId], references: [id], onDelete: Cascade)
+  session PresentationSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@map("annotation_snapshots")
 }
 
 model PresentationSession {
@@ -146,8 +176,10 @@ model PresentationSession {
   endedAt           DateTime?     @map("ended_at")
 
   // Relations
-  deck      Deck @relation(fields: [deckId], references: [id])
-  presenter User @relation("SessionPresenter", fields: [presenterId], references: [id])
+  deck                Deck                  @relation(fields: [deckId], references: [id])
+  presenter           User                  @relation("SessionPresenter", fields: [presenterId], references: [id])
+  annotations         Annotation[]
+  annotationSnapshots AnnotationSnapshot[]
 
   @@index([deckId])
   @@map("presentation_sessions")

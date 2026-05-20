@@ -89,11 +89,7 @@ export function useAnnotationSync({
     };
 
     // Incremental points from a remote user
-    const onAnnotationDraw = (payload: {
-      userId: string;
-      slideId: string;
-      points: number[];
-    }) => {
+    const onAnnotationDraw = (payload: { userId: string; slideId: string; points: number[] }) => {
       if (payload.userId === user?.id) return;
       if (payload.slideId !== slideId) return;
       store.appendLiveStrokePoints(payload.userId, payload.points);
@@ -111,10 +107,7 @@ export function useAnnotationSync({
     };
 
     // Annotation deleted
-    const onAnnotationDelete = (payload: {
-      slideId: string;
-      annotationId: string;
-    }) => {
+    const onAnnotationDelete = (payload: { slideId: string; annotationId: string }) => {
       if (payload.slideId !== slideId) return;
       store.removeAnnotation(payload.annotationId);
     };
@@ -202,8 +195,7 @@ export function useAnnotationSync({
       });
 
       Object.entries(store.laserPointers).forEach(([userId, laser]) => {
-        if (now - (laser as LaserPointerState).lastSeen > STALE_MS)
-          store.removeLaser(userId);
+        if (now - (laser as LaserPointerState).lastSeen > STALE_MS) store.removeLaser(userId);
       });
     }, 2000);
 

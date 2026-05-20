@@ -62,9 +62,7 @@ export async function storageGetMultiple<K extends keyof ExtensionStorageSchema>
 }
 
 /** Set one or more values in storage. */
-export async function storageSet(
-  updates: Partial<ExtensionStorageSchema>
-): Promise<void> {
+export async function storageSet(updates: Partial<ExtensionStorageSchema>): Promise<void> {
   await chrome.storage.local.set(updates);
 }
 
@@ -108,19 +106,14 @@ export async function getAuthToken(): Promise<string | null> {
   return storageGet('authToken');
 }
 
-export async function mapMeetToSession(
-  meetCode: string,
-  sessionId: string
-): Promise<void> {
+export async function mapMeetToSession(meetCode: string, sessionId: string): Promise<void> {
   const existing = await storageGet('meetSessionMap');
   await storageSet({
     meetSessionMap: { ...existing, [meetCode]: sessionId },
   });
 }
 
-export async function getSessionForMeet(
-  meetCode: string
-): Promise<string | null> {
+export async function getSessionForMeet(meetCode: string): Promise<string | null> {
   const map = await storageGet('meetSessionMap');
   return map[meetCode] ?? null;
 }

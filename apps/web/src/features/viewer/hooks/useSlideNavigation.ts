@@ -1,10 +1,6 @@
 import { useEffect, useCallback } from 'react';
 
-import {
-  selectCanGoNext,
-  selectCanGoPrev,
-  useViewerStore,
-} from '../store/viewerStore';
+import { selectCanGoNext, selectCanGoPrev, useViewerStore } from '../store/viewerStore';
 
 /**
  * useSlideNavigation — keyboard shortcuts and navigation actions.

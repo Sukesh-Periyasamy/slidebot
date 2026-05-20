@@ -1,27 +1,41 @@
 /**
- * Socket.IO client singleton.
+ * Socket.IO client singleton — enhanced with exponential backoff reconnection.
  *
  * Manages connections to the /presenter and /collaboration namespaces.
  * Call connect() once after login and disconnect() on logout.
- * Both namespaces share the same underlying transport.
+ *
+ * Reconnect strategy:
+ * - Socket.IO handles transport-level reconnection
+ * - Application-level recovery (session state restore) is handled by
+ *   useReconnectRecovery after the 'connect' event fires
+ * - Token refresh on Supabase auth change
  */
 import { io, type Socket } from 'socket.io-client';
 import { supabase } from '@/lib/supabase';
 import { logger } from './logger';
 
-const API_URL = import.meta.env['VITE_API_URL'] as string ?? 'http://localhost:4000';
+const API_URL = (import.meta.env['VITE_API_URL'] as string) ?? 'http://localhost:4000';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Connection state
 // ─────────────────────────────────────────────────────────────────────────────
 
-type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+export type ConnectionStatus =
+  | 'disconnected'
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'error';
 
 interface SocketState {
   presenterSocket: Socket | null;
   collaborationSocket: Socket | null;
   status: ConnectionStatus;
   listeners: Set<(status: ConnectionStatus) => void>;
+  /** Number of reconnect attempts since last clean connect */
+  reconnectAttempts: number;
+  /** Whether this is a reconnect (vs initial connect) */
+  hasConnectedOnce: boolean;
 }
 
 const state: SocketState = {
@@ -29,11 +43,34 @@ const state: SocketState = {
   collaborationSocket: null,
   status: 'disconnected',
   listeners: new Set(),
+  reconnectAttempts: 0,
+  hasConnectedOnce: false,
 };
 
 function setStatus(s: ConnectionStatus) {
   state.status = s;
   state.listeners.forEach((fn) => fn(s));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Socket.IO options — tuned for resilient reconnection
+// ─────────────────────────────────────────────────────────────────────────────
+
+function buildSocketOpts(token: string) {
+  return {
+    auth: { token },
+    transports: ['websocket', 'polling'] as ['websocket', 'polling'],
+    // Socket.IO built-in reconnection
+    reconnection: true,
+    reconnectionDelay: 1_000, // 1s initial delay
+    reconnectionDelayMax: 20_000, // 20s max
+    reconnectionAttempts: 15, // Try 15x before giving up
+    randomizationFactor: 0.3, // 30% jitter
+    timeout: 10_000,
+    // Application-level ping handled separately via heartbeat.ts
+    pingTimeout: 30_000,
+    pingInterval: 25_000,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,39 +87,58 @@ export async function connectSocket(): Promise<void> {
   const token = data.session?.access_token;
 
   if (!token) {
+    logger.error('[Socket] No auth token — cannot connect');
     setStatus('error');
     return;
   }
 
-  const opts = {
-    auth: { token },
-    transports: ['websocket', 'polling'] as ['websocket', 'polling'],
-    reconnection: true,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
-    reconnectionAttempts: 10,
-    timeout: 10_000,
-  };
+  const opts = buildSocketOpts(token);
 
-  // ── /presenter namespace ──────────────────────────────────────────────────
+  // ── /presenter namespace ────────────────────────────────────────────────────
   const presenterSocket = io(`${API_URL}/presenter`, opts);
 
   presenterSocket.on('connect', () => {
+    const isReconnect = state.hasConnectedOnce;
+    state.hasConnectedOnce = true;
+    state.reconnectAttempts = 0;
+
     setStatus('connected');
-    logger.log('[Socket] /presenter connected', presenterSocket.id);
+    logger.log(`[Socket] /presenter ${isReconnect ? 're' : ''}connected`, presenterSocket.id);
   });
 
   presenterSocket.on('disconnect', (reason) => {
     logger.warn('[Socket] /presenter disconnected:', reason);
-    if (reason !== 'io client disconnect') setStatus('connecting');
+    // Don't set status on intentional disconnect (logout)
+    if (reason !== 'io client disconnect') {
+      setStatus('reconnecting');
+    }
+  });
+
+  presenterSocket.on('reconnect_attempt', (attemptNumber) => {
+    state.reconnectAttempts = attemptNumber;
+    setStatus('reconnecting');
+    logger.log(`[Socket] Reconnect attempt ${attemptNumber}`);
+  });
+
+  presenterSocket.on('reconnect', (attemptNumber) => {
+    logger.log(`[Socket] Reconnected after ${attemptNumber} attempts`);
+    setStatus('connected');
+  });
+
+  presenterSocket.on('reconnect_failed', () => {
+    logger.error('[Socket] Reconnect failed after all attempts');
+    setStatus('error');
   });
 
   presenterSocket.on('connect_error', (err) => {
     logger.error('[Socket] /presenter connect error:', err.message);
-    setStatus('error');
+    // Only set error on initial connection failure; reconnects handled above
+    if (!state.hasConnectedOnce) {
+      setStatus('error');
+    }
   });
 
-  // ── /collaboration namespace ──────────────────────────────────────────────
+  // ── /collaboration namespace ────────────────────────────────────────────────
   const collaborationSocket = io(`${API_URL}/collaboration`, opts);
 
   collaborationSocket.on('connect', () => {
@@ -93,11 +149,17 @@ export async function connectSocket(): Promise<void> {
     logger.warn('[Socket] /collaboration disconnected:', reason);
   });
 
-  // Token refresh: re-auth on token expiry
+  collaborationSocket.on('reconnect', () => {
+    logger.log('[Socket] /collaboration reconnected');
+  });
+
+  // ── Token refresh on Supabase auth change ──────────────────────────────────
   supabase.auth.onAuthStateChange(async (_event, session) => {
     if (session?.access_token) {
-      presenterSocket.auth = { token: session.access_token };
-      collaborationSocket.auth = { token: session.access_token };
+      const newToken = session.access_token;
+      presenterSocket.auth = { token: newToken };
+      collaborationSocket.auth = { token: newToken };
+      logger.log('[Socket] Auth token refreshed');
     }
   });
 
@@ -110,6 +172,8 @@ export function disconnectSocket(): void {
   state.collaborationSocket?.disconnect();
   state.presenterSocket = null;
   state.collaborationSocket = null;
+  state.hasConnectedOnce = false;
+  state.reconnectAttempts = 0;
   setStatus('disconnected');
 }
 
@@ -135,20 +199,11 @@ export function getConnectionStatus(): ConnectionStatus {
   return state.status;
 }
 
+export function isReconnect(): boolean {
+  return state.hasConnectedOnce && state.reconnectAttempts > 0;
+}
+
 export function onStatusChange(fn: (status: ConnectionStatus) => void): () => void {
   state.listeners.add(fn);
   return () => state.listeners.delete(fn);
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Utility logger (browser-safe)
-// ─────────────────────────────────────────────────────────────────────────────
-const logger = {
-  log: (...args: unknown[]) => {
-    if (import.meta.env.DEV) console.log(...args);
-  },
-  warn: (...args: unknown[]) => {
-    if (import.meta.env.DEV) console.warn(...args);
-  },
-  error: (...args: unknown[]) => console.error(...args),
-};

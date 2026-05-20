@@ -18,10 +18,7 @@ import {
 } from 'lucide-react';
 
 import { useViewerStore, type ZoomPreset } from '@/features/viewer/store/viewerStore';
-import {
-  useAnnotationStore,
-  selectToolConfig,
-} from '@/features/annotation/store/annotationStore';
+import { useAnnotationStore, selectToolConfig } from '@/features/annotation/store/annotationStore';
 import type { AnnotationTool } from '@/features/annotation/types/annotation.types';
 import { ANNOTATION_COLORS } from '@/features/annotation/types/annotation.types';
 import { selectIsPresenter, useSyncStore } from '../store/syncStore';
@@ -44,7 +41,11 @@ const ZOOM_PRESETS: { label: string; value: ZoomPreset }[] = [
   { label: '150%', value: 1.5 },
 ];
 
-const ANNOTATION_TOOLS: { tool: AnnotationTool; Icon: React.FC<{ size?: number }>; label: string }[] = [
+const ANNOTATION_TOOLS: {
+  tool: AnnotationTool;
+  Icon: React.FC<{ size?: number }>;
+  label: string;
+}[] = [
   { tool: 'select', Icon: MousePointer2, label: 'Select' },
   { tool: 'freehand', Icon: Pencil, label: 'Draw' },
   { tool: 'highlight', Icon: Highlighter, label: 'Highlight' },
@@ -87,7 +88,6 @@ export function PresenterControls({
 
   return (
     <div className="relative flex items-center justify-between px-4 py-2 border-t border-surface-800 bg-surface-900/80 backdrop-blur-sm">
-
       {/* ── Left: Annotation toolbar ───────────────────────────────────── */}
       <div className="flex items-center gap-1">
         {ANNOTATION_TOOLS.map(({ tool, Icon, label }) => (
@@ -113,9 +113,7 @@ export function PresenterControls({
               onClick={() => setColor(color)}
               title={color}
               className={`h-4 w-4 rounded-full border-2 transition-transform hover:scale-110 ${
-                toolConfig.color === color
-                  ? 'border-white scale-110'
-                  : 'border-transparent'
+                toolConfig.color === color ? 'border-white scale-110' : 'border-transparent'
               }`}
               style={{ backgroundColor: color }}
             />
@@ -174,11 +172,15 @@ export function PresenterControls({
 
         {/* Page counter */}
         <div className="flex items-center gap-1 text-sm font-medium">
-          <PageInput currentPage={viewerPage} totalPages={totalPages} onNavigate={
-            isPresenter
-              ? (p) => exploration.presenterGoto(p - 1)
-              : (p) => exploration.navigateToPage(p)
-          } />
+          <PageInput
+            currentPage={viewerPage}
+            totalPages={totalPages}
+            onNavigate={
+              isPresenter
+                ? (p) => exploration.presenterGoto(p - 1)
+                : (p) => exploration.navigateToPage(p)
+            }
+          />
           <span className="text-surface-600">/</span>
           <span className="text-surface-500 text-sm">{totalPages}</span>
         </div>

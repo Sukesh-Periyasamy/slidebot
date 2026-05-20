@@ -31,11 +31,17 @@ export const deckIdSchema = z.object({
 
 export const createSlideSchema = z.object({
   position: z.number().int().positive().optional(),
-  backgroundColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid hex color').optional(),
+  backgroundColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid hex color')
+    .optional(),
 });
 
 export const updateSlideSchema = z.object({
-  backgroundColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  backgroundColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .optional(),
   backgroundImageUrl: z.string().url().nullable().optional(),
 });
 

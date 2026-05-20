@@ -9,6 +9,8 @@ import type {
 import { logger } from '../../config/logger';
 import { roomManager } from '../room-manager';
 import { getPresenceColor } from '@slidebot/shared-utils';
+import { attachHeartbeat } from '../heartbeat';
+import { initiatePresenterGrace } from '../reconnect-handler';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -31,15 +33,21 @@ type PresenterNamespace = Namespace<
 // Extended events specific to presenter namespace
 // (These supplement the shared types with session-specific events)
 interface PresenterClientEvents {
-  'session:create': (payload: {
-    deckId: string;
-    totalSlides: number;
-  }, ack: (res: SessionAckResponse) => void) => void;
+  'session:create': (
+    payload: {
+      deckId: string;
+      totalSlides: number;
+    },
+    ack: (res: SessionAckResponse) => void
+  ) => void;
 
-  'session:join': (payload: {
-    sessionId?: string;
-    deckId: string;
-  }, ack: (res: SessionAckResponse) => void) => void;
+  'session:join': (
+    payload: {
+      sessionId?: string;
+      deckId: string;
+    },
+    ack: (res: SessionAckResponse) => void
+  ) => void;
 
   'session:end': (payload: { sessionId: string }) => void;
 
@@ -115,6 +123,9 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
     const { userId, displayName, avatarUrl, color } = socket.data;
     logger.info({ userId, socketId: socket.id }, 'User connected to /presenter');
 
+    // Attach application-level heartbeat (supplements Socket.IO's built-in)
+    attachHeartbeat(socket, { namespace: '/presenter', userId });
+
     // ── session:create ────────────────────────────────────────────────────
     extSocket.on('session:create', async (payload: unknown, ack: unknown) => {
       const { deckId, totalSlides } = payload as { deckId: string; totalSlides: number };
@@ -125,7 +136,14 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
         const existing = await roomManager.getActiveSessionForDeck(deckId);
         if (existing && existing.status === 'active') {
           // Join the existing session instead
-          await handleJoinSession(extSocket, userId, displayName, avatarUrl, color, existing.sessionId);
+          await handleJoinSession(
+            extSocket,
+            userId,
+            displayName,
+            avatarUrl,
+            color,
+            existing.sessionId
+          );
           const members = await roomManager.getMembers(existing.sessionId);
           callback({
             ok: true,
@@ -186,7 +204,12 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
         }
 
         const session = await handleJoinSession(
-          extSocket, userId, displayName, avatarUrl, color, targetSessionId
+          extSocket,
+          userId,
+          displayName,
+          avatarUrl,
+          color,
+          targetSessionId
         );
 
         if (!session) {
@@ -211,7 +234,11 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
 
     // ── slide:goto ────────────────────────────────────────────────────────
     extSocket.on('slide:goto', async (payload: unknown) => {
-      const { sessionId, slideIndex, sequenceNum: clientSeq } = payload as {
+      const {
+        sessionId,
+        slideIndex,
+        sequenceNum: clientSeq,
+      } = payload as {
         sessionId: string;
         slideIndex: number;
         sequenceNum: number;
@@ -232,18 +259,18 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
         const { session, sequenceNum } = result;
 
         // Broadcast to ALL in room (including sender for confirmation)
-        ns.to(`session:${sessionId}`).emit('slide:changed' as never, {
-          sessionId,
-          slideIndex: session.currentSlide,
-          presenterId: session.presenterId,
-          sequenceNum,
-          serverTimestamp: Date.now(),
-        } as never);
-
-        logger.debug(
-          { sessionId, slideIndex: session.currentSlide, sequenceNum },
-          'Slide changed'
+        ns.to(`session:${sessionId}`).emit(
+          'slide:changed' as never,
+          {
+            sessionId,
+            slideIndex: session.currentSlide,
+            presenterId: session.presenterId,
+            sequenceNum,
+            serverTimestamp: Date.now(),
+          } as never
         );
+
+        logger.debug({ sessionId, slideIndex: session.currentSlide, sequenceNum }, 'Slide changed');
       } catch (err) {
         logger.error({ err }, 'slide:goto error');
       }
@@ -258,9 +285,7 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
       };
 
       try {
-        const session = await roomManager.handoffPresenter(
-          sessionId, userId, toUserId, toUserName
-        );
+        const session = await roomManager.handoffPresenter(sessionId, userId, toUserId, toUserName);
 
         if (!session) {
           socket.emit('error', {
@@ -271,12 +296,15 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
         }
 
         // Broadcast handoff to all participants
-        ns.to(`session:${sessionId}`).emit('presenter:changed' as never, {
-          sessionId,
-          newPresenterId: toUserId,
-          newPresenterName: toUserName,
-          previousPresenterId: userId,
-        } as never);
+        ns.to(`session:${sessionId}`).emit(
+          'presenter:changed' as never,
+          {
+            sessionId,
+            newPresenterId: toUserId,
+            newPresenterName: toUserName,
+            previousPresenterId: userId,
+          } as never
+        );
 
         logger.info({ sessionId, from: userId, to: toUserId }, 'Presenter handoff');
       } catch (err) {
@@ -303,14 +331,17 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
       // Send current slide so viewer snaps back immediately
       const session = await roomManager.getSession(sessionId);
       if (session) {
-        socket.emit('slide:changed' as never, {
-          sessionId,
-          slideIndex: session.currentSlide,
-          presenterId: session.presenterId,
-          sequenceNum: session.sequenceNum,
-          serverTimestamp: Date.now(),
-          isSnapback: true, // Client uses this to skip transition animation
-        } as never);
+        socket.emit(
+          'slide:changed' as never,
+          {
+            sessionId,
+            slideIndex: session.currentSlide,
+            presenterId: session.presenterId,
+            sequenceNum: session.sequenceNum,
+            serverTimestamp: Date.now(),
+            isSnapback: true, // Client uses this to skip transition animation
+          } as never
+        );
       }
 
       logger.debug({ sessionId, userId }, 'Viewer followed presenter');
@@ -325,10 +356,13 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
 
       await roomManager.endSession(sessionId);
 
-      ns.to(`session:${sessionId}`).emit('session:ended' as never, {
-        sessionId,
-        endedBy: userId,
-      } as never);
+      ns.to(`session:${sessionId}`).emit(
+        'session:ended' as never,
+        {
+          sessionId,
+          endedBy: userId,
+        } as never
+      );
 
       logger.info({ sessionId, userId }, 'Session ended by presenter');
     });
@@ -338,27 +372,42 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
       logger.info({ userId, reason }, 'User disconnected from /presenter');
 
       // Find any active sessions this user was in
-      // (Socket.IO rooms give us this — iterate over socket.rooms)
       const rooms = Array.from(socket.rooms).filter((r) => r.startsWith('session:'));
 
       for (const room of rooms) {
         const sessionId = room.replace('session:', '');
-        await roomManager.removeMember(sessionId, userId);
 
-        // Notify others
-        extSocket.to(room).emit('participant:left' as never, {
-          sessionId,
-          userId,
-          displayName,
-        } as never);
-
-        // Check if presenter disconnected — warn others
+        // Check if presenter disconnected BEFORE removing member
         const session = await roomManager.getSession(sessionId);
-        if (session && session.presenterId === userId) {
-          extSocket.to(room).emit('presenter:disconnected' as never, {
-            sessionId,
-            presenterId: userId,
-          } as never);
+        const wasPresenter = session && session.presenterId === userId;
+
+        // Only remove if truly gone (not just reconnecting)
+        // We keep member for grace period so reconnect can restore cleanly
+        if (!wasPresenter) {
+          await roomManager.removeMember(sessionId, userId);
+          extSocket.to(room).emit(
+            'participant:left' as never,
+            {
+              sessionId,
+              userId,
+              displayName,
+            } as never
+          );
+        } else {
+          // Presenter disconnected — start grace period
+          // Don't remove member yet; they may reconnect within GRACE_MS
+          extSocket.to(room).emit(
+            'presenter:disconnected' as never,
+            {
+              sessionId,
+              presenterId: userId,
+            } as never
+          );
+
+          // Grace period: if presenter doesn't return in 15s, notify room
+          initiatePresenterGrace(sessionId, userId, ns);
+
+          logger.info({ sessionId, userId }, 'Presenter disconnected — grace period started');
         }
       }
     });
@@ -370,7 +419,10 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function handleJoinSession(
-  socket: { join: (room: string) => Promise<void>; to: (room: string) => { emit: (e: string, p: unknown) => void } },
+  socket: {
+    join: (room: string) => Promise<void>;
+    to: (room: string) => { emit: (e: string, p: unknown) => void };
+  },
   userId: string,
   displayName: string,
   avatarUrl: string | null,

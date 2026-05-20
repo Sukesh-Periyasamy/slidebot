@@ -103,20 +103,30 @@ export const useAnnotationStore = create<AnnotationState>()(
           }),
 
         setColor: (color) =>
-          set((s) => { s.toolConfig.color = color; }),
+          set((s) => {
+            s.toolConfig.color = color;
+          }),
 
         setStrokeWidth: (strokeWidth) =>
-          set((s) => { s.toolConfig.strokeWidth = strokeWidth; }),
+          set((s) => {
+            s.toolConfig.strokeWidth = strokeWidth;
+          }),
 
         setOpacity: (opacity) =>
-          set((s) => { s.toolConfig.opacity = opacity; }),
+          set((s) => {
+            s.toolConfig.opacity = opacity;
+          }),
 
         setIsAnnotating: (isAnnotating) =>
-          set((s) => { s.isAnnotating = isAnnotating; }),
+          set((s) => {
+            s.isAnnotating = isAnnotating;
+          }),
 
         // ── Active stroke ─────────────────────────────────────────────────
         startStroke: (annotation) =>
-          set((s) => { s.activeStroke = annotation; }),
+          set((s) => {
+            s.activeStroke = annotation;
+          }),
 
         appendStrokePoints: (points) =>
           set((s) => {
@@ -137,11 +147,15 @@ export const useAnnotationStore = create<AnnotationState>()(
         },
 
         cancelStroke: () =>
-          set((s) => { s.activeStroke = null; }),
+          set((s) => {
+            s.activeStroke = null;
+          }),
 
         // ── Annotations ───────────────────────────────────────────────────
         addAnnotation: (annotation) =>
-          set((s) => { s.annotations[annotation.id] = annotation; }),
+          set((s) => {
+            s.annotations[annotation.id] = annotation;
+          }),
 
         updateAnnotation: (id, updates) =>
           set((s) => {
@@ -151,7 +165,9 @@ export const useAnnotationStore = create<AnnotationState>()(
           }),
 
         removeAnnotation: (id) =>
-          set((s) => { delete s.annotations[id]; }),
+          set((s) => {
+            delete s.annotations[id];
+          }),
 
         loadAnnotations: (annotations) =>
           set((s) => {
@@ -166,7 +182,9 @@ export const useAnnotationStore = create<AnnotationState>()(
 
         // ── Live strokes ──────────────────────────────────────────────────
         setLiveStroke: (userId, stroke) =>
-          set((s) => { s.liveStrokes[userId] = stroke; }),
+          set((s) => {
+            s.liveStrokes[userId] = stroke;
+          }),
 
         appendLiveStrokePoints: (userId, points) =>
           set((s) => {
@@ -182,21 +200,31 @@ export const useAnnotationStore = create<AnnotationState>()(
           }),
 
         removeLiveStroke: (userId) =>
-          set((s) => { delete s.liveStrokes[userId]; }),
+          set((s) => {
+            delete s.liveStrokes[userId];
+          }),
 
         // ── Cursors ───────────────────────────────────────────────────────
         updateCursor: (userId, cursor) =>
-          set((s) => { s.cursors[userId] = cursor; }),
+          set((s) => {
+            s.cursors[userId] = cursor;
+          }),
 
         removeCursor: (userId) =>
-          set((s) => { delete s.cursors[userId]; }),
+          set((s) => {
+            delete s.cursors[userId];
+          }),
 
         // ── Laser pointers ────────────────────────────────────────────────
         updateLaser: (userId, laser) =>
-          set((s) => { s.laserPointers[userId] = laser; }),
+          set((s) => {
+            s.laserPointers[userId] = laser;
+          }),
 
         removeLaser: (userId) =>
-          set((s) => { delete s.laserPointers[userId]; }),
+          set((s) => {
+            delete s.laserPointers[userId];
+          }),
       }))
     ),
     { name: 'AnnotationStore' }

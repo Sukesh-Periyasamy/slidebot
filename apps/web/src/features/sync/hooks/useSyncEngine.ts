@@ -1,3 +1,14 @@
+/**
+ * useSyncEngine — wires the /presenter socket to the SyncStore.
+ *
+ * Enhanced with:
+ * - Full reconnect recovery via useReconnectRecovery
+ * - Session state persistence to sessionStorage (survives refresh)
+ * - Heartbeat via useHeartbeat
+ * - Exploration mode persistence across disconnects
+ * - Sequence-number-based conflict resolution
+ */
+
 import { useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -6,9 +17,15 @@ import {
   connectSocket,
   getPresenterSocket,
   onStatusChange,
+  isReconnect,
 } from '@/features/collaboration/lib/socketClient';
 import { useSyncStore } from '../store/syncStore';
 import type { SyncSession, SessionMember } from '../store/syncStore';
+import {
+  useReconnectRecovery,
+  persistReconnectState,
+  clearReconnectState,
+} from './useReconnectRecovery';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types matching server payloads
@@ -35,7 +52,7 @@ interface ServerMember {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// useSyncEngine — wires the /presenter socket to the SyncStore
+// useSyncEngine
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface UseSyncEngineOptions {
@@ -45,6 +62,8 @@ interface UseSyncEngineOptions {
   onSlideChange?: (slideIndex: number) => void;
   /** Called when session ends */
   onSessionEnd?: () => void;
+  /** Called when annotation restore should trigger */
+  onAnnotationRestore?: (slideId: string) => void;
 }
 
 export function useSyncEngine({
@@ -52,6 +71,7 @@ export function useSyncEngine({
   totalSlides,
   onSlideChange,
   onSessionEnd,
+  onAnnotationRestore,
 }: UseSyncEngineOptions) {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -59,7 +79,18 @@ export function useSyncEngine({
   const sessionIdRef = useRef<string | null>(null);
   const hasJoinedRef = useRef(false);
 
+  // ── Reconnect recovery hook ───────────────────────────────────────────────
+
+  const { recover } = useReconnectRecovery({
+    deckId,
+    sessionId: sessionIdRef.current,
+    userId: user?.id ?? '',
+    onSlideRestored: onSlideChange,
+    onAnnotationRestore,
+  });
+
   // ── Connect and join session on mount ─────────────────────────────────────
+
   useEffect(() => {
     if (!user || hasJoinedRef.current) return;
 
@@ -69,9 +100,9 @@ export function useSyncEngine({
       await connectSocket();
       const socket = getPresenterSocket();
 
-      // ── Register all incoming event handlers ─────────────────────────
+      // ── Register all incoming event handlers ──────────────────────────
 
-      // Full session state on join
+      // Full session state — sent on join ack AND can be re-sent by server
       const onSessionState = (payload: {
         session: ServerSession;
         members: ServerMember[];
@@ -80,13 +111,16 @@ export function useSyncEngine({
         const { session, members, isPresenter } = payload;
         sessionIdRef.current = session.sessionId;
 
-        store.initSession(
-          normaliseSession(session),
-          members.map(normaliseMember),
-          isPresenter
-        );
+        store.initSession(normaliseSession(session), members.map(normaliseMember), isPresenter);
 
         store.setConnectionStatus('connected');
+
+        // Persist session state for reconnect recovery
+        persistReconnectState({
+          sessionId: session.sessionId,
+          isExploring: store.isExploring,
+          localSlide: session.currentSlide,
+        });
       };
 
       // Slide changed by presenter
@@ -99,9 +133,20 @@ export function useSyncEngine({
       }) => {
         store.updateCurrentSlide(payload.slideIndex, payload.sequenceNum);
 
-        // If not exploring, update PDF viewer position
+        // If not exploring (or snapback forced), update PDF viewer position
         if (!store.isExploring || payload.isSnapback) {
           onSlideChange?.(payload.slideIndex);
+        }
+
+        // Keep sessionStorage in sync for reconnect restore
+        if (sessionIdRef.current) {
+          persistReconnectState({
+            sessionId: sessionIdRef.current,
+            isExploring: store.isExploring,
+            localSlide: store.isExploring
+              ? (store.session?.currentSlide ?? payload.slideIndex)
+              : payload.slideIndex,
+          });
         }
       };
 
@@ -121,27 +166,30 @@ export function useSyncEngine({
 
         if (isNowPresenter) {
           store.receiveHandoff();
-          // Brief UI confirmation, then settle
           setTimeout(() => store.completeHandoff(), 1500);
         } else if (wasPresenter) {
           store.completeHandoff();
-          // Former presenter goes to explorer mode briefly then follows
           setTimeout(() => store.setIsExploring(false), 500);
         }
       };
 
-      // Someone joined the session
-      const onParticipantJoined = (payload: {
-        sessionId: string;
-        member: ServerMember;
-      }) => {
+      // Someone joined or reconnected
+      const onParticipantJoined = (payload: { sessionId: string; member: ServerMember }) => {
         store.addMember({
           ...normaliseMember(payload.member),
           isConnected: true,
         });
       };
 
-      // Someone left the session
+      const onParticipantReconnected = (payload: {
+        sessionId: string;
+        userId: string;
+        displayName: string;
+      }) => {
+        store.setMemberConnected(payload.userId, true);
+      };
+
+      // Someone left
       const onParticipantLeft = (payload: {
         sessionId: string;
         userId: string;
@@ -151,19 +199,23 @@ export function useSyncEngine({
       };
 
       // Presenter disconnected (grace period starts)
-      const onPresenterDisconnected = (payload: {
-        sessionId: string;
-        presenterId: string;
-      }) => {
+      const onPresenterDisconnected = (payload: { sessionId: string; presenterId: string }) => {
         if (payload.presenterId === user.id) return; // That's us reconnecting
         store.setPresenterDisconnected(true);
         store.setMemberConnected(payload.presenterId, false);
       };
 
       // Presenter reconnected within grace period
-      const onPresenterReconnected = (payload: { presenterId: string }) => {
+      const onPresenterReconnected = (payload: { presenterId: string; presenterName: string }) => {
         store.setPresenterDisconnected(false);
         store.setMemberConnected(payload.presenterId, true);
+      };
+
+      // Grace period expired — presenter didn't return
+      const onPresenterGraceExpired = (payload: { sessionId: string; presenterId: string }) => {
+        // UI should now show "Take over" or "Waiting" options
+        // setPresenterDisconnected stays true, grace expired flag added
+        store.setPresenterDisconnected(true);
       };
 
       // Viewer entered exploration mode
@@ -172,34 +224,42 @@ export function useSyncEngine({
       };
 
       // Session ended
-      const onSessionEnded = () => {
+      const onSessionEnded = (_payload: { sessionId: string; reason?: string }) => {
         store.endSession();
+        clearReconnectState();
         onSessionEnd?.();
         setTimeout(() => navigate('/dashboard'), 2000);
       };
 
       // Register all listeners
       socket.on('session:state', onSessionState);
-      socket.on('slide:changed', onSlideChanged);
-      socket.on('presenter:changed', onPresenterChanged);
-      socket.on('participant:joined', onParticipantJoined);
-      socket.on('participant:left', onParticipantLeft);
-      socket.on('presenter:disconnected', onPresenterDisconnected);
-      socket.on('presenter:reconnected', onPresenterReconnected);
-      socket.on('viewer:exploring', onViewerExploring);
-      socket.on('session:ended', onSessionEnded);
+      socket.on('slide:changed', onSlideChanged as never);
+      socket.on('presenter:changed', onPresenterChanged as never);
+      socket.on('participant:joined', onParticipantJoined as never);
+      socket.on('participant:reconnected', onParticipantReconnected as never);
+      socket.on('participant:left', onParticipantLeft as never);
+      socket.on('presenter:disconnected', onPresenterDisconnected as never);
+      socket.on('presenter:reconnected', onPresenterReconnected as never);
+      socket.on('presenter:grace_expired', onPresenterGraceExpired as never);
+      socket.on('viewer:exploring', onViewerExploring as never);
+      socket.on('session:ended', onSessionEnded as never);
 
-      // ── Track socket connection status ────────────────────────────────
+      // ── Track socket connection status ─────────────────────────────────
+
       const unsubStatus = onStatusChange((status) => {
-        if (status === 'connecting') store.setConnectionStatus('reconnecting');
-        else if (status === 'error') store.setConnectionStatus('error');
+        if (status === 'connecting' || status === 'reconnecting') {
+          store.setConnectionStatus('reconnecting');
+        } else if (status === 'error') {
+          store.setConnectionStatus('error');
+        }
       });
 
-      socket.on('connect', () => {
+      socket.on('connect', async () => {
         store.setConnectionStatus('connected');
-        // Re-join on reconnect to get full state
-        if (sessionIdRef.current && hasJoinedRef.current) {
-          socket.emit('session:join', { deckId, sessionId: sessionIdRef.current }, () => {});
+
+        // If this is a reconnect (not initial connect), run full recovery
+        if (sessionIdRef.current && hasJoinedRef.current && isReconnect()) {
+          await recover();
         }
       });
 
@@ -207,22 +267,27 @@ export function useSyncEngine({
         store.setConnectionStatus('reconnecting');
       });
 
-      // ── Join or create session ────────────────────────────────────────
+      // ── Join or create session ─────────────────────────────────────────
       hasJoinedRef.current = true;
 
       socket.emit(
         'session:join',
         { deckId },
-        (res: { ok: boolean; session?: ServerSession; members?: ServerMember[]; isPresenter?: boolean; error?: string }) => {
+        (res: {
+          ok: boolean;
+          session?: ServerSession;
+          members?: ServerMember[];
+          isPresenter?: boolean;
+          error?: string;
+        }) => {
           if (res.ok && res.session) {
-            // Joined existing session
             onSessionState({
               session: res.session,
               members: res.members ?? [],
               isPresenter: res.isPresenter ?? false,
             });
           } else if (res.error === 'No active session found for this deck') {
-            // No session — create one (first user becomes presenter)
+            // No session — first user becomes presenter
             socket.emit(
               'session:create',
               { deckId, totalSlides },
@@ -242,14 +307,16 @@ export function useSyncEngine({
 
       cleanup = () => {
         socket.off('session:state', onSessionState);
-        socket.off('slide:changed', onSlideChanged);
-        socket.off('presenter:changed', onPresenterChanged);
-        socket.off('participant:joined', onParticipantJoined);
-        socket.off('participant:left', onParticipantLeft);
-        socket.off('presenter:disconnected', onPresenterDisconnected);
-        socket.off('presenter:reconnected', onPresenterReconnected);
-        socket.off('viewer:exploring', onViewerExploring);
-        socket.off('session:ended', onSessionEnded);
+        socket.off('slide:changed', onSlideChanged as never);
+        socket.off('presenter:changed', onPresenterChanged as never);
+        socket.off('participant:joined', onParticipantJoined as never);
+        socket.off('participant:reconnected', onParticipantReconnected as never);
+        socket.off('participant:left', onParticipantLeft as never);
+        socket.off('presenter:disconnected', onPresenterDisconnected as never);
+        socket.off('presenter:reconnected', onPresenterReconnected as never);
+        socket.off('presenter:grace_expired', onPresenterGraceExpired as never);
+        socket.off('viewer:exploring', onViewerExploring as never);
+        socket.off('session:ended', onSessionEnded as never);
         unsubStatus();
       };
     };
@@ -264,33 +331,48 @@ export function useSyncEngine({
 
   // ── Actions exposed to components ─────────────────────────────────────────
 
-  const gotoSlide = useCallback((slideIndex: number) => {
-    if (!store.isPresenter || !sessionIdRef.current) return;
+  const gotoSlide = useCallback(
+    (slideIndex: number) => {
+      if (!store.isPresenter || !sessionIdRef.current) return;
 
-    const socket = getPresenterSocket();
-    socket.emit('slide:goto', {
-      sessionId: sessionIdRef.current,
-      slideIndex,
-      sequenceNum: store.session?.sequenceNum ?? 0,
-    });
-  }, [store.isPresenter, store.session?.sequenceNum]);
+      const socket = getPresenterSocket();
+      socket.emit('slide:goto', {
+        sessionId: sessionIdRef.current,
+        slideIndex,
+        sequenceNum: store.session?.sequenceNum ?? 0,
+      });
+    },
+    [store.isPresenter, store.session?.sequenceNum]
+  );
 
-  const handoffTo = useCallback((toUserId: string, toUserName: string) => {
-    if (!store.isPresenter || !sessionIdRef.current) return;
+  const handoffTo = useCallback(
+    (toUserId: string, toUserName: string) => {
+      if (!store.isPresenter || !sessionIdRef.current) return;
 
-    store.startHandoff(toUserId, toUserName);
+      store.startHandoff(toUserId, toUserName);
 
-    const socket = getPresenterSocket();
-    socket.emit('presenter:handoff', {
-      sessionId: sessionIdRef.current,
-      toUserId,
-      toUserName,
-    });
-  }, [store.isPresenter, store]);
+      const socket = getPresenterSocket();
+      socket.emit('presenter:handoff', {
+        sessionId: sessionIdRef.current,
+        toUserId,
+        toUserName,
+      });
+    },
+    [store.isPresenter, store]
+  );
 
   const enterExploreMode = useCallback(() => {
     if (!sessionIdRef.current) return;
     store.setIsExploring(true);
+
+    // Persist exploration state
+    if (sessionIdRef.current) {
+      persistReconnectState({
+        sessionId: sessionIdRef.current,
+        isExploring: true,
+        localSlide: store.session?.currentSlide ?? 0,
+      });
+    }
 
     const socket = getPresenterSocket();
     socket.emit('viewer:explore', { sessionId: sessionIdRef.current });
@@ -299,6 +381,15 @@ export function useSyncEngine({
   const followPresenter = useCallback(() => {
     if (!sessionIdRef.current) return;
     store.setIsExploring(false);
+
+    // Update persistence
+    if (sessionIdRef.current) {
+      persistReconnectState({
+        sessionId: sessionIdRef.current,
+        isExploring: false,
+        localSlide: store.session?.currentSlide ?? 0,
+      });
+    }
 
     const socket = getPresenterSocket();
     socket.emit('viewer:follow', { sessionId: sessionIdRef.current });
@@ -309,6 +400,7 @@ export function useSyncEngine({
 
     const socket = getPresenterSocket();
     socket.emit('session:end', { sessionId: sessionIdRef.current });
+    clearReconnectState();
   }, [store.isPresenter]);
 
   return {

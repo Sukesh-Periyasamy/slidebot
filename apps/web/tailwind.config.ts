@@ -12,7 +12,7 @@ export default {
           200: '#c7d7fe',
           300: '#a5bbfc',
           400: '#8199f8',
-          500: '#6173f2',   // Primary brand
+          500: '#6173f2', // Primary brand
           600: '#4e55e6',
           700: '#3f43cc',
           800: '#3438a4',
@@ -84,9 +84,9 @@ export default {
       boxShadow: {
         'glow-brand': '0 0 20px rgba(97, 115, 242, 0.3)',
         'glow-sm': '0 0 10px rgba(97, 115, 242, 0.2)',
-        'card': '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)',
+        card: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)',
         'card-hover': '0 4px 16px rgba(0,0,0,0.16), 0 2px 6px rgba(0,0,0,0.1)',
-        'panel': '0 8px 32px rgba(0,0,0,0.24)',
+        panel: '0 8px 32px rgba(0,0,0,0.24)',
       },
       borderRadius: {
         DEFAULT: '0.5rem',

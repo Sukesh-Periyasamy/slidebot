@@ -1,12 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import {
-  LayoutDashboard,
-  Settings,
-  LogOut,
-  Presentation,
-  ChevronRight,
-} from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, Presentation, ChevronRight } from 'lucide-react';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
@@ -79,9 +73,7 @@ function Sidebar() {
               <>
                 <Icon size={16} strokeWidth={isActive ? 2 : 1.5} />
                 {label}
-                {isActive && (
-                  <ChevronRight size={14} className="ml-auto text-brand-400" />
-                )}
+                {isActive && <ChevronRight size={14} className="ml-auto text-brand-400" />}
               </>
             )}
           </NavLink>
@@ -96,9 +88,7 @@ function Sidebar() {
             {user?.displayName?.charAt(0)?.toUpperCase() ?? '?'}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-surface-200 truncate">
-              {user?.displayName}
-            </p>
+            <p className="text-xs font-medium text-surface-200 truncate">{user?.displayName}</p>
             <p className="text-[10px] text-surface-500 truncate">{user?.email}</p>
           </div>
           <button

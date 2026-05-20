@@ -3,7 +3,8 @@
  */
 
 /** Regex matching a Google Meet meeting room URL */
-export const MEET_URL_REGEX = /^https:\/\/meet\.google\.com\/([a-z]{3}-[a-z]{4}-[a-z]{3})(?:\?.*)?$/;
+export const MEET_URL_REGEX =
+  /^https:\/\/meet\.google\.com\/([a-z]{3}-[a-z]{4}-[a-z]{3})(?:\?.*)?$/;
 
 /** ID of the shadow host injected into Meet */
 export const SHADOW_HOST_ID = 'slidebot-extension-host';
@@ -12,10 +13,7 @@ export const SHADOW_HOST_ID = 'slidebot-extension-host';
 export const PANEL_ID = 'slidebot-panel';
 
 /** Extension origins allowed to communicate */
-export const ALLOWED_ORIGINS = [
-  'https://app.slidebot.app',
-  'http://localhost:3000',
-] as const;
+export const ALLOWED_ORIGINS = ['https://app.slidebot.app', 'http://localhost:3000'] as const;
 
 /** Default web app URL */
 export const DEFAULT_WEB_APP_URL = 'https://app.slidebot.app';

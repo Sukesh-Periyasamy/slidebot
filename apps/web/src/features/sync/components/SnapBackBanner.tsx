@@ -56,13 +56,11 @@ export function SnapBackBanner({
               Exploring independently
             </span>
             <span className="text-xs text-surface-400 mt-0.5 leading-none">
-              <span className="text-amber-400 font-medium">{presenterName}</span>
-              {' '}is on slide{' '}
+              <span className="text-amber-400 font-medium">{presenterName}</span> is on slide{' '}
               <span className="font-medium text-surface-200">
                 {presenterSlide + 1}/{totalSlides}
-              </span>
-              {' '}·{' '}
-              <span className="text-amber-400">{directionText}</span>
+              </span>{' '}
+              · <span className="text-amber-400">{directionText}</span>
             </span>
           </div>
 

@@ -25,20 +25,15 @@ export const Errors = {
   badRequest: (message: string, details?: Record<string, string[]>) =>
     new AppError('BAD_REQUEST', message, 400, details),
 
-  unauthorized: (message = 'Unauthorized') =>
-    new AppError('UNAUTHORIZED', message, 401),
+  unauthorized: (message = 'Unauthorized') => new AppError('UNAUTHORIZED', message, 401),
 
-  forbidden: (message = 'Forbidden') =>
-    new AppError('FORBIDDEN', message, 403),
+  forbidden: (message = 'Forbidden') => new AppError('FORBIDDEN', message, 403),
 
-  notFound: (resource: string) =>
-    new AppError('NOT_FOUND', `${resource} not found`, 404),
+  notFound: (resource: string) => new AppError('NOT_FOUND', `${resource} not found`, 404),
 
-  conflict: (message: string) =>
-    new AppError('CONFLICT', message, 409),
+  conflict: (message: string) => new AppError('CONFLICT', message, 409),
 
-  internal: (message = 'Internal server error') =>
-    new AppError('INTERNAL_ERROR', message, 500),
+  internal: (message = 'Internal server error') => new AppError('INTERNAL_ERROR', message, 500),
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -46,12 +41,7 @@ export const Errors = {
 // Must be registered LAST in Express (after all routes)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function errorHandler(
-  err: Error,
-  req: Request,
-  res: Response,
-  _next: NextFunction
-): void {
+export function errorHandler(err: Error, req: Request, res: Response, _next: NextFunction): void {
   if (err instanceof AppError) {
     // Known application error
     if (err.statusCode >= 500) {
@@ -77,9 +67,7 @@ export function errorHandler(
     error: {
       code: 'INTERNAL_ERROR',
       message:
-        process.env['NODE_ENV'] === 'production'
-          ? 'An unexpected error occurred'
-          : err.message,
+        process.env['NODE_ENV'] === 'production' ? 'An unexpected error occurred' : err.message,
     },
   });
 }
