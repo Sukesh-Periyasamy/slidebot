@@ -2,6 +2,7 @@
   "extends": "../../tooling/tsconfig/react-app.json",
   "compilerOptions": {
     "baseUrl": ".",
+    "types": ["vite/client"],
     "paths": {
       "@/*": ["./src/*"],
       "@slidebot/shared-types": ["../../packages/shared-types/src"],

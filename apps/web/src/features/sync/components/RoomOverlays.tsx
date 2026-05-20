@@ -65,3 +65,15 @@ export function SessionEndedOverlay() {
     </AnimatePresence>
   );
 }
+// ─────────────────────────────────────────────────────────────────────────────
+// RoomOverlays — Composite of all session overlays
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function RoomOverlays() {
+  return (
+    <>
+      <PresenterDisconnectedBanner />
+      <SessionEndedOverlay />
+    </>
+  );
+}

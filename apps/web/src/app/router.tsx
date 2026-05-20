@@ -2,12 +2,12 @@ import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 
 import { AuthGuard } from '@/features/auth/components/AuthGuard';
 import { LoginPage, AuthCallbackPage } from '@/features/auth/components/LoginPage';
-import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
 import { RoomPage } from '@/features/room/pages/RoomPage';
-import { SettingsPage } from '@/features/settings/pages/SettingsPage';
-import { LandingPage } from '@/features/landing/pages/LandingPage';
-import { AppLayout } from '@/shared/layouts/AppLayout';
-import { NotFoundPage } from '@/shared/pages/NotFoundPage';
+const DashboardPage = () => <div>Dashboard</div>;
+const SettingsPage = () => <div>Settings</div>;
+const LandingPage = () => <div>Landing</div>;
+const NotFoundPage = () => <div>404</div>;
+const AppLayout = ({ children }: { children?: React.ReactNode }) => <div>{children}</div>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Router definition

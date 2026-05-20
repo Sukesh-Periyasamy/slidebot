@@ -68,7 +68,7 @@ export function useDrawing({ slideId, slideWidth, slideHeight, sync }: UseDrawin
         color: toolConfig.color,
         strokeWidth: toolConfig.strokeWidth,
         opacity: toolConfig.opacity,
-        isEphemeral: toolConfig.tool === 'laser',
+        isEphemeral: (toolConfig.tool as string) === 'laser',
         status: 'in-progress',
         createdAt: new Date().toISOString(),
         data: buildInitialData(toolConfig.tool as Annotation['data']['tool'], normalised),

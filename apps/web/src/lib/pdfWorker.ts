@@ -7,7 +7,6 @@
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Vite resolves this to the correct worker bundle URL at build time
-// @ts-expect-error — pdfjs-dist worker import
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl as string;

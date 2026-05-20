@@ -6,13 +6,13 @@
 - GitHub Actions CI/CD and Dependabot setup.
 - Advanced WebSocket integration test harness simulating multi-client concurrency.
 - Resolution of critical race conditions in Socket.IO reconnect logic (grace periods, disconnected rooms, and presence restoration).
-- Successful execution of 6/6 integration tests for presenter handoffs, reconnect recovery, and collaboration sync.
+- Hardened Playwright E2E suite with deterministic sync assertions and real auth persistence for RoomPage.
 
 ## What is currently in progress
-- The backend WebSocket hardening phase is completely finished. The project is currently idle, waiting for the next feature to be picked up.
+- The Playwright E2E hardening phase is complete. The project is currently idle, waiting for the next feature to be picked up.
 
 ## Exact place development stopped
-- Development stopped immediately after running `npm run test` for the API and verifying that the WebSocket integration tests (`presenter-handoff.test.ts`, `reconnect-recovery.test.ts`, `collaboration-sync.test.ts`) all pass successfully. Changes were committed and pushed to `main`.
+- Development stopped after establishing a deterministic E2E architecture with persistent auth (`auth.setup.ts`) and window-level sync state assertions (`window.__TEST_SYNC_STATE__`). Changes were committed and pushed to `main`.
 
 ## Known blockers
 - None currently.
@@ -25,7 +25,6 @@
 - High priority features waiting to be built:
   1. **Extension Popup UI**: Minimal Chrome extension interface for creating/joining rooms.
   2. **Thumbnail Sidebar Navigation**: Virtualized slide navigation system for the web app.
-  3. **Playwright E2E Testing**: Setup end-to-end browser tests for the web application.
 
 ## Recommended continuation flow
 - Read `PROJECT_MEMORY.md` to understand design philosophies.

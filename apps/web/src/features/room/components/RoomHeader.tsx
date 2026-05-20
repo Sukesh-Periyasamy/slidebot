@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { X, Share2, Check, Copy } from 'lucide-react';
 import { useState } from 'react';
 
-import { useSyncStore } from '../store/syncStore';
+import { useSyncStore } from '@/features/sync/store/syncStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RoomHeader — slim top bar: room name, session ID, share button
@@ -120,11 +120,11 @@ export const RoomHeader = memo(function RoomHeader({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ParticipantDots({ count }: { count: number }) {
-  const members = useSyncStore((s) => Object.values(s.members).slice(0, 3));
+  const members = useSyncStore((s: any) => Object.values(s.members).slice(0, 3));
 
   return (
     <div className="flex -space-x-1">
-      {members.map((m) => (
+      {members.map((m: any) => (
         <div
           key={m.userId}
           className="h-4 w-4 rounded-full border border-surface-900 text-[8px] flex items-center justify-center font-semibold text-white"

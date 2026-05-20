@@ -99,6 +99,7 @@ export function usePdfRenderer({ canvasRef, pageNumber, fixedScale }: UsePdfRend
     if (!fixedScale) setIsRendering(true);
 
     try {
+      // @ts-expect-error - pdfjs-dist types are out of sync with library requirements
       renderTaskRef.current = page.render({
         canvasContext: ctx,
         viewport,

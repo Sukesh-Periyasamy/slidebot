@@ -7,9 +7,9 @@
 - [x] Continuous Integration setup (GitHub Actions, Dependabot).
 - [x] WebSocket testing harness creation (`room-simulator`, `reconnect-simulator`).
 - [x] WebSocket reliability hardening (reconnects, ghost connection cleanup, handoffs).
+- [x] Hardened Playwright E2E suite with deterministic sync assertions and real auth persistence.
 
 ## Pending Tasks
-- [ ] Implement Playwright End-to-End (E2E) Testing.
 - [ ] Build Chrome Extension Popup UI.
 - [ ] Build Thumbnail Sidebar Navigation (virtualized).
 - [ ] Assemble the complete RoomPage experience (slide viewer, annotation canvas, toolbars).

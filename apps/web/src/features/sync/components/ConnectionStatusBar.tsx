@@ -14,7 +14,7 @@ const STATUS_CONFIG: Record<
     label: string;
     color: string;
     bg: string;
-    Icon: React.FC<{ size?: number; className?: string }>;
+    Icon: React.ElementType;
   }
 > = {
   idle: {

@@ -12,7 +12,7 @@
  */
 import { io, type Socket } from 'socket.io-client';
 import { supabase } from '@/lib/supabase';
-import { logger } from './logger';
+import { logger } from '@/lib/logger';
 
 const API_URL = (import.meta.env['VITE_API_URL'] as string) ?? 'http://localhost:4000';
 

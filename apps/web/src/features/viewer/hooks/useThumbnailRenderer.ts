@@ -73,6 +73,7 @@ export function useThumbnailRenderer({
     ctx.scale(dpr, dpr);
 
     try {
+      // @ts-expect-error - pdfjs-dist types are out of sync with library requirements
       renderTaskRef.current = page.render({
         canvasContext: ctx,
         viewport,

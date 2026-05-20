@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef } from 'react';
 
 import { apiClient } from '@/lib/apiClient';
 import { logger } from '@/lib/logger';
+import { useSyncStore } from '@/features/sync/store/syncStore';
 import type { Annotation } from '../types/annotation.types';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -131,14 +132,14 @@ export function useAnnotationPersistence({
 
       saveQueueRef.current.set(annotation.id, {
         annotation,
-        sessionId: sessionId ?? undefined,
+        sessionId: syncStore.getState().session?.sessionId ?? '',
         retries: 0,
-        scheduledAt: Date.now(),
+        scheduledAt: Date.now() + 500, // Debounce 500ms
       });
 
       scheduleFlush(300);
     },
-    [sessionId, scheduleFlush]
+    [scheduleFlush]
   );
 
   // ── Enqueue a delete ──────────────────────────────────────────────────────
