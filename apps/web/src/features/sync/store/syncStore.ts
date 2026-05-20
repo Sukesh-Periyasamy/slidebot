@@ -164,7 +164,7 @@ export const useSyncStore = create<SyncState>()(
             s.session.presenterName = newPresenterName;
 
             // Update member roles
-            Object.values(s.members).forEach((m) => {
+            Object.values(s.members).forEach((m: SessionMember) => {
               m.role = m.userId === newPresenterId ? 'presenter' : 'viewer';
             });
 

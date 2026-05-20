@@ -22,7 +22,7 @@ import { useCallback, useRef } from 'react';
 import { getPresenterSocket } from '@/features/collaboration/lib/socketClient';
 import { useSyncStore } from '../store/syncStore';
 import type { SyncSession, SessionMember } from '../store/syncStore';
-import { logger } from '@/lib/logger';
+// using console instead of logger
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -61,9 +61,9 @@ interface UseReconnectRecoveryOptions {
   sessionId: string | null;
   userId: string;
   /** Called with the restored slide index so the viewer can seek */
-  onSlideRestored?: (slideIndex: number) => void;
+  onSlideRestored?: ((slideIndex: number) => void) | undefined;
   /** Called when annotation restore should be triggered */
-  onAnnotationRestore?: (slideId: string) => void;
+  onAnnotationRestore?: ((slideId: string) => void) | undefined;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -132,7 +132,7 @@ export function useReconnectRecovery({
     recoveryCountRef.current++;
 
     const attempt = recoveryCountRef.current;
-    logger.info({ deckId, sessionId, attempt }, 'Starting reconnect recovery');
+    console.info({ deckId, sessionId, attempt }, 'Starting reconnect recovery');
 
     store.setConnectionStatus('reconnecting');
 
@@ -144,7 +144,7 @@ export function useReconnectRecovery({
       const targetSessionId = sessionId ?? persisted.sessionId;
 
       if (!targetSessionId) {
-        logger.warn({ deckId }, 'No session ID for recovery — starting fresh');
+        console.warn({ deckId }, 'No session ID for recovery — starting fresh');
         store.setConnectionStatus('connected');
         isRecoveringRef.current = false;
         return;
@@ -157,7 +157,7 @@ export function useReconnectRecovery({
           { deckId, sessionId: targetSessionId },
           (res: SessionJoinAck) => {
             if (!res.ok || !res.session) {
-              logger.error({ error: res.error }, 'Recovery: session:join failed');
+              console.error({ error: res.error }, 'Recovery: session:join failed');
               store.setConnectionStatus('error');
               resolve();
               return;
@@ -189,7 +189,7 @@ export function useReconnectRecovery({
               onAnnotationRestore(slideId);
             }
 
-            logger.info(
+            console.info(
               {
                 sessionId: session.sessionId,
                 currentSlide: session.currentSlide,
@@ -204,7 +204,7 @@ export function useReconnectRecovery({
         );
       });
     } catch (err) {
-      logger.error({ err }, 'Reconnect recovery threw');
+      console.error({ err }, 'Reconnect recovery threw');
       store.setConnectionStatus('error');
     } finally {
       isRecoveringRef.current = false;

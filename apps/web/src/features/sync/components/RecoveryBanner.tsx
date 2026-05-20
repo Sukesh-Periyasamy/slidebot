@@ -27,6 +27,7 @@ export const RecoveryBanner = memo(function RecoveryBanner() {
       const timer = setTimeout(() => setShowBanner(false), 3500);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [connectionStatus, reconnectAttempts]);
 
   if (!showBanner) return null;

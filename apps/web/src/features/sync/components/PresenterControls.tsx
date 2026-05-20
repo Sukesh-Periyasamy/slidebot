@@ -43,7 +43,7 @@ const ZOOM_PRESETS: { label: string; value: ZoomPreset }[] = [
 
 const ANNOTATION_TOOLS: {
   tool: AnnotationTool;
-  Icon: React.FC<{ size?: number }>;
+  Icon: React.ElementType;
   label: string;
 }[] = [
   { tool: 'select', Icon: MousePointer2, label: 'Select' },
