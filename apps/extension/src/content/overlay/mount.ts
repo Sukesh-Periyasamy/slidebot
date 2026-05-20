@@ -32,10 +32,30 @@ let mountedOverlay: OverlayMount | null = null;
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function mountOverlay(): OverlayMount {
-  // Prevent double mounting
+  // Guard 1: In-memory check (same page lifecycle)
   if (mountedOverlay) return mountedOverlay;
 
-  // ── Create shadow host ─────────────────────────────────────────────────────
+  // Guard 2: DOM-level check (survives extension reload without page refresh)
+  // If a shadow host already exists in the DOM, return a handle to it
+  // rather than creating a duplicate. This prevents overlay duplication
+  // when the content script re-injects on SPA navigation.
+  const existingHost = document.getElementById(SHADOW_HOST_ID);
+  if (existingHost) {
+    // Re-hydrate the mount handle from the existing DOM node
+    let visible = existingHost.style.display !== 'none';
+    mountedOverlay = {
+      show: () => { existingHost.style.display = 'block'; visible = true; },
+      hide: () => { existingHost.style.display = 'none'; visible = false; },
+      destroy: () => {
+        existingHost.remove();
+        mountedOverlay = null;
+      },
+      isVisible: () => visible,
+    };
+    return mountedOverlay;
+  }
+
+  // ── Create shadow host ──────────────────────────────────────────────────
   const host = document.createElement('div');
   host.id = SHADOW_HOST_ID;
   host.setAttribute('data-slidebot', 'true');

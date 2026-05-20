@@ -103,117 +103,129 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Message routing
 // ─────────────────────────────────────────────────────────────────────────────
+// Message routing guard
+// ─────────────────────────────────────────────────────────────────────────────
+// Chrome may wake the service worker multiple times within the same v8 context
+// if the SW is re-activated quickly. Guard against double-registration.
+// `__messageHandlerRegistered` persists for the lifetime of the service worker
+// process (not across restarts, which is fine — restarts get a fresh context).
+declare const globalThis: typeof global & { __sbMessageHandlerRegistered?: boolean };
 
-onMessage(async (message, sender, sendResponse) => {
-  switch (message.type) {
-    // ── GET_STATUS — popup/content requests current state ─────────────────
-    case MSG.GET_STATUS: {
-      const authToken = await getAuthToken();
-      const activeSessionId = await storageGet('activeSessionId');
+if (!globalThis.__sbMessageHandlerRegistered) {
+  globalThis.__sbMessageHandlerRegistered = true;
 
-      const status: ExtensionStatus = {
-        isOnMeet: activeMeetTabs.size > 0,
-        meetCode: Array.from(activeMeetTabs.values())[0] ?? null,
-        isConnected: !!activeSessionId,
-        sessionId: activeSessionId,
-        deckTitle: null,
-        currentSlide: currentStatus.currentSlide ?? 0,
-        totalSlides: currentStatus.totalSlides ?? 0,
-        isAuthenticated: !!authToken,
-      };
+  onMessage(async (message, sender, sendResponse) => {
+    switch (message.type) {
+      // ── GET_STATUS — popup/content requests current state ─────────────────
+      case MSG.GET_STATUS: {
+        const authToken = await getAuthToken();
+        const activeSessionId = await storageGet('activeSessionId');
 
-      sendResponse(status);
-      return false;
-    }
+        const status: ExtensionStatus = {
+          isOnMeet: activeMeetTabs.size > 0,
+          meetCode: Array.from(activeMeetTabs.values())[0] ?? null,
+          isConnected: !!activeSessionId,
+          sessionId: activeSessionId,
+          deckTitle: null,
+          currentSlide: currentStatus.currentSlide ?? 0,
+          totalSlides: currentStatus.totalSlides ?? 0,
+          isAuthenticated: !!authToken,
+        };
 
-    // ── STORE_AUTH_TOKEN — called from popup after web app login ──────────
-    case MSG.STORE_AUTH_TOKEN: {
-      await saveAuthToken(message.payload.token, message.payload.userId);
-      sendResponse({ ok: true });
-      return false;
-    }
-
-    // ── CLEAR_AUTH_TOKEN — sign out ───────────────────────────────────────
-    case MSG.CLEAR_AUTH_TOKEN: {
-      await clearAuthToken();
-      await storageSet({ activeSessionId: null });
-      sendResponse({ ok: true });
-      return false;
-    }
-
-    // ── OPEN_SLIDEBOT — open web app in new tab ───────────────────────────
-    case MSG.OPEN_SLIDEBOT: {
-      const webAppUrl = await storageGet('webAppUrl');
-      const url = message.payload.deckId
-        ? `${webAppUrl}/room/${message.payload.deckId}`
-        : `${webAppUrl}/dashboard`;
-      void chrome.tabs.create({ url });
-      sendResponse({ ok: true });
-      return false;
-    }
-
-    // ── CONNECT_SESSION — content script entered a session code ───────────
-    case MSG.CONNECT_SESSION: {
-      const { sessionCode } = message.payload;
-      await storageSet({ activeSessionId: sessionCode });
-      currentStatus = { ...currentStatus, isConnected: true, sessionId: sessionCode };
-
-      // Push state to all active Meet tabs
-      for (const [tabId] of activeMeetTabs) {
-        void sendToTab(tabId, {
-          type: MSG.PUSH_SESSION_STATE,
-          payload: {
-            sessionId: sessionCode,
-            deckId: '',
-            deckTitle: 'SlideBot Presentation',
-            presenterId: '',
-            presenterName: 'Presenter',
-            currentSlide: 0,
-            totalSlides: 0,
-          },
-        });
+        sendResponse(status);
+        return false;
       }
 
-      sendResponse({ ok: true });
-      return false;
-    }
-
-    // ── DISCONNECT_SESSION ────────────────────────────────────────────────
-    case MSG.DISCONNECT_SESSION: {
-      await storageSet({ activeSessionId: null });
-      currentStatus = { ...currentStatus, isConnected: false, sessionId: null };
-      sendResponse({ ok: true });
-      return false;
-    }
-
-    // ── MEET_SESSION_STARTED — from content script ────────────────────────
-    case MSG.MEET_SESSION_STARTED: {
-      const { meetCode } = message.payload;
-      const tabId = sender.tab?.id;
-      if (tabId) activeMeetTabs.set(tabId, meetCode);
-
-      // Check if we have a saved session for this Meet code
-      const savedSession = await getSessionForMeet(meetCode);
-      if (savedSession) {
-        await storageSet({ activeSessionId: savedSession });
+      // ── STORE_AUTH_TOKEN — called from popup after web app login ──────────
+      case MSG.STORE_AUTH_TOKEN: {
+        await saveAuthToken(message.payload.token, message.payload.userId);
+        sendResponse({ ok: true });
+        return false;
       }
 
-      sendResponse({ ok: true });
-      return false;
-    }
+      // ── CLEAR_AUTH_TOKEN — sign out ───────────────────────────────────────
+      case MSG.CLEAR_AUTH_TOKEN: {
+        await clearAuthToken();
+        await storageSet({ activeSessionId: null });
+        sendResponse({ ok: true });
+        return false;
+      }
 
-    // ── MEET_SESSION_ENDED — from content script ──────────────────────────
-    case MSG.MEET_SESSION_ENDED: {
-      const tabId = sender.tab?.id;
-      if (tabId) activeMeetTabs.delete(tabId);
-      sendResponse({ ok: true });
-      return false;
-    }
+      // ── OPEN_SLIDEBOT — open web app in new tab ───────────────────────────
+      case MSG.OPEN_SLIDEBOT: {
+        const webAppUrl = await storageGet('webAppUrl');
+        const url = message.payload.deckId
+          ? `${webAppUrl}/room/${message.payload.deckId}`
+          : `${webAppUrl}/dashboard`;
+        void chrome.tabs.create({ url });
+        sendResponse({ ok: true });
+        return false;
+      }
 
-    default:
-      return false;
-  }
-});
+      // ── CONNECT_SESSION — content script entered a session code ───────────
+      case MSG.CONNECT_SESSION: {
+        const { sessionCode } = message.payload;
+        await storageSet({ activeSessionId: sessionCode });
+        currentStatus = { ...currentStatus, isConnected: true, sessionId: sessionCode };
+
+        // Push state to all active Meet tabs
+        for (const [tabId] of activeMeetTabs) {
+          void sendToTab(tabId, {
+            type: MSG.PUSH_SESSION_STATE,
+            payload: {
+              sessionId: sessionCode,
+              deckId: '',
+              deckTitle: 'SlideBot Presentation',
+              presenterId: '',
+              presenterName: 'Presenter',
+              currentSlide: 0,
+              totalSlides: 0,
+            },
+          });
+        }
+
+        sendResponse({ ok: true });
+        return false;
+      }
+
+      // ── DISCONNECT_SESSION ────────────────────────────────────────────────
+      case MSG.DISCONNECT_SESSION: {
+        await storageSet({ activeSessionId: null });
+        currentStatus = { ...currentStatus, isConnected: false, sessionId: null };
+        sendResponse({ ok: true });
+        return false;
+      }
+
+      // ── MEET_SESSION_STARTED — from content script ────────────────────────
+      case MSG.MEET_SESSION_STARTED: {
+        const { meetCode } = message.payload;
+        const tabId = sender.tab?.id;
+        if (tabId) activeMeetTabs.set(tabId, meetCode);
+
+        // Check if we have a saved session for this Meet code
+        const savedSession = await getSessionForMeet(meetCode);
+        if (savedSession) {
+          await storageSet({ activeSessionId: savedSession });
+        }
+
+        sendResponse({ ok: true });
+        return false;
+      }
+
+      // ── MEET_SESSION_ENDED — from content script ──────────────────────────
+      case MSG.MEET_SESSION_ENDED: {
+        const tabId = sender.tab?.id;
+        if (tabId) activeMeetTabs.delete(tabId);
+        sendResponse({ ok: true });
+        return false;
+      }
+
+      default:
+        return false;
+    }
+  });
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers

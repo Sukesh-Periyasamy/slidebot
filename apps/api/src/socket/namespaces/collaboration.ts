@@ -30,6 +30,7 @@ import { logger } from '../../config/logger';
 import { annotationService } from '../../modules/annotations/annotations.service';
 import type { AnnotationDataPayload } from '../../modules/annotations/annotations.types';
 import type { AnnotationTool } from '@prisma/client';
+import { annotationRateLimiterMiddleware } from '../annotation-throttle';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -75,7 +76,10 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
     const { userId, displayName, avatarUrl, color } = socket.data;
     logger.info({ userId, socketId: socket.id }, 'User connected to /collaboration');
 
-    // ── join_deck ─────────────────────────────────────────────────────────────
+    // Apply per-socket annotation rate limiting middleware
+    // Drops excess cursor_move / annotation_draw / laser_move events silently
+    socket.use(annotationRateLimiterMiddleware(socket as unknown as Parameters<typeof annotationRateLimiterMiddleware>[0]));
+
     socket.on('join_deck', async ({ deckId, slideId }, ack) => {
       try {
         const room = ROOMS.deck(deckId);

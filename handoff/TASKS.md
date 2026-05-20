@@ -8,16 +8,16 @@
 - [x] WebSocket testing harness creation (`room-simulator`, `reconnect-simulator`).
 - [x] WebSocket reliability hardening (reconnects, ghost connection cleanup, handoffs).
 - [x] Hardened Playwright E2E suite with deterministic sync assertions and real auth persistence.
+- [x] Build Chrome Extension Popup UI.
 
 ## Pending Tasks
-- [ ] Build Chrome Extension Popup UI.
 - [ ] Build Thumbnail Sidebar Navigation (virtualized).
 - [ ] Assemble the complete RoomPage experience (slide viewer, annotation canvas, toolbars).
 - [ ] Implement robust annotation persistence (Prisma + Yjs reconciliation).
 - [ ] Optimize canvas performance for heavy annotation loads.
 
 ## Priority Levels
-- **High**: Chrome Extension Popup UI, Thumbnail Sidebar Navigation.
+- **High**: Thumbnail Sidebar Navigation, Complete RoomPage assembly.
 - **Medium**: Complete RoomPage assembly, E2E Testing.
 - **Low**: Advanced AI features (prioritize reliability over AI).
 

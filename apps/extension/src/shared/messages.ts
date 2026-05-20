@@ -107,7 +107,8 @@ export function onMessage(
     message: ExtensionMessage,
     sender: chrome.runtime.MessageSender,
     sendResponse: (response?: unknown) => void
-  ) => boolean | void | Promise<void>
+  ) => any
+
 ): () => void {
   const listener = (
     message: ExtensionMessage,

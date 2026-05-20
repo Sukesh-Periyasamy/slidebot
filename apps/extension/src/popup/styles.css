@@ -1,0 +1,149 @@
+:root {
+  --surface-950: #0d0d11;
+  --surface-900: #1a1a24;
+  --surface-800: #2a2a35;
+  --surface-50: #f5f5f7;
+  --surface-200: #c1c1c8;
+  --primary: #6173f2;
+  --primary-hover: #4b5cd6;
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
+  --success: #10b981;
+}
+
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background-color: var(--surface-950);
+  color: var(--surface-50);
+  margin: 0;
+  padding: 0;
+  width: 360px;
+  min-height: 480px;
+  display: flex;
+  flex-direction: column;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 24px;
+  text-align: center;
+}
+
+.title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  font-size: 0.875rem;
+  color: var(--surface-200);
+  margin-bottom: 24px;
+  line-height: 1.4;
+}
+
+.btn {
+  background-color: var(--surface-800);
+  color: var(--surface-50);
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn:hover {
+  background-color: var(--surface-900);
+}
+
+.btn-primary {
+  background-color: var(--primary);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn-danger {
+  background-color: var(--danger);
+}
+
+.btn-danger:hover {
+  background-color: var(--danger-hover);
+}
+
+.header {
+  padding: 16px;
+  border-bottom: 1px solid var(--surface-800);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.badge {
+  background-color: var(--surface-800);
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.badge-success {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: var(--success);
+}
+
+.badge-warning {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+}
+
+.card {
+  background-color: var(--surface-900);
+  border-radius: 12px;
+  padding: 16px;
+  width: 100%;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.card-label {
+  font-size: 0.75rem;
+  color: var(--surface-200);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.card-value {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.flex-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}

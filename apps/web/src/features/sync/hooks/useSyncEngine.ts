@@ -75,7 +75,9 @@ export function useSyncEngine({
 }: UseSyncEngineOptions) {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const store = useSyncStore();
+  // NOTE: Do NOT use `useSyncStore()` directly in this hook's effect deps.
+  // Use `useSyncStore.getState()` inside callbacks to avoid re-registering
+  // all socket listeners on every Zustand state update.
   const sessionIdRef = useRef<string | null>(null);
   const hasJoinedRef = useRef(false);
 
@@ -111,14 +113,14 @@ export function useSyncEngine({
         const { session, members, isPresenter } = payload;
         sessionIdRef.current = session.sessionId;
 
-        store.initSession(normaliseSession(session), members.map(normaliseMember), isPresenter);
-
-        store.setConnectionStatus('connected');
+        const s = useSyncStore.getState();
+        s.initSession(normaliseSession(session), members.map(normaliseMember), isPresenter);
+        s.setConnectionStatus('connected');
 
         // Persist session state for reconnect recovery
         persistReconnectState({
           sessionId: session.sessionId,
-          isExploring: store.isExploring,
+          isExploring: s.isExploring,
           localSlide: session.currentSlide,
         });
       };
@@ -131,10 +133,11 @@ export function useSyncEngine({
         isSnapback?: boolean;
         serverTimestamp: number;
       }) => {
-        store.updateCurrentSlide(payload.slideIndex, payload.sequenceNum);
+        const s = useSyncStore.getState();
+        s.updateCurrentSlide(payload.slideIndex, payload.sequenceNum);
 
         // If not exploring (or snapback forced), update PDF viewer position
-        if (!store.isExploring || payload.isSnapback) {
+        if (!s.isExploring || payload.isSnapback) {
           onSlideChange?.(payload.slideIndex);
         }
 
@@ -142,9 +145,9 @@ export function useSyncEngine({
         if (sessionIdRef.current) {
           persistReconnectState({
             sessionId: sessionIdRef.current,
-            isExploring: store.isExploring,
-            localSlide: store.isExploring
-              ? (store.session?.currentSlide ?? payload.slideIndex)
+            isExploring: s.isExploring,
+            localSlide: s.isExploring
+              ? (s.session?.currentSlide ?? payload.slideIndex)
               : payload.slideIndex,
           });
         }
@@ -157,25 +160,26 @@ export function useSyncEngine({
         newPresenterName: string;
         previousPresenterId: string;
       }) => {
-        store.transferPresenter(payload.newPresenterId, payload.newPresenterName);
+        const s = useSyncStore.getState();
+        s.transferPresenter(payload.newPresenterId, payload.newPresenterName);
 
         const isNowPresenter = payload.newPresenterId === user.id;
         const wasPresenter = payload.previousPresenterId === user.id;
 
-        store.setIsPresenter(isNowPresenter);
+        s.setIsPresenter(isNowPresenter);
 
         if (isNowPresenter) {
-          store.receiveHandoff();
-          setTimeout(() => store.completeHandoff(), 1500);
+          s.receiveHandoff();
+          setTimeout(() => useSyncStore.getState().completeHandoff(), 1500);
         } else if (wasPresenter) {
-          store.completeHandoff();
-          setTimeout(() => store.setIsExploring(false), 500);
+          s.completeHandoff();
+          setTimeout(() => useSyncStore.getState().setIsExploring(false), 500);
         }
       };
 
       // Someone joined or reconnected
       const onParticipantJoined = (payload: { sessionId: string; member: ServerMember }) => {
-        store.addMember({
+        useSyncStore.getState().addMember({
           ...normaliseMember(payload.member),
           isConnected: true,
         });
@@ -186,7 +190,7 @@ export function useSyncEngine({
         userId: string;
         displayName: string;
       }) => {
-        store.setMemberConnected(payload.userId, true);
+        useSyncStore.getState().setMemberConnected(payload.userId, true);
       };
 
       // Someone left
@@ -195,37 +199,36 @@ export function useSyncEngine({
         userId: string;
         displayName: string;
       }) => {
-        store.removeMember(payload.userId);
+        useSyncStore.getState().removeMember(payload.userId);
       };
 
       // Presenter disconnected (grace period starts)
       const onPresenterDisconnected = (payload: { sessionId: string; presenterId: string }) => {
         if (payload.presenterId === user.id) return; // That's us reconnecting
-        store.setPresenterDisconnected(true);
-        store.setMemberConnected(payload.presenterId, false);
+        useSyncStore.getState().setPresenterDisconnected(true);
+        useSyncStore.getState().setMemberConnected(payload.presenterId, false);
       };
 
       // Presenter reconnected within grace period
       const onPresenterReconnected = (payload: { presenterId: string; presenterName: string }) => {
-        store.setPresenterDisconnected(false);
-        store.setMemberConnected(payload.presenterId, true);
+        useSyncStore.getState().setPresenterDisconnected(false);
+        useSyncStore.getState().setMemberConnected(payload.presenterId, true);
       };
 
       // Grace period expired — presenter didn't return
-      const onPresenterGraceExpired = (payload: { sessionId: string; presenterId: string }) => {
+      const onPresenterGraceExpired = (_payload: { sessionId: string; presenterId: string }) => {
         // UI should now show "Take over" or "Waiting" options
-        // setPresenterDisconnected stays true, grace expired flag added
-        store.setPresenterDisconnected(true);
+        useSyncStore.getState().setPresenterDisconnected(true);
       };
 
       // Viewer entered exploration mode
       const onViewerExploring = (payload: { userId: string }) => {
-        store.setMemberExploring(payload.userId, true);
+        useSyncStore.getState().setMemberExploring(payload.userId, true);
       };
 
       // Session ended
       const onSessionEnded = (_payload: { sessionId: string; reason?: string }) => {
-        store.endSession();
+        useSyncStore.getState().endSession();
         clearReconnectState();
         onSessionEnd?.();
         setTimeout(() => navigate('/dashboard'), 2000);
@@ -248,14 +251,14 @@ export function useSyncEngine({
 
       const unsubStatus = onStatusChange((status) => {
         if (status === 'connecting' || status === 'reconnecting') {
-          store.setConnectionStatus('reconnecting');
+          useSyncStore.getState().setConnectionStatus('reconnecting');
         } else if (status === 'error') {
-          store.setConnectionStatus('error');
+          useSyncStore.getState().setConnectionStatus('error');
         }
       });
 
       socket.on('connect', async () => {
-        store.setConnectionStatus('connected');
+        useSyncStore.getState().setConnectionStatus('connected');
 
         // If this is a reconnect (not initial connect), run full recovery
         if (sessionIdRef.current && hasJoinedRef.current && isReconnect()) {
@@ -264,7 +267,7 @@ export function useSyncEngine({
       });
 
       socket.on('disconnect', () => {
-        store.setConnectionStatus('reconnecting');
+        useSyncStore.getState().setConnectionStatus('reconnecting');
       });
 
       // ── Join or create session ─────────────────────────────────────────
@@ -327,29 +330,35 @@ export function useSyncEngine({
       cleanup?.();
       hasJoinedRef.current = false;
     };
-  }, [user?.id, deckId]); // eslint-disable-line react-hooks/exhaustive-deps
+    // IMPORTANT: `useSyncStore.getState()` is used inside callbacks (not the reactive
+    // store proxy) so this effect only re-runs when user/deck changes — not on every
+    // state update. This is intentional and correct.
+  }, [user?.id, deckId, recover, navigate, onSlideChange, onSessionEnd, onAnnotationRestore]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Actions exposed to components ─────────────────────────────────────────
 
+  const isPresenter = useSyncStore((s) => s.isPresenter);
+  const sequenceNum = useSyncStore((s) => s.session?.sequenceNum ?? 0);
+
   const gotoSlide = useCallback(
     (slideIndex: number) => {
-      if (!store.isPresenter || !sessionIdRef.current) return;
+      if (!isPresenter || !sessionIdRef.current) return;
 
       const socket = getPresenterSocket();
       socket.emit('slide:goto', {
         sessionId: sessionIdRef.current,
         slideIndex,
-        sequenceNum: store.session?.sequenceNum ?? 0,
+        sequenceNum,
       });
     },
-    [store.isPresenter, store.session?.sequenceNum]
+    [isPresenter, sequenceNum]
   );
 
   const handoffTo = useCallback(
     (toUserId: string, toUserName: string) => {
-      if (!store.isPresenter || !sessionIdRef.current) return;
+      if (!isPresenter || !sessionIdRef.current) return;
 
-      store.startHandoff(toUserId, toUserName);
+      useSyncStore.getState().startHandoff(toUserId, toUserName);
 
       const socket = getPresenterSocket();
       socket.emit('presenter:handoff', {
@@ -358,50 +367,47 @@ export function useSyncEngine({
         toUserName,
       });
     },
-    [store.isPresenter, store]
+    [isPresenter]
   );
 
   const enterExploreMode = useCallback(() => {
     if (!sessionIdRef.current) return;
-    store.setIsExploring(true);
+    const s = useSyncStore.getState();
+    s.setIsExploring(true);
 
-    // Persist exploration state
-    if (sessionIdRef.current) {
-      persistReconnectState({
-        sessionId: sessionIdRef.current,
-        isExploring: true,
-        localSlide: store.session?.currentSlide ?? 0,
-      });
-    }
+    persistReconnectState({
+      sessionId: sessionIdRef.current,
+      isExploring: true,
+      localSlide: s.session?.currentSlide ?? 0,
+    });
 
     const socket = getPresenterSocket();
     socket.emit('viewer:explore', { sessionId: sessionIdRef.current });
-  }, [store]);
+  }, []);
 
   const followPresenter = useCallback(() => {
     if (!sessionIdRef.current) return;
-    store.setIsExploring(false);
+    const s = useSyncStore.getState();
+    s.setIsExploring(false);
 
-    // Update persistence
-    if (sessionIdRef.current) {
-      persistReconnectState({
-        sessionId: sessionIdRef.current,
-        isExploring: false,
-        localSlide: store.session?.currentSlide ?? 0,
-      });
-    }
+    persistReconnectState({
+      sessionId: sessionIdRef.current,
+      isExploring: false,
+      localSlide: s.session?.currentSlide ?? 0,
+    });
 
     const socket = getPresenterSocket();
     socket.emit('viewer:follow', { sessionId: sessionIdRef.current });
-  }, [store]);
+  }, []);
 
   const endSession = useCallback(() => {
-    if (!store.isPresenter || !sessionIdRef.current) return;
+    if (!isPresenter || !sessionIdRef.current) return;
 
     const socket = getPresenterSocket();
     socket.emit('session:end', { sessionId: sessionIdRef.current });
     clearReconnectState();
-  }, [store.isPresenter]);
+  }, [isPresenter]);
+
 
   return {
     gotoSlide,

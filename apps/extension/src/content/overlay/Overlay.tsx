@@ -89,7 +89,7 @@ export function Overlay() {
   const handleOpenSlideBot = useCallback(() => {
     void sendToBackground({
       type: MSG.OPEN_SLIDEBOT,
-      payload: { deckId: session?.deckId },
+      payload: session?.deckId ? { deckId: session.deckId } : {},
     });
   }, [session]);
 

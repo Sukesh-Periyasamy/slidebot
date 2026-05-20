@@ -6,8 +6,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { sendToBackground, MSG, type ExtensionStatus } from '../shared/messages';
-import { storageGet } from '../shared/storage';
+import { sendToBackground, MSG, type ExtensionStatus } from '../../shared/messages';
+import { storageGet } from '../../shared/storage';
 
 export type PopupView =
   | 'loading'
@@ -83,7 +83,7 @@ export function usePopupState() {
   // ── Actions ─────────────────────────────────────────────────────────────
 
   const openWebApp = useCallback(async (deckId?: string) => {
-    await sendToBackground({ type: MSG.OPEN_SLIDEBOT, payload: { deckId } });
+    await sendToBackground({ type: MSG.OPEN_SLIDEBOT, payload: deckId ? { deckId } : {} });
     window.close();
   }, []);
 

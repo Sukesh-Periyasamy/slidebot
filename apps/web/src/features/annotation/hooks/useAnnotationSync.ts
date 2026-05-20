@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { nanoid } from 'nanoid';
 
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -18,11 +18,11 @@ import type {
 function throttle<T extends (...args: Parameters<T>) => void>(
   fn: T,
   ms: number
-): (...args: Parameters<T>) => void {
+): { fn: (...args: Parameters<T>) => void; cancel: () => void } {
   let lastCall = 0;
   let rafId: number | null = null;
 
-  return (...args: Parameters<T>) => {
+  const throttled = (...args: Parameters<T>) => {
     const now = performance.now();
     if (now - lastCall >= ms) {
       lastCall = now;
@@ -35,6 +35,15 @@ function throttle<T extends (...args: Parameters<T>) => void>(
       });
     }
   };
+
+  const cancel = () => {
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+  };
+
+  return { fn: throttled, cancel };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,14 +94,14 @@ export function useAnnotationSync({
         tool: payload.tool as Annotation['data']['tool'],
         points: [payload.initialPoint.x, payload.initialPoint.y],
       };
-      store.setLiveStroke(payload.userId, stroke);
+      useAnnotationStore.getState().setLiveStroke(payload.userId, stroke);
     };
 
     // Incremental points from a remote user
     const onAnnotationDraw = (payload: { userId: string; slideId: string; points: number[] }) => {
       if (payload.userId === user?.id) return;
       if (payload.slideId !== slideId) return;
-      store.appendLiveStrokePoints(payload.userId, payload.points);
+      useAnnotationStore.getState().appendLiveStrokePoints(payload.userId, payload.points);
     };
 
     // Remote user committed their annotation
@@ -103,13 +112,13 @@ export function useAnnotationSync({
     }) => {
       if (payload.userId === user?.id) return;
       if (payload.slideId !== slideId) return;
-      store.commitLiveStroke(payload.userId, payload.annotation);
+      useAnnotationStore.getState().commitLiveStroke(payload.userId, payload.annotation);
     };
 
     // Annotation deleted
     const onAnnotationDelete = (payload: { slideId: string; annotationId: string }) => {
       if (payload.slideId !== slideId) return;
-      store.removeAnnotation(payload.annotationId);
+      useAnnotationStore.getState().removeAnnotation(payload.annotationId);
     };
 
     // Remote cursor position update
@@ -123,7 +132,7 @@ export function useAnnotationSync({
       if (payload.userId === user?.id) return;
       if (payload.slideId !== slideId) return;
 
-      store.updateCursor(payload.userId, {
+      useAnnotationStore.getState().updateCursor(payload.userId, {
         userId: payload.userId,
         displayName: payload.displayName,
         color: payload.color,
@@ -143,7 +152,7 @@ export function useAnnotationSync({
       if (payload.userId === user?.id) return;
       if (payload.slideId !== slideId) return;
 
-      store.updateLaser(payload.userId, {
+      useAnnotationStore.getState().updateLaser(payload.userId, {
         userId: payload.userId,
         displayName: payload.displayName,
         color: payload.color,
@@ -153,14 +162,15 @@ export function useAnnotationSync({
     };
 
     const onLaserEnd = (payload: { userId: string }) => {
-      store.removeLaser(payload.userId);
+      useAnnotationStore.getState().removeLaser(payload.userId);
     };
 
     // User left — clean up their cursor and strokes
     const onUserLeft = (payload: { userId: string }) => {
-      store.removeCursor(payload.userId);
-      store.removeLaser(payload.userId);
-      store.removeLiveStroke(payload.userId);
+      const s = useAnnotationStore.getState();
+      s.removeCursor(payload.userId);
+      s.removeLaser(payload.userId);
+      s.removeLiveStroke(payload.userId);
     };
 
     socket.on('annotation_started', onAnnotationStart);
@@ -182,25 +192,29 @@ export function useAnnotationSync({
       socket.off('laser_ended', onLaserEnd);
       socket.off('user_left', onUserLeft);
     };
-  }, [sessionId, slideId, user?.id, store]);
+    // IMPORTANT: `useAnnotationStore.getState()` is used inside callbacks (not the
+    // reactive store proxy) — this effect only re-runs when session/slide/user changes.
+  }, [sessionId, slideId, user?.id]);
 
   // ── Stale cursor cleanup (every 5s) ──────────────────────────────────────
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
       const STALE_MS = 5000;
+      // Use getState() to avoid stale closure over the store reference
+      const s = useAnnotationStore.getState();
 
-      Object.entries(store.cursors).forEach(([userId, cursor]) => {
-        if (now - cursor.lastSeen > STALE_MS) store.removeCursor(userId);
+      Object.entries(s.cursors).forEach(([userId, cursor]) => {
+        if (now - cursor.lastSeen > STALE_MS) s.removeCursor(userId);
       });
 
-      Object.entries(store.laserPointers).forEach(([userId, laser]) => {
-        if (now - (laser as LaserPointerState).lastSeen > STALE_MS) store.removeLaser(userId);
+      Object.entries(s.laserPointers).forEach(([userId, laser]) => {
+        if (now - (laser as LaserPointerState).lastSeen > STALE_MS) s.removeLaser(userId);
       });
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [store]);
+  }, []); // No deps — interval reads fresh state via getState()
 
   // ── Outgoing emitters (local → socket) ───────────────────────────────────
 
@@ -222,12 +236,23 @@ export function useAnnotationSync({
   );
 
   const emitAnnotationPoints = useCallback(
-    throttle((points: number[]) => {
+    (...args: Parameters<typeof emitAnnotationPointsInner.fn>) =>
+      emitAnnotationPointsInner.fn(...args),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [canAnnotate, user, sessionId, slideId]
+  );
+
+  // Stable reference for the throttled inner function
+  const emitAnnotationPointsInner = useMemo(
+    () => throttle((points: number[]) => {
       if (!canAnnotate || !user) return;
       socketRef.current.emit('annotation_draw', { sessionId, slideId, points });
     }, 33), // ~30fps
     [canAnnotate, user, sessionId, slideId]
   );
+
+  // Cancel RAF on unmount
+  useEffect(() => () => emitAnnotationPointsInner.cancel(), [emitAnnotationPointsInner]);
 
   const emitAnnotationEnd = useCallback(
     (annotation: Annotation) => {
@@ -245,21 +270,31 @@ export function useAnnotationSync({
     [canAnnotate, user, sessionId, slideId]
   );
 
-  const emitCursorMove = useCallback(
-    throttle((position: CursorPosition) => {
+  const emitCursorMoveInner = useMemo(
+    () => throttle((position: CursorPosition) => {
       if (!user) return;
       socketRef.current.emit('cursor_move', { sessionId, slideId, position });
     }, 33), // ~30fps
     [user, sessionId, slideId]
   );
+  const emitCursorMove = useCallback(
+    (...args: Parameters<typeof emitCursorMoveInner.fn>) => emitCursorMoveInner.fn(...args),
+    [emitCursorMoveInner]
+  );
+  useEffect(() => () => emitCursorMoveInner.cancel(), [emitCursorMoveInner]);
 
-  const emitLaserMove = useCallback(
-    throttle((trail: CursorPosition[]) => {
+  const emitLaserMoveInner = useMemo(
+    () => throttle((trail: CursorPosition[]) => {
       if (!canAnnotate || !user) return;
       socketRef.current.emit('laser_move', { sessionId, slideId, trail });
     }, 16), // ~60fps for laser
     [canAnnotate, user, sessionId, slideId]
   );
+  const emitLaserMove = useCallback(
+    (...args: Parameters<typeof emitLaserMoveInner.fn>) => emitLaserMoveInner.fn(...args),
+    [emitLaserMoveInner]
+  );
+  useEffect(() => () => emitLaserMoveInner.cancel(), [emitLaserMoveInner]);
 
   const emitLaserEnd = useCallback(() => {
     socketRef.current.emit('laser_end', { sessionId, slideId });
