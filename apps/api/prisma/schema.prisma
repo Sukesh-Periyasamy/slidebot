@@ -1,0 +1,154 @@
+// This is the Prisma schema file for SlideBot.
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum DeckRole {
+  owner
+  editor
+  viewer
+}
+
+enum AnnotationTool {
+  freehand
+  highlight
+  arrow
+  text
+  pointer
+}
+
+enum SessionStatus {
+  waiting
+  active
+  ended
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Models
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  displayName String   @map("display_name")
+  avatarUrl   String?  @map("avatar_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  ownedDecks     Deck[]               @relation("DeckOwner")
+  collaborations DeckCollaborator[]
+  annotations    Annotation[]
+  sessions       PresentationSession[] @relation("SessionPresenter")
+
+  @@map("users")
+}
+
+model Deck {
+  id           String    @id @default(uuid())
+  ownerId      String    @map("owner_id")
+  title        String
+  description  String?
+  thumbnailUrl String?   @map("thumbnail_url")
+  settings     Json      @default("{\"theme\":\"light\",\"defaultBackground\":\"#FFFFFF\",\"aspectRatio\":\"16:9\"}")
+  /// Yjs document binary snapshot (full CRDT state)
+  yjsSnapshot  Bytes?    @map("yjs_snapshot")
+  /// Yjs vector clock for conflict detection on reconnect
+  yjsClock     Int       @default(0) @map("yjs_clock")
+  deletedAt    DateTime? @map("deleted_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  owner          User                  @relation("DeckOwner", fields: [ownerId], references: [id])
+  slides         Slide[]
+  collaborators  DeckCollaborator[]
+  sessions       PresentationSession[]
+
+  @@index([ownerId])
+  @@map("decks")
+}
+
+model Slide {
+  id                 String   @id @default(uuid())
+  deckId             String   @map("deck_id")
+  /// Fractional position for ordering (gaps: 1000, 2000, 3000...)
+  position           Int
+  backgroundColor    String   @default("#FFFFFF") @map("background_color")
+  backgroundImageUrl String?  @map("background_image_url")
+  layoutMeta         Json     @default("{\"layout\":\"blank\"}") @map("layout_meta")
+  deletedAt          DateTime? @map("deleted_at")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  deck        Deck         @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  annotations Annotation[]
+
+  @@index([deckId, position])
+  @@map("slides")
+}
+
+model DeckCollaborator {
+  deckId     String   @map("deck_id")
+  userId     String   @map("user_id")
+  role       DeckRole @default(viewer)
+  invitedAt  DateTime @default(now()) @map("invited_at")
+  acceptedAt DateTime? @map("accepted_at")
+
+  // Relations
+  deck Deck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([deckId, userId])
+  @@map("deck_collaborators")
+}
+
+model Annotation {
+  id          String         @id @default(uuid())
+  slideId     String         @map("slide_id")
+  userId      String         @map("user_id")
+  tool        AnnotationTool
+  color       String
+  strokeWidth Float          @map("stroke_width")
+  /// JSON payload: { points, rect, text, position } depending on tool
+  data        Json           @default("{}")
+  isEphemeral Boolean        @default(false) @map("is_ephemeral")
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  // Relations
+  slide Slide @relation(fields: [slideId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@index([slideId])
+  @@map("annotations")
+}
+
+model PresentationSession {
+  id                String        @id @default(uuid())
+  deckId            String        @map("deck_id")
+  presenterId       String        @map("presenter_id")
+  currentSlideIndex Int           @default(0) @map("current_slide_index")
+  status            SessionStatus @default(waiting)
+  startedAt         DateTime      @default(now()) @map("started_at")
+  endedAt           DateTime?     @map("ended_at")
+
+  // Relations
+  deck      Deck @relation(fields: [deckId], references: [id])
+  presenter User @relation("SessionPresenter", fields: [presenterId], references: [id])
+
+  @@index([deckId])
+  @@map("presentation_sessions")
+}

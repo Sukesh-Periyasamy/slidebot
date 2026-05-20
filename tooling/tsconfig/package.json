@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "@slidebot/tsconfig",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Shared TypeScript configurations for SlideBot monorepo",
+  "files": [
+    "base.json",
+    "react-app.json",
+    "node-app.json"
+  ]
+}

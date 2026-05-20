@@ -1,0 +1,12 @@
+/** @type {import("eslint").Linter.Config} */
+module.exports = {
+  extends: ['./index.js'],
+  env: {
+    node: true,
+    es2022: true,
+  },
+  rules: {
+    'no-console': 'off', // console.log is fine in Node.js (structured logging via pino)
+    '@typescript-eslint/no-require-imports': 'off',
+  },
+};

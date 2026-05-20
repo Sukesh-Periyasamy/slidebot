@@ -1,0 +1,14 @@
+{
+  "extends": "../../tooling/tsconfig/react-app.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@slidebot/shared-types": ["../../packages/shared-types/src"],
+      "@slidebot/shared-schemas": ["../../packages/shared-schemas/src"],
+      "@slidebot/shared-utils": ["../../packages/shared-utils/src"]
+    }
+  },
+  "include": ["src/**/*", "vite.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}

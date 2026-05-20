@@ -1,0 +1,17 @@
+{
+  "extends": "../../tooling/tsconfig/base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@ext/*": ["./src/*"],
+      "@slidebot/shared-types": ["../../packages/shared-types/src"],
+      "@slidebot/shared-utils": ["../../packages/shared-utils/src"]
+    },
+    "types": ["chrome", "vite/client"]
+  },
+  "include": ["src/**/*", "manifest.json"],
+  "exclude": ["node_modules", "dist"]
+}

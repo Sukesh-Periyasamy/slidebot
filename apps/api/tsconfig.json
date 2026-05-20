@@ -1,0 +1,14 @@
+{
+  "extends": "../../tooling/tsconfig/node-app.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "paths": {
+      "@slidebot/shared-types": ["../../packages/shared-types/src"],
+      "@slidebot/shared-schemas": ["../../packages/shared-schemas/src"],
+      "@slidebot/shared-utils": ["../../packages/shared-utils/src"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "prisma"]
+}
