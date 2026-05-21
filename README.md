@@ -606,8 +606,8 @@ NODE_ENV="development"
 CORS_ORIGINS="http://localhost:3000,https://app.slidebot.app"
 
 # ── Storage (for PDF uploads) ─────────────────────────────────────────────────
-STORAGE_PROVIDER="local"                                        # "local" | "s3"
-STORAGE_LOCAL_DIR="./uploads"
+STORAGE_PROVIDER="supabase"                                     # "supabase" for alpha; "local" only for offline dev
+# STORAGE_LOCAL_DIR="./uploads"                                 # local-dev only
 # AWS_S3_BUCKET="your-bucket"                                   # Uncomment for S3
 # AWS_ACCESS_KEY_ID="..."
 # AWS_SECRET_ACCESS_KEY="..."
@@ -948,18 +948,18 @@ fly deploy --config apps/api/fly.toml
 Render is the recommended alpha host for the API because it supports a simple health check flow and low-maintenance WebSocket deployment.
 
 ```bash
-# Build the backend from the repo root
-pnpm turbo run build --filter @slidebot/api
-
-# Start command on Render
-node dist/index.js
+pnpm install --frozen-lockfile
+pnpm turbo build --filter=@slidebot/api
+pnpm --filter @slidebot/api start
 ```
 
-Set Render's Health Check Path to `/health` and point Better Stack or UptimeRobot at the same endpoint. Ping every 5 minutes to catch regressions without adding meaningful load.
+Use the repository root as the Render root directory, set the Health Check Path to `/health`, and point Better Stack or UptimeRobot at the same endpoint. Ping every 5 minutes to catch regressions without adding meaningful load.
 
 The `/health` endpoint returns a minimal payload with `status`, `uptime`, and `timestamp`. It does not query the database, Redis, or external APIs.
 
 Free-tier hosting providers may suspend idle instances or affect long-lived websocket stability during inactivity periods. SlideBot automatically attempts reconnect recovery when websocket interruption occurs.
+
+Use Supabase Storage for alpha uploads. Render's filesystem is ephemeral and should not be relied upon for persisted uploads.
 
 ### Scaling WebSocket Servers
 
@@ -980,6 +980,16 @@ pnpm --filter @slidebot/api db:migrate:deploy
 
 ### Deployment Validation
 
+- [ ] Auth login works
+- [ ] RoomPage loads
+- [ ] WebSocket connected
+- [ ] Presenter sync works
+- [ ] Reconnect recovery works
+- [ ] Annotations sync
+- [ ] Extension detects Meet
+- [ ] Uploads work
+- [ ] No console errors
+- [ ] Mobile layout is acceptable
 - [ ] `/health` returns HTTP 200
 - [ ] Render health checks point to `/health`
 - [ ] Better Stack or UptimeRobot pings `/health` every 5 minutes

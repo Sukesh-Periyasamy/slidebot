@@ -30,9 +30,9 @@ The backend will be compiled to `apps/api/dist/`.
 2. **Name**: `slidebot-api`
 3. **Region**: Select the closest region to your users.
 4. **Branch**: `main` (or the branch you want to auto‑deploy from).
-5. **Root Directory**: `apps/api`
-6. **Build Command**: `pnpm install && pnpm turbo run build --filter @slidebot/api`
-7. **Start Command**: `node dist/index.js`
+5. **Root Directory**: `/`
+6. **Build Command**: `pnpm install --frozen-lockfile && pnpm turbo build --filter=@slidebot/api`
+7. **Start Command**: `pnpm --filter @slidebot/api start`
 8. **Environment**: Set **Node Version** to `20.x`.
 9. **Instance Type**: `Starter` (1 CPU, 512 MiB) is sufficient for alpha.
 10. Click **Create Web Service**.
@@ -50,18 +50,18 @@ Add the following variables in the Render dashboard under **Environment → Envi
 | `SUPABASE_SERVICE_ROLE_KEY` | Service‑role key – **secret** (backend only). |
 | `JWT_SECRET` | Secret for signing session JWTs. |
 | `CORS_ORIGINS` | Comma‑separated list of allowed origins, e.g. `https://app.slidebot.app,https://frontend.vercel.app`. |
-| `STORAGE_PROVIDER` | `local` or `s3`. For alpha we use `local`. |
-| `STORAGE_LOCAL_DIR` | Path where uploaded PDFs are stored, e.g. `./uploads`. |
+| `STORAGE_PROVIDER` | `supabase` for alpha. Treat local disk as development only. |
+| `STORAGE_LOCAL_DIR` | Local-dev fallback path only; not used on Render alpha. |
 | `NODE_ENV` | `production` |
 
 ## 4. Health Check & WebSocket Settings
 - **Health Check Path**: `/health` – Render probes this endpoint every 30 s.
 - **Expected response**: `200 OK` with `{ "status": "ok", "uptime": <seconds>, "timestamp": <ms> }`.
 - **Monitoring recommendation**: Point Better Stack or UptimeRobot at `/health` and ping every 5 minutes to catch regressions early without adding load.
-- **WebSocket Timeout**: Render terminates idle connections after 5 minutes. The SlideBot client automatically reconnects, but you may increase the timeout in the Render service settings under **Advanced → WebSocket Timeout**.
+- **WebSocket reliability**: Free-tier hosting providers may suspend idle instances or affect long-lived websocket stability during inactivity periods. SlideBot automatically attempts reconnect recovery when websocket interruption occurs.
 - **Persistent Redis**: Render’s managed Redis add‑on persists data across restarts, satisfying the requirement for session state durability.
 
-> Free-tier hosting providers may suspend idle instances or affect long-lived websocket stability during inactivity periods. SlideBot automatically attempts reconnect recovery when websocket interruption occurs.
+> Use Supabase Storage for uploads on alpha. Render's filesystem is ephemeral and should not be relied upon for persisted uploads.
 
 ## 5. Deploy & Verify
 After the service is created Render will start a build. When it finishes:
@@ -70,13 +70,19 @@ After the service is created Render will start a build. When it finishes:
 curl https://slidebot-api.onrender.com/health
 # Expected response: { "status": "ok", "uptime": 12.34, "timestamp": 1710000000000 }
 ```
-Open the URL in a browser and ensure the API returns JSON and the WebSocket endpoint is reachable:
-```bash
-wscat -c wss://slidebot-api.onrender.com
-# You should see a successful connection banner.
-```
+Open the app in a browser and verify the Socket.IO connection through the frontend RoomPage smoke test or the browser's DevTools Network/WebSocket inspector. Use Socket.IO-compatible validation only; raw `wscat` does not speak the Socket.IO protocol.
 
 ## 6. Deployment Validation Checklist
+- [ ] Auth login works
+- [ ] RoomPage loads
+- [ ] WebSocket connected
+- [ ] Presenter sync works
+- [ ] Reconnect recovery works
+- [ ] Annotations sync
+- [ ] Extension detects Meet
+- [ ] Uploads work
+- [ ] No console errors
+- [ ] Mobile layout is acceptable
 - [ ] `/health` returns HTTP 200
 - [ ] Render health check path is set to `/health`
 - [ ] Better Stack or UptimeRobot monitor pings `/health` every 5 minutes
@@ -86,4 +92,4 @@ wscat -c wss://slidebot-api.onrender.com
 Render automatically rebuilds on every push to the selected branch. Ensure the **Build Command** and **Start Command** remain unchanged.
 
 ---
-**Troubleshooting** – See the troubleshooting section in `docs/deployment/TRoubleshooting.md` for common Render issues.
+**Troubleshooting** – See the troubleshooting section in `docs/deployment/TROUBLESHOOTING.md` for common Render issues.

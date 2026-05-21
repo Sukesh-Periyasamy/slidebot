@@ -15,12 +15,13 @@
   - Implemented service worker double-registration guards and UI shadow host duplicate-mount guards.
   - Created and ran test coverage for long-session stability, memory leak verification, rate-limiting assertion, and reconnect storm resilience.
   - Established a scalability reporting suite verifying p99 latency < 200ms at multi-client scales.
+  - Standardized the Render alpha deployment contract: repo-root build/start commands, `/health` monitoring, and Supabase Storage for uploads.
 
 ## What is currently in progress
-- The Production Hardening Phase is fully complete. The project is currently idle, waiting for database integration and persistence features to be picked up.
+- The Production Hardening Phase is fully complete. The project is currently in alpha deployment validation and rollout preparation.
 
 ## Exact place development stopped
-- Development stopped after establishing full monorepo typechecking, resolving hook-level and listener-level resource leaks, integrating the server rate-limiting bucket, and completing the stress-testing suites.
+- Development stopped after establishing full monorepo typechecking, resolving hook-level and listener-level resource leaks, integrating the server rate-limiting bucket, completing the stress-testing suites, and defining the Render alpha deployment contract.
 
 ## Known blockers
 - None currently.
@@ -29,6 +30,7 @@
 - No active bugs. Typechecking and tests succeed cleanly.
 
 ## Immediate next steps
+- Validate the Render alpha deployment against the production checklist.
 - **Annotation Persistence & Sync**: Establish database schema mappings for slides and room drawings using Prisma and Supabase.
 - Integrate real-time state synchronization or Yjs/Prisma state reconciliation to persist drawing records across room lifetimes.
 

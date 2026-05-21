@@ -20,19 +20,31 @@ It must stay lightweight and must not query the database, Redis, or any external
 
 Recommended monitoring interval: every 5 minutes.
 
+Free-tier hosting providers may suspend idle instances or affect long-lived websocket stability during inactivity periods. SlideBot automatically attempts reconnect recovery when websocket interruption occurs, but keep-alive pings only reduce cold starts and do not guarantee persistent websocket uptime.
+
 ## Deployment Steps
 
 ```bash
-pnpm install
-pnpm turbo run build --filter @slidebot/api
+pnpm install --frozen-lockfile
+pnpm turbo build --filter=@slidebot/api
 pnpm turbo run typecheck
 pnpm turbo run lint
 ```
 
-Use `node dist/index.js` as the backend start command in production.
+Use `/` as the Render root directory and `pnpm --filter @slidebot/api start` as the backend start command in production.
 
 ## Validation Checklist
 
+- [ ] Auth login works
+- [ ] RoomPage loads
+- [ ] WebSocket connected
+- [ ] Presenter sync works
+- [ ] Reconnect recovery works
+- [ ] Annotations sync
+- [ ] Extension detects Meet
+- [ ] Uploads work
+- [ ] No console errors
+- [ ] Mobile layout is acceptable
 - [ ] `/health` returns HTTP 200
 - [ ] `/health` returns `{ "status": "ok", "uptime": <number>, "timestamp": <number> }`
 - [ ] Render health check path is `/health`
