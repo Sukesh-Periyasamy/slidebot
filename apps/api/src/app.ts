@@ -58,12 +58,13 @@ export function createApp(): Application {
   app.use('/api', rateLimiter);
 
   // ── Health check ──────────────────────────────────────────────────────────
+  // Lightweight production probe for Render, Better Stack, UptimeRobot, and CI.
+  // Keep this side-effect free so it never depends on the database, Redis, or external APIs.
   app.get('/health', (_req, res) => {
-    res.json({
+    res.status(200).json({
       status: 'ok',
-      service: 'slidebot-api',
-      version: process.env['npm_package_version'] ?? '0.0.1',
-      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      timestamp: Date.now(),
     });
   });
 

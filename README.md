@@ -943,6 +943,24 @@ railway up
 fly deploy --config apps/api/fly.toml
 ```
 
+### Render Alpha Deployment
+
+Render is the recommended alpha host for the API because it supports a simple health check flow and low-maintenance WebSocket deployment.
+
+```bash
+# Build the backend from the repo root
+pnpm turbo run build --filter @slidebot/api
+
+# Start command on Render
+node dist/index.js
+```
+
+Set Render's Health Check Path to `/health` and point Better Stack or UptimeRobot at the same endpoint. Ping every 5 minutes to catch regressions without adding meaningful load.
+
+The `/health` endpoint returns a minimal payload with `status`, `uptime`, and `timestamp`. It does not query the database, Redis, or external APIs.
+
+Free-tier hosting providers may suspend idle instances or affect long-lived websocket stability during inactivity periods. SlideBot automatically attempts reconnect recovery when websocket interruption occurs.
+
 ### Scaling WebSocket Servers
 
 SlideBot uses the **Socket.IO Redis Adapter** for horizontal scaling. Multiple WebSocket server instances communicate through Redis pub/sub, so clients on different instances are in the same rooms.
@@ -959,6 +977,13 @@ WS_INSTANCE_COUNT=3 railway up
 # Run migrations in production
 pnpm --filter @slidebot/api db:migrate:deploy
 ```
+
+### Deployment Validation
+
+- [ ] `/health` returns HTTP 200
+- [ ] Render health checks point to `/health`
+- [ ] Better Stack or UptimeRobot pings `/health` every 5 minutes
+- [ ] WebSocket reconnect recovery succeeds after a brief interruption
 
 ---
 
