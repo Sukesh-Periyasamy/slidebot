@@ -1,4 +1,4 @@
-import type { DeckRole } from '../models';
+import type { DeckRole } from '../models/index.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Auth endpoints

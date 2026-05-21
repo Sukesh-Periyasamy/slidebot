@@ -1,4 +1,4 @@
-import type { Annotation, CursorPosition, DeckRole, SessionStatus, UserPresence } from '../models';
+import type { Annotation, CursorPosition, DeckRole, SessionStatus, UserPresence } from '../models/index.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Namespace definitions
