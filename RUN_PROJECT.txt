@@ -1,0 +1,50 @@
+SlideBot Local Run Guide
+========================
+
+Prerequisites
+-------------
+- Node.js 20+
+- pnpm 9+
+
+1) Install dependencies
+-----------------------
+pnpm install
+
+2) Configure environment
+------------------------
+- Copy `.env.example` values into app-specific env files as needed:
+  - `apps/api/.env`
+  - `apps/web/.env`
+  - `apps/extension/.env` (optional for extension work)
+
+3) Run the full monorepo in dev mode
+-------------------------------------
+pnpm dev
+
+Expected local URLs
+-------------------
+- Web app: http://localhost:3000
+- API: http://localhost:4000
+- Health endpoint: http://localhost:4000/health
+
+Useful targeted commands
+------------------------
+- Web only: `pnpm dev:web`
+- API only: `pnpm dev:api`
+- Extension only: `pnpm dev:extension`
+
+Quality checks
+--------------
+- Lint: `pnpm lint`
+- Typecheck: `pnpm typecheck`
+- Tests: `pnpm test`
+
+Build for production
+--------------------
+pnpm build
+
+Stop running dev servers
+------------------------
+- In terminal foreground: Ctrl+C
+- If started in background, stop the process by PID in PowerShell:
+  `Stop-Process -Id <PID> -Force`
