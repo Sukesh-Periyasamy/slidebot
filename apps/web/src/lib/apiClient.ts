@@ -2,7 +2,12 @@
  * Axios API client with automatic Supabase JWT injection.
  * All API requests go through here — never raw fetch calls.
  */
-import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
+import axios, {
+  type AxiosError,
+  type AxiosInstance,
+  type AxiosResponse,
+  type InternalAxiosRequestConfig,
+} from 'axios';
 
 import { supabase } from './supabase';
 
@@ -23,13 +28,13 @@ apiClient.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error: unknown) => Promise.reject(error)
 );
 
 // ── Response interceptor: handle 401 (token expired) ─────────────────────────
 apiClient.interceptors.response.use(
-  (response) => response,
-  async (error) => {
+  (response: AxiosResponse) => response,
+  async (error: AxiosError) => {
     if (error.response?.status === 401) {
       // Try to refresh the session once
       const { data } = await supabase.auth.refreshSession();
