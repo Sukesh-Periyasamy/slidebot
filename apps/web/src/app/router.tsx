@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router-dom';
 
 import { AuthGuard } from '@/features/auth/components/AuthGuard';
 import { LoginPage, AuthCallbackPage } from '@/features/auth/components/LoginPage';
@@ -7,7 +7,7 @@ const DashboardPage = () => <div>Dashboard</div>;
 const SettingsPage = () => <div>Settings</div>;
 const LandingPage = () => <div>Landing</div>;
 const NotFoundPage = () => <div>404</div>;
-const AppLayout = ({ children }: { children?: React.ReactNode }) => <div>{children}</div>;
+const AppLayout = () => <Outlet />;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Router definition

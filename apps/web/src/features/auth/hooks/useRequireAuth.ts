@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-import { selectAuthStatus, useAuthStore } from '../store/authStore';
+import { selectAuthStatus, selectIsInitialized, useAuthStore } from '../store/authStore';
 
 /**
  * useRequireAuth — redirect unauthenticated users to /login.
@@ -18,18 +18,19 @@ import { selectAuthStatus, useAuthStore } from '../store/authStore';
 export function useRequireAuth(redirectTo?: string) {
   const navigate = useNavigate();
   const location = useLocation();
+  const isInitialized = useAuthStore(selectIsInitialized);
   const status = useAuthStore(selectAuthStatus);
 
   useEffect(() => {
-    if (status === 'loading') return;
+    if (!isInitialized || status === 'loading') return;
 
     if (status === 'unauthenticated') {
       const returnTo = redirectTo ?? location.pathname + location.search;
       void navigate(`/login?returnTo=${encodeURIComponent(returnTo)}`, { replace: true });
     }
-  }, [status, navigate, location, redirectTo]);
+  }, [isInitialized, status, navigate, location, redirectTo]);
 
-  return { isReady: status !== 'loading' };
+  return { isReady: isInitialized && status !== 'loading' };
 }
 
 /**

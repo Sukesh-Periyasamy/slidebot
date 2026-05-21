@@ -17,12 +17,14 @@ type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
 interface AuthState {
   // State
+  isInitialized: boolean;
   status: AuthStatus;
   user: AuthUser | null;
   session: Session | null;
   error: string | null;
 
   // Actions
+  setInitialized: (initialized: boolean) => void;
   setSession: (session: Session | null, user: User | null) => void;
   setLoading: () => void;
   setError: (error: string) => void;
@@ -37,10 +39,13 @@ export const useAuthStore = create<AuthState>()(
   devtools(
     subscribeWithSelector((set) => ({
       // Initial state
+      isInitialized: false,
       status: 'loading',
       user: null,
       session: null,
       error: null,
+
+      setInitialized: (initialized) => set({ isInitialized: initialized }),
 
       setSession: (session, supaUser) => {
         if (!session || !supaUser) {
@@ -77,6 +82,7 @@ export const useAuthStore = create<AuthState>()(
 
 export const selectUser = (s: AuthState) => s.user;
 export const selectSession = (s: AuthState) => s.session;
+export const selectIsInitialized = (s: AuthState) => s.isInitialized;
 export const selectAuthStatus = (s: AuthState) => s.status;
 export const selectIsAuthenticated = (s: AuthState) => s.status === 'authenticated';
 export const selectIsLoading = (s: AuthState) => s.status === 'loading';

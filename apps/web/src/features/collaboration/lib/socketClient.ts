@@ -11,6 +11,7 @@
  * - Token refresh on Supabase auth change
  */
 import { io, type Socket } from 'socket.io-client';
+import type { Subscription } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 
@@ -30,6 +31,7 @@ export type ConnectionStatus =
 interface SocketState {
   presenterSocket: Socket | null;
   collaborationSocket: Socket | null;
+  authSubscription: Subscription | null;
   status: ConnectionStatus;
   listeners: Set<(status: ConnectionStatus) => void>;
   /** Number of reconnect attempts since last clean connect */
@@ -41,6 +43,7 @@ interface SocketState {
 const state: SocketState = {
   presenterSocket: null,
   collaborationSocket: null,
+  authSubscription: null,
   status: 'disconnected',
   listeners: new Set(),
   reconnectAttempts: 0,
@@ -78,13 +81,26 @@ function buildSocketOpts(token: string) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function connectSocket(): Promise<void> {
-  if (state.presenterSocket?.connected) return;
+  if (state.presenterSocket || state.collaborationSocket) return;
 
   setStatus('connecting');
 
   // Get fresh auth token
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
+  let token: string | undefined;
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      logger.error('[Socket] Failed to resolve auth session:', error.message);
+      setStatus('error');
+      return;
+    }
+    token = data.session?.access_token;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error('[Socket] Session lookup threw:', message);
+    setStatus('error');
+    return;
+  }
 
   if (!token) {
     logger.error('[Socket] No auth token — cannot connect');
@@ -154,7 +170,10 @@ export async function connectSocket(): Promise<void> {
   });
 
   // ── Token refresh on Supabase auth change ──────────────────────────────────
-  supabase.auth.onAuthStateChange(async (_event, session) => {
+  state.authSubscription?.unsubscribe();
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange(async (_event, session) => {
     if (session?.access_token) {
       const newToken = session.access_token;
       presenterSocket.auth = { token: newToken };
@@ -162,12 +181,15 @@ export async function connectSocket(): Promise<void> {
       logger.log('[Socket] Auth token refreshed');
     }
   });
+  state.authSubscription = subscription;
 
   state.presenterSocket = presenterSocket;
   state.collaborationSocket = collaborationSocket;
 }
 
 export function disconnectSocket(): void {
+  state.authSubscription?.unsubscribe();
+  state.authSubscription = null;
   state.presenterSocket?.disconnect();
   state.collaborationSocket?.disconnect();
   state.presenterSocket = null;

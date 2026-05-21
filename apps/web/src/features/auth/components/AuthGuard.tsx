@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
-import { selectAuthStatus, useAuthStore } from '../store/authStore';
+import { selectAuthStatus, selectIsInitialized, useAuthStore } from '../store/authStore';
 
 interface AuthGuardProps {
   children: ReactNode;
@@ -20,9 +20,10 @@ interface AuthGuardProps {
  */
 export function AuthGuard({ children, fallback }: AuthGuardProps) {
   const location = useLocation();
+  const isInitialized = useAuthStore(selectIsInitialized);
   const status = useAuthStore(selectAuthStatus);
 
-  if (status === 'loading') {
+  if (!isInitialized || status === 'loading') {
     return fallback ?? <AuthLoadingScreen />;
   }
 

@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
 import { supabase } from '@/lib/supabase';
-import { useAuthStore } from '@/features/auth/store/authStore';
+import { selectIsInitialized, useAuthStore } from '@/features/auth/store/authStore';
 
 // ── TanStack Query client config ───────────────────────────────────────────────
 const queryClient = new QueryClient({
@@ -30,10 +30,11 @@ const queryClient = new QueryClient({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function AuthProvider({ children }: { children: ReactNode }) {
-  const { setSession, setLoading, setError } = useAuthStore();
+  const { setSession, setLoading, setError, setInitialized } = useAuthStore();
 
   useEffect(() => {
     let isMounted = true;
+    setInitialized(false);
     setLoading();
 
     // 1. Load initial session (handles page refresh)
@@ -52,6 +53,9 @@ function AuthProvider({ children }: { children: ReactNode }) {
         if (!isMounted) return;
         const message = error instanceof Error ? error.message : 'Failed to restore session';
         setError(message);
+      } finally {
+        if (!isMounted) return;
+        setInitialized(true);
       }
     };
     void loadInitialSession();
@@ -71,7 +75,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [setSession, setLoading, setError]);
+  }, [setSession, setLoading, setError, setInitialized]);
 
   return <>{children}</>;
 }
@@ -85,12 +89,27 @@ interface AppProvidersProps {
 }
 
 export function AppProviders({ children }: AppProvidersProps) {
+  const isInitialized = useAuthStore(selectIsInitialized);
+
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>{children}</AuthProvider>
+      <AuthProvider>
+        {isInitialized ? children : <AuthBootstrapSplash />}
+      </AuthProvider>
       {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
   );
 }
 
 export { queryClient };
+
+function AuthBootstrapSplash() {
+  return (
+    <div className="flex h-screen w-screen items-center justify-center bg-surface-950">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-7 w-7 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
+        <p className="text-xs text-surface-400">Preparing your workspace...</p>
+      </div>
+    </div>
+  );
+}
