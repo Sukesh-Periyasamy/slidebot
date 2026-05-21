@@ -7,6 +7,7 @@ import type {
 } from '@slidebot/shared-types';
 
 import { logger } from '../../config/logger';
+import { prisma } from '../../config/database';
 import { roomManager } from '../room-manager';
 import { getPresenceColor } from '@slidebot/shared-utils';
 import { attachHeartbeat } from '../heartbeat';
@@ -44,7 +45,7 @@ interface PresenterClientEvents {
   'session:join': (
     payload: {
       sessionId?: string;
-      deckId: string;
+      deckId?: string;
     },
     ack: (res: SessionAckResponse) => void
   ) => void;
@@ -189,13 +190,13 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
 
     // ── session:join ──────────────────────────────────────────────────────
     extSocket.on('session:join', async (payload: unknown, ack: unknown) => {
-      const { sessionId, deckId } = payload as { sessionId?: string; deckId: string };
+      const { sessionId, deckId } = payload as { sessionId?: string; deckId?: string };
       const callback = ack as (res: SessionAckResponse) => void;
 
       try {
         // Find session by sessionId or by deckId
         let targetSessionId = sessionId;
-        if (!targetSessionId) {
+        if (!targetSessionId && deckId) {
           const active = await roomManager.getActiveSessionForDeck(deckId);
           targetSessionId = active?.sessionId;
         }
@@ -203,6 +204,38 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
         if (!targetSessionId) {
           callback({ ok: false, error: 'No active session found for this deck' });
           return;
+        }
+
+        // Redis session may be missing after a backend restart.
+        // If a persistent room exists, rebuild session state in Redis using roomId as sessionId.
+        const existingSession = await roomManager.getSession(targetSessionId);
+        if (!existingSession) {
+          const roomRecord = await prisma.room.findUnique({
+            where: { id: targetSessionId },
+            include: {
+              deck: {
+                select: { id: true, slides: true },
+              },
+              presenter: {
+                select: { id: true, displayName: true },
+              },
+            },
+          });
+
+          if (!roomRecord || roomRecord.status !== 'active') {
+            callback({ ok: false, error: 'Session not found or ended' });
+            return;
+          }
+
+          await roomManager.createSession(
+            roomRecord.deck.id,
+            {
+              userId: roomRecord.presenter.id,
+              displayName: roomRecord.presenter.displayName,
+            },
+            roomRecord.deck.slides,
+            roomRecord.id
+          );
         }
 
         const result = await handleReconnect(
@@ -222,7 +255,7 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
 
         await extSocket.join(`session:${targetSessionId}`);
         if ((extSocket as any).data) {
-          (extSocket as any).data.currentDeckId = deckId;
+          (extSocket as any).data.currentDeckId = deckId ?? '';
           (extSocket as any).data.currentSessionId = targetSessionId;
         }
 

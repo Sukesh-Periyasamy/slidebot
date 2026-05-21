@@ -1,5 +1,6 @@
 export interface UploadDeckResponse {
   deckId: string;
+  roomId?: string;
   name: string;
   slides: number;
   storagePath: string;

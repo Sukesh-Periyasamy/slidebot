@@ -20,25 +20,28 @@ import { ParticipantsList } from '@/features/sync/components/ParticipantsList';
 import { usePdfLoader } from '@/features/viewer/hooks/usePdfLoader';
 import { useDeckStore } from '@/features/decks/store/deckStore';
 import { getPresenterSocket } from '@/features/collaboration/lib/socketClient';
-import { getDeckById } from '@/features/decks/api/decksApi';
+import { getRoomById, joinRoom, leaveRoom } from '@/features/decks/api/roomsApi';
 
 export function RoomPage() {
-  const { deckId } = useParams<{ deckId: string }>();
+  const { roomId } = useParams<{ roomId: string }>();
   const syncStore = useSyncStore();
   const viewerStore = useViewerStore();
   const [canvasDims, setCanvasDims] = useState({ w: 0, h: 0 });
   const [participantsPanelOpen, setParticipantsPanelOpen] = useState(false);
+  const [resolvedDeckId, setResolvedDeckId] = useState<string | null>(null);
 
   const totalSlides = useViewerStore((s) => s.pdfDoc?.numPages ?? 0);
   const setCurrentPage = useViewerStore((s) => s.setCurrentPage);
-  const deck = useDeckStore((s) => (deckId ? s.decks[deckId] : undefined));
+  const deckName = useDeckStore((s) =>
+    resolvedDeckId ? (s.decks[resolvedDeckId]?.name ?? 'SlideBot Presentation') : 'SlideBot Presentation'
+  );
   const upsertDeck = useDeckStore((s) => s.upsertDeck);
   const { loadFromUrl } = usePdfLoader();
-  const sync = useSyncEngine({ deckId: deckId ?? '', totalSlides });
+  const sync = useSyncEngine({ roomId: roomId ?? '', deckId: resolvedDeckId ?? '', totalSlides });
   const exploration = useExplorationMode(sync);
   const annotationSync = useAnnotationSync({
     sessionId: syncStore.session?.sessionId ?? '',
-    slideId: `${deckId}-${viewerStore.currentPage}`
+    slideId: `${resolvedDeckId ?? 'deck'}-${viewerStore.currentPage}`
   });
 
   // ── 2. Cleanup viewer state on unmount ──────────────────────────────────
@@ -60,44 +63,39 @@ export function RoomPage() {
   }, [viewerStore.currentPage, syncStore.isExploring, syncStore.session, syncStore.connectionStatus]);
 
   useEffect(() => {
-    if (!deckId) return;
+    if (!roomId) return;
 
     let cancelled = false;
 
     const ensureDeckAndLoad = async () => {
-      const now = Date.now();
-      const hasUsableUrl = Boolean(deck?.signedUrl) && (deck?.signedUrlExpiresAt ?? 0) > now + 30_000;
+      try {
+        await joinRoom(roomId);
+        const room = await getRoomById(roomId);
+        if (cancelled) return;
 
-      if (!deck || !hasUsableUrl) {
-        try {
-          const payload = await getDeckById(deckId);
-          if (cancelled) return;
+        setResolvedDeckId(room.deck.deckId);
+        upsertDeck({
+          deckId: room.deck.deckId,
+          name: room.deck.name,
+          slides: room.deck.slides,
+          storagePath: room.deck.storagePath,
+          signedUrl: room.deck.signedUrl,
+          signedUrlExpiresAt: Date.now() + room.deck.signedUrlExpiresIn * 1000,
+          createdAt: Date.now(),
+        });
 
-          upsertDeck({
-            deckId: payload.deckId,
-            name: payload.name,
-            slides: payload.slides,
-            storagePath: payload.storagePath,
-            signedUrl: payload.signedUrl,
-            signedUrlExpiresAt: Date.now() + payload.signedUrlExpiresIn * 1000,
-            createdAt: Date.now(),
-          });
-          await loadFromUrl(payload.signedUrl);
-          return;
-        } catch {
-          if (cancelled) return;
-          return;
-        }
+        await loadFromUrl(room.deck.signedUrl);
+      } catch {
+        if (cancelled) return;
       }
-
-      await loadFromUrl(deck.signedUrl);
     };
 
     void ensureDeckAndLoad();
     return () => {
       cancelled = true;
+      void leaveRoom(roomId);
     };
-  }, [deckId, deck, loadFromUrl, upsertDeck]);
+  }, [roomId, loadFromUrl, upsertDeck]);
 
   useEffect(() => {
     let socket: ReturnType<typeof getPresenterSocket> | null = null;
@@ -142,7 +140,7 @@ export function RoomPage() {
     });
   }, [syncStore.isPresenter, syncStore.session?.sessionId, viewerStore.currentPage]);
 
-  if (!deckId) {
+  if (!roomId) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-surface-950 px-6 text-center">
         <div>
@@ -157,7 +155,7 @@ export function RoomPage() {
     <div className="flex flex-col h-screen w-full overflow-hidden bg-surface-950 text-surface-50">
       {/* ── Top Bar ──────────────────────────────────────────────────────── */}
       <RoomHeader 
-        deckName="SlideBot Presentation"
+        deckName={deckName}
         onLeave={() => {}}
         participantCount={Object.keys(syncStore.members).length}
         participantsPanelOpen={participantsPanelOpen}
@@ -177,7 +175,7 @@ export function RoomPage() {
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div style={{ width: canvasDims.w, height: canvasDims.h, position: 'relative' }}>
               <AnnotationCanvas 
-                slideId={`${deckId}-${viewerStore.currentPage}`}
+                slideId={`${resolvedDeckId ?? 'deck'}-${viewerStore.currentPage}`}
                 width={canvasDims.w}
                 height={canvasDims.h}
                 sync={annotationSync}

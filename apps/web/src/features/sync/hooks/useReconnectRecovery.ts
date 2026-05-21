@@ -57,6 +57,7 @@ interface SessionJoinAck {
 }
 
 interface UseReconnectRecoveryOptions {
+  roomId: string;
   deckId: string;
   sessionId: string | null;
   userId: string;
@@ -115,6 +116,7 @@ function loadReconnectState() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function useReconnectRecovery({
+  roomId,
   deckId,
   sessionId,
   userId,
@@ -154,7 +156,7 @@ export function useReconnectRecovery({
       await new Promise<void>((resolve) => {
         socket.emit(
           'session:join',
-          { deckId, sessionId: targetSessionId },
+          { deckId, sessionId: targetSessionId || roomId },
           (res: SessionJoinAck) => {
             if (!res.ok || !res.session) {
               console.error({ error: res.error }, 'Recovery: session:join failed');
@@ -209,7 +211,7 @@ export function useReconnectRecovery({
     } finally {
       isRecoveringRef.current = false;
     }
-  }, [deckId, sessionId, userId, store, onSlideRestored, onAnnotationRestore]);
+  }, [roomId, deckId, sessionId, userId, store, onSlideRestored, onAnnotationRestore]);
 
   return { recover };
 }

@@ -10,6 +10,7 @@ import { notFoundHandler } from './middleware/notFoundHandler';
 import { rateLimiter } from './middleware/rateLimiter';
 import { authRouter } from './modules/auth/auth.router';
 import { decksRouter } from './modules/decks/decks.router';
+import { roomsRouter } from './modules/rooms/rooms.router';
 import { slidesRouter } from './modules/slides/slides.router';
 import { collaboratorsRouter } from './modules/collaborators/collaborators.router';
 import { annotationsRouter } from './modules/annotations/annotations.router';
@@ -80,6 +81,7 @@ export function createApp(): Application {
   // ── API Routes (v1) ───────────────────────────────────────────────────────
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/decks', decksRouter);
+  app.use('/api/v1/rooms', roomsRouter);
   app.use('/api/v1/decks/:deckId/slides', slidesRouter);
   app.use('/api/v1/decks/:deckId/collaborators', collaboratorsRouter);
   app.use('/api/v1/annotations', annotationsRouter);

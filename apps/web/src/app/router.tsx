@@ -90,7 +90,7 @@ const router = createBrowserRouter([
 
   // ── Room (fullscreen — no sidebar layout) ───────────────────────────────
   {
-    path: '/room/:deckId',
+    path: '/room/:roomId',
     element: (
       <AuthGuard>
         <RoomPage />

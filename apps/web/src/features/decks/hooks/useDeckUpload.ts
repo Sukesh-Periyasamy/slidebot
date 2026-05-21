@@ -24,7 +24,7 @@ export function useDeckUpload() {
   }, []);
 
   const upload = useCallback(
-    async (file: File): Promise<string> => {
+    async (file: File): Promise<{ deckId: string; roomId: string }> => {
       const validationError = validatePdf(file);
       if (validationError) {
         setError(validationError);
@@ -36,6 +36,9 @@ export function useDeckUpload() {
 
       try {
         const payload = await uploadDeck(file);
+        if (!payload.roomId) {
+          throw new Error('Upload succeeded but room creation failed.');
+        }
 
         upsertDeck({
           deckId: payload.deckId,
@@ -47,7 +50,7 @@ export function useDeckUpload() {
           createdAt: Date.now(),
         });
 
-        return payload.deckId;
+        return { deckId: payload.deckId, roomId: payload.roomId };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to upload presentation.';
         setError(message);

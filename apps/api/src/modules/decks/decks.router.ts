@@ -1,10 +1,10 @@
 import { Router, type Router as ExpressRouter } from 'express';
 import multer from 'multer';
 
+import { prisma } from '../../config/database';
 import { env } from '../../config/env';
 import { supabaseAdmin } from '../../config/supabase';
 import { authenticate } from '../../middleware/authenticate';
-import { getDeckRecord, upsertDeckRecord } from './decks.memory';
 
 // TODO: Wire up decks controller
 const router: ExpressRouter = Router();
@@ -40,6 +40,21 @@ async function createSignedUrl(storagePath: string): Promise<string> {
     throw new Error(error?.message ?? 'Failed to create signed URL');
   }
   return data.signedUrl;
+}
+
+async function ensureUserRecord(user: { id: string; email: string }): Promise<void> {
+  await prisma.user.upsert({
+    where: { id: user.id },
+    update: {
+      email: user.email,
+      displayName: user.email.split('@')[0] || 'slidebot-user',
+    },
+    create: {
+      id: user.id,
+      email: user.email,
+      displayName: user.email.split('@')[0] || 'slidebot-user',
+    },
+  });
 }
 
 /**
@@ -89,14 +104,15 @@ router.post('/upload', authenticate, (req, res) => {
     void (async () => {
       try {
         const ownerId = req.user?.id;
+        const ownerEmail = req.user?.email ?? '';
         if (!ownerId) {
           res.status(401).json({ error: 'Unauthorized' });
           return;
         }
 
-        const deckId = `deck_${Math.random().toString(36).slice(2, 10)}`;
         const slides = Math.max(1, Math.ceil(file.size / 180_000));
         const safeName = sanitizeFilename(file.originalname || 'presentation.pdf');
+        const deckId = crypto.randomUUID();
         const storagePath = `${ownerId}/${deckId}/${Date.now()}-${safeName}`;
 
         const { error: uploadError } = await supabaseAdmin.storage
@@ -111,20 +127,38 @@ router.post('/upload', authenticate, (req, res) => {
           return;
         }
 
-        upsertDeckRecord({
-          deckId,
-          ownerId,
-          name: file.originalname || 'presentation.pdf',
-          storagePath,
-          slides,
-          createdAt: Date.now(),
+        await ensureUserRecord({ id: ownerId, email: ownerEmail });
+
+        const deck = await prisma.deck.create({
+          data: {
+            id: deckId,
+            ownerId,
+            name: file.originalname || 'presentation.pdf',
+            title: file.originalname || 'presentation.pdf',
+            storagePath,
+            slides,
+          },
+        });
+
+        const room = await prisma.room.create({
+          data: {
+            deckId: deck.id,
+            presenterId: ownerId,
+            participants: {
+              create: {
+                userId: ownerId,
+                role: 'presenter',
+              },
+            },
+          },
         });
 
         const signedUrl = await createSignedUrl(storagePath);
         res.status(201).json({
-          deckId,
-          name: file.originalname || 'presentation.pdf',
-          slides,
+          deckId: deck.id,
+          roomId: room.id,
+          name: deck.name || deck.title,
+          slides: deck.slides,
           storagePath,
           signedUrl,
           signedUrlExpiresIn: env.SUPABASE_SIGNED_URL_EXPIRES_SEC,
@@ -153,7 +187,19 @@ router.get('/:id', authenticate, (req, res) => {
       return;
     }
 
-    const record = getDeckRecord(deckId);
+    const record = await prisma.deck.findUnique({
+      where: { id: deckId },
+      select: {
+        id: true,
+        ownerId: true,
+        name: true,
+        title: true,
+        slides: true,
+        storagePath: true,
+        createdAt: true,
+      },
+    });
+
     if (!record) {
       res.status(404).json({ error: 'Deck not found' });
       return;
@@ -167,8 +213,8 @@ router.get('/:id', authenticate, (req, res) => {
       const signedUrl = await createSignedUrl(record.storagePath);
       res.json({
         data: {
-          deckId: record.deckId,
-          name: record.name,
+          deckId: record.id,
+          name: record.name || record.title,
           slides: record.slides,
           storagePath: record.storagePath,
           signedUrl,

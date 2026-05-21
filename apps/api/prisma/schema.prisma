@@ -37,6 +37,16 @@ enum SessionStatus {
   ended
 }
 
+enum RoomStatus {
+  active
+  ended
+}
+
+enum RoomParticipantRole {
+  presenter
+  viewer
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Models
 // ─────────────────────────────────────────────────────────────────────────────
@@ -54,6 +64,8 @@ model User {
   collaborations DeckCollaborator[]
   annotations    Annotation[]
   sessions       PresentationSession[] @relation("SessionPresenter")
+  presentedRooms Room[]               @relation("RoomPresenter")
+  roomParticipation RoomParticipant[]
 
   @@map("users")
 }
@@ -61,6 +73,9 @@ model User {
 model Deck {
   id           String    @id @default(uuid())
   ownerId      String    @map("owner_id")
+  name         String    @default("")
+  storagePath  String    @default("") @map("storage_path")
+  slides       Int       @default(1)
   title        String
   description  String?
   thumbnailUrl String?   @map("thumbnail_url")
@@ -75,12 +90,45 @@ model Deck {
 
   // Relations
   owner          User                  @relation("DeckOwner", fields: [ownerId], references: [id])
-  slides         Slide[]
+  slideEntities  Slide[]
   collaborators  DeckCollaborator[]
   sessions       PresentationSession[]
+  rooms          Room[]
 
   @@index([ownerId])
   @@map("decks")
+}
+
+model Room {
+  id          String      @id @default(uuid())
+  deckId       String      @map("deck_id")
+  presenterId  String      @map("presenter_id")
+  status       RoomStatus  @default(active)
+  createdAt    DateTime    @default(now()) @map("created_at")
+  endedAt      DateTime?   @map("ended_at")
+
+  deck          Deck               @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  presenter     User               @relation("RoomPresenter", fields: [presenterId], references: [id])
+  participants  RoomParticipant[]
+
+  @@index([deckId])
+  @@index([presenterId])
+  @@map("rooms")
+}
+
+model RoomParticipant {
+  roomId     String               @map("room_id")
+  userId     String               @map("user_id")
+  role       RoomParticipantRole  @default(viewer)
+  joinedAt   DateTime             @default(now()) @map("joined_at")
+  leftAt     DateTime?            @map("left_at")
+
+  room       Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, userId])
+  @@index([roomId, leftAt])
+  @@map("room_participants")
 }
 
 model Slide {

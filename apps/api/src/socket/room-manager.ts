@@ -71,9 +71,10 @@ export class RoomManager {
   async createSession(
     deckId: string,
     presenter: { userId: string; displayName: string },
-    totalSlides: number
+    totalSlides: number,
+    sessionIdOverride?: string
   ): Promise<SessionState> {
-    const sessionId = generateId();
+    const sessionId = sessionIdOverride ?? generateId();
     const now = Date.now();
 
     const session: SessionState = {

@@ -56,6 +56,7 @@ interface ServerMember {
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface UseSyncEngineOptions {
+  roomId: string;
   deckId: string;
   totalSlides: number;
   /** Called when server confirms current slide (for viewer snap) */
@@ -67,6 +68,7 @@ interface UseSyncEngineOptions {
 }
 
 export function useSyncEngine({
+  roomId,
   deckId,
   totalSlides,
   onSlideChange,
@@ -84,6 +86,7 @@ export function useSyncEngine({
   // ── Reconnect recovery hook ───────────────────────────────────────────────
 
   const { recover } = useReconnectRecovery({
+    roomId,
     deckId,
     sessionId: sessionIdRef.current,
     userId: user?.id ?? '',
@@ -94,7 +97,7 @@ export function useSyncEngine({
   // ── Connect and join session on mount ─────────────────────────────────────
 
   useEffect(() => {
-    if (!user || hasJoinedRef.current) return;
+    if (!user || hasJoinedRef.current || !roomId) return;
 
     let cleanup: (() => void) | undefined;
     let sessionEndRedirectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -288,7 +291,7 @@ export function useSyncEngine({
 
       socket.emit(
         'session:join',
-        { deckId },
+        { sessionId: roomId, deckId },
         (res: {
           ok: boolean;
           session?: ServerSession;
@@ -302,21 +305,6 @@ export function useSyncEngine({
               members: res.members ?? [],
               isPresenter: res.isPresenter ?? false,
             });
-          } else if (res.error === 'No active session found for this deck') {
-            // No session — first user becomes presenter
-            socket.emit(
-              'session:create',
-              { deckId, totalSlides },
-              (createRes: { ok: boolean; session?: ServerSession; error?: string }) => {
-                if (createRes.ok && createRes.session) {
-                  onSessionState({
-                    session: createRes.session,
-                    members: [],
-                    isPresenter: true,
-                  });
-                }
-              }
-            );
           }
         }
       );
@@ -347,7 +335,7 @@ export function useSyncEngine({
     // IMPORTANT: `useSyncStore.getState()` is used inside callbacks (not the reactive
     // store proxy) so this effect only re-runs when user/deck changes — not on every
     // state update. This is intentional and correct.
-  }, [user?.id, deckId, recover, navigate, onSlideChange, onSessionEnd, onAnnotationRestore]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id, roomId, deckId, recover, navigate, onSlideChange, onSessionEnd, onAnnotationRestore]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Actions exposed to components ─────────────────────────────────────────
 
