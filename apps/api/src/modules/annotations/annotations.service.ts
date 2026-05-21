@@ -150,7 +150,7 @@ export class AnnotationService {
     });
 
     if (snapshot) {
-      return snapshot.payload as AnnotationDto[];
+      return snapshot.payload as unknown as AnnotationDto[];
     }
 
     // Fallback: scan + build snapshot
@@ -171,7 +171,7 @@ export class AnnotationService {
 
     // Fill from snapshots
     for (const snap of snapshots) {
-      result[snap.slideId] = snap.payload as AnnotationDto[];
+      result[snap.slideId] = snap.payload as unknown as AnnotationDto[];
     }
 
     // For any slide without a snapshot, scan + build
