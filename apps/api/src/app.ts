@@ -57,6 +57,15 @@ export function createApp(): Application {
   // ── Global rate limiting ──────────────────────────────────────────────────
   app.use('/api', rateLimiter);
 
+  // ── Root route ────────────────────────────────────────────────────────────
+  app.get('/', (_req, res) => {
+    res.status(200).json({
+      status: 'ok',
+      service: 'SlideBot API',
+      uptime: process.uptime(),
+    });
+  });
+
   // ── Health check ──────────────────────────────────────────────────────────
   // Lightweight production probe for Render, Better Stack, UptimeRobot, and CI.
   // Keep this side-effect free so it never depends on the database, Redis, or external APIs.
