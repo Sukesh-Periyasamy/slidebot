@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -52,7 +52,7 @@ jobs:
     needs: deploy-frontend
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Deploy backend to Render (preview)
         env:
@@ -68,7 +68,7 @@ jobs:
     needs: [deploy-frontend, deploy-backend]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Simple health‑check for frontend
         env:
