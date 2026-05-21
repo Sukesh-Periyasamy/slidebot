@@ -1,13 +1,62 @@
-import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate, Link } from 'react-router-dom';
 
 import { AuthGuard } from '@/features/auth/components/AuthGuard';
 import { LoginPage, AuthCallbackPage } from '@/features/auth/components/LoginPage';
 import { RoomPage } from '@/features/room/pages/RoomPage';
-const DashboardPage = () => <div>Dashboard</div>;
-const SettingsPage = () => <div>Settings</div>;
-const LandingPage = () => <div>Landing</div>;
-const NotFoundPage = () => <div>404</div>;
-const AppLayout = () => <Outlet />;
+import { selectAuthStatus, selectIsInitialized, useAuthStore } from '@/features/auth/store/authStore';
+import { AppLayout } from '@/shared/layouts/AppLayout';
+
+function HomeRedirect() {
+  const isInitialized = useAuthStore(selectIsInitialized);
+  const status = useAuthStore(selectAuthStatus);
+
+  if (!isInitialized || status === 'loading') {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-surface-950 text-surface-200">
+        <p className="text-sm">Loading workspace...</p>
+      </div>
+    );
+  }
+
+  return status === 'authenticated' ? (
+    <Navigate to="/dashboard" replace />
+  ) : (
+    <Navigate to="/login" replace />
+  );
+}
+
+function DashboardPage() {
+  return (
+    <div className="mx-auto w-full max-w-5xl p-6 text-surface-100">
+      <h1 className="text-2xl font-semibold">Dashboard</h1>
+      <p className="mt-2 text-sm text-surface-400">Your presentations and collaboration sessions.</p>
+    </div>
+  );
+}
+
+function SettingsPage() {
+  return (
+    <div className="mx-auto w-full max-w-5xl p-6 text-surface-100">
+      <h1 className="text-2xl font-semibold">Settings</h1>
+      <p className="mt-2 text-sm text-surface-400">Manage your account and workspace preferences.</p>
+    </div>
+  );
+}
+
+function NotFoundPage() {
+  return (
+    <div className="flex h-screen w-screen flex-col items-center justify-center bg-surface-950 px-6 text-center">
+      <h1 className="text-3xl font-semibold text-surface-50">Page Not Found</h1>
+      <p className="mt-3 text-sm text-surface-400">The page you requested does not exist.</p>
+      <Link
+        to="/"
+        className="mt-6 inline-flex rounded-md bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
+      >
+        Go Home
+      </Link>
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Router definition
@@ -17,7 +66,7 @@ const router = createBrowserRouter([
   // ── Public routes ────────────────────────────────────────────────────────
   {
     path: '/',
-    element: <LandingPage />,
+    element: <HomeRedirect />,
   },
   {
     path: '/login',

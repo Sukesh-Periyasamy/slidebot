@@ -97,10 +97,23 @@ export function useSyncEngine({
     if (!user || hasJoinedRef.current) return;
 
     let cleanup: (() => void) | undefined;
+    let sessionEndRedirectTimer: ReturnType<typeof setTimeout> | null = null;
 
     const init = async () => {
-      await connectSocket();
-      const socket = getPresenterSocket();
+      try {
+        await connectSocket();
+      } catch {
+        useSyncStore.getState().setConnectionStatus('error');
+        return;
+      }
+
+      let socket;
+      try {
+        socket = getPresenterSocket();
+      } catch {
+        useSyncStore.getState().setConnectionStatus('error');
+        return;
+      }
 
       // ── Register all incoming event handlers ──────────────────────────
 
@@ -231,7 +244,7 @@ export function useSyncEngine({
         useSyncStore.getState().endSession();
         clearReconnectState();
         onSessionEnd?.();
-        setTimeout(() => navigate('/dashboard'), 2000);
+        sessionEndRedirectTimer = setTimeout(() => navigate('/dashboard'), 2000);
       };
 
       // Register all listeners
@@ -327,6 +340,7 @@ export function useSyncEngine({
     void init();
 
     return () => {
+      if (sessionEndRedirectTimer) clearTimeout(sessionEndRedirectTimer);
       cleanup?.();
       hasJoinedRef.current = false;
     };

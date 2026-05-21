@@ -10,10 +10,14 @@ import { useRedirectIfAuthenticated } from '../hooks/useRequireAuth';
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function LoginPage() {
-  useRedirectIfAuthenticated('/dashboard');
-
   const [searchParams] = useSearchParams();
-  const returnTo = searchParams.get('returnTo') ?? '/dashboard';
+  const rawReturnTo = searchParams.get('returnTo');
+  const returnTo =
+    rawReturnTo && rawReturnTo.startsWith('/') && !rawReturnTo.startsWith('/login')
+      ? rawReturnTo
+      : '/dashboard';
+
+  useRedirectIfAuthenticated(returnTo);
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');

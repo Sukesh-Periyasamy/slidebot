@@ -51,7 +51,16 @@ export function RoomPage() {
     }
   }, [viewerStore.currentPage, syncStore.isExploring, syncStore.session, syncStore.connectionStatus]);
 
-  if (!deckId) return null;
+  if (!deckId) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-surface-950 px-6 text-center">
+        <div>
+          <h1 className="text-xl font-semibold text-surface-50">Missing Room ID</h1>
+          <p className="mt-2 text-sm text-surface-400">This room link is invalid. Please re-open a valid room URL.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-surface-950 text-surface-50">
