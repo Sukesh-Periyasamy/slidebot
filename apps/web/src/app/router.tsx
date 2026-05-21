@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider, Navigate, Link } from 'react-route
 
 import { AuthGuard } from '@/features/auth/components/AuthGuard';
 import { LoginPage, AuthCallbackPage } from '@/features/auth/components/LoginPage';
+import { DashboardPage } from '@/features/decks/components/DashboardPage';
 import { RoomPage } from '@/features/room/pages/RoomPage';
 import { selectAuthStatus, selectIsInitialized, useAuthStore } from '@/features/auth/store/authStore';
 import { AppLayout } from '@/shared/layouts/AppLayout';
@@ -22,15 +23,6 @@ function HomeRedirect() {
     <Navigate to="/dashboard" replace />
   ) : (
     <Navigate to="/login" replace />
-  );
-}
-
-function DashboardPage() {
-  return (
-    <div className="mx-auto w-full max-w-5xl p-6 text-surface-100">
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
-      <p className="mt-2 text-sm text-surface-400">Your presentations and collaboration sessions.</p>
-    </div>
   );
 }
 

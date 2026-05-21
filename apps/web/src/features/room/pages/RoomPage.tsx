@@ -17,6 +17,9 @@ import { SnapBackBanner } from '@/features/sync/components/SnapBackBanner';
 import { useViewerStore } from '@/features/viewer/store/viewerStore';
 import { useSyncStore } from '@/features/sync/store/syncStore';
 import { ParticipantsList } from '@/features/sync/components/ParticipantsList';
+import { usePdfLoader } from '@/features/viewer/hooks/usePdfLoader';
+import { useDeckStore } from '@/features/decks/store/deckStore';
+import { getPresenterSocket } from '@/features/collaboration/lib/socketClient';
 
 export function RoomPage() {
   const { deckId } = useParams<{ deckId: string }>();
@@ -26,6 +29,9 @@ export function RoomPage() {
   const [participantsPanelOpen, setParticipantsPanelOpen] = useState(false);
 
   const totalSlides = useViewerStore((s) => s.pdfDoc?.numPages ?? 0);
+  const setCurrentPage = useViewerStore((s) => s.setCurrentPage);
+  const deck = useDeckStore((s) => (deckId ? s.decks[deckId] : undefined));
+  const { loadFromUrl } = usePdfLoader();
   const sync = useSyncEngine({ deckId: deckId ?? '', totalSlides });
   const exploration = useExplorationMode(sync);
   const annotationSync = useAnnotationSync({
@@ -42,7 +48,7 @@ export function RoomPage() {
   // ── 3. Expose state to window for Playwright deterministic testing ─────
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      (window as any).__TEST_SYNC_STATE__ = {
+      (window as { __TEST_SYNC_STATE__?: unknown }).__TEST_SYNC_STATE__ = {
         currentPage: viewerStore.currentPage,
         isExploring: syncStore.isExploring,
         session: syncStore.session,
@@ -50,6 +56,54 @@ export function RoomPage() {
       };
     }
   }, [viewerStore.currentPage, syncStore.isExploring, syncStore.session, syncStore.connectionStatus]);
+
+  useEffect(() => {
+    if (!deck?.pdfUrl) return;
+    void loadFromUrl(deck.pdfUrl);
+  }, [deck?.pdfUrl, loadFromUrl]);
+
+  useEffect(() => {
+    let socket: ReturnType<typeof getPresenterSocket> | null = null;
+    let mounted = true;
+
+    try {
+      socket = getPresenterSocket();
+    } catch {
+      return () => {
+        mounted = false;
+      };
+    }
+
+    const handleSlideChange = (payload: { roomId: string; slide: number }) => {
+      if (!mounted) return;
+      if (payload.roomId !== (syncStore.session?.sessionId ?? '')) return;
+      if (syncStore.isPresenter) return;
+      setCurrentPage(payload.slide);
+    };
+
+    socket.on('slide:change', handleSlideChange as never);
+    return () => {
+      mounted = false;
+      socket?.off('slide:change', handleSlideChange as never);
+    };
+  }, [setCurrentPage, syncStore.isPresenter, syncStore.session?.sessionId]);
+
+  useEffect(() => {
+    if (!syncStore.isPresenter) return;
+    if (!syncStore.session?.sessionId) return;
+
+    let socket: ReturnType<typeof getPresenterSocket> | null = null;
+    try {
+      socket = getPresenterSocket();
+    } catch {
+      return;
+    }
+
+    socket.emit('slide:change', {
+      roomId: syncStore.session.sessionId,
+      slide: viewerStore.currentPage,
+    });
+  }, [syncStore.isPresenter, syncStore.session?.sessionId, viewerStore.currentPage]);
 
   if (!deckId) {
     return (

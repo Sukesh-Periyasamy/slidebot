@@ -279,6 +279,17 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
       }
     });
 
+    // ── slide:change (MVP lightweight sync channel) ───────────────────────
+    extSocket.on('slide:change', (payload: unknown) => {
+      const { roomId, slide } = payload as { roomId: string; slide: number };
+      if (!roomId || typeof slide !== 'number') return;
+
+      (ns.to(`session:${roomId}`) as any).emit('slide:change', {
+        roomId,
+        slide,
+      });
+    });
+
     // ── presenter:handoff ─────────────────────────────────────────────────
     extSocket.on('presenter:handoff', async (payload: unknown, ack?: unknown) => {
       const { sessionId, toUserId, toUserName } = payload as {

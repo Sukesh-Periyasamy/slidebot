@@ -1,9 +1,25 @@
 import { Router, type Router as ExpressRouter } from 'express';
+import multer from 'multer';
 
 import { authenticate } from '../../middleware/authenticate';
 
 // TODO: Wire up decks controller
 const router: ExpressRouter = Router();
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: MAX_UPLOAD_BYTES,
+    files: 1,
+  },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype !== 'application/pdf') {
+      cb(new Error('Only PDF uploads are allowed'));
+      return;
+    }
+    cb(null, true);
+  },
+});
 
 /**
  * GET /api/v1/decks
@@ -21,6 +37,43 @@ router.get('/', authenticate, (_req, res) => {
 router.post('/', authenticate, (_req, res) => {
   // TODO: validate body, decksService.createDeck(...)
   res.status(201).json({ data: {} });
+});
+
+/**
+ * POST /api/v1/decks/upload
+ * Upload a PDF deck (temporary in-memory handling for MVP)
+ */
+router.post('/upload', authenticate, (req, res) => {
+  upload.single('file')(req, res, (err: unknown) => {
+    if (err) {
+      const message = err instanceof Error ? err.message : 'Upload failed';
+      const isLimitError = message.toLowerCase().includes('file too large');
+      res.status(400).json({
+        error: isLimitError ? 'File is too large. Maximum size is 50MB.' : message,
+      });
+      return;
+    }
+
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ error: 'Missing file upload' });
+      return;
+    }
+
+    if (file.mimetype !== 'application/pdf') {
+      res.status(400).json({ error: 'Only PDF files are supported' });
+      return;
+    }
+
+    const deckId = `deck_${Math.random().toString(36).slice(2, 10)}`;
+    const slides = Math.max(1, Math.ceil(file.size / 180_000));
+
+    res.status(201).json({
+      deckId,
+      name: file.originalname || 'presentation.pdf',
+      slides,
+    });
+  });
 });
 
 /**
