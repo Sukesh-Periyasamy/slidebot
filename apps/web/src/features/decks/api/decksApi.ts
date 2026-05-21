@@ -1,4 +1,4 @@
-import { apiClient } from '@/lib/apiClient';
+import { apiClient, extractData } from '@/lib/apiClient';
 import type { UploadDeckResponse } from '../types/deck';
 
 export async function uploadDeck(file: File): Promise<UploadDeckResponse> {
@@ -12,4 +12,9 @@ export async function uploadDeck(file: File): Promise<UploadDeckResponse> {
   });
 
   return response.data;
+}
+
+export async function getDeckById(deckId: string): Promise<UploadDeckResponse> {
+  const response = await apiClient.get<{ data: UploadDeckResponse }>(`/decks/${deckId}`);
+  return extractData(response);
 }

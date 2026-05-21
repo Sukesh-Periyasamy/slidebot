@@ -36,13 +36,14 @@ export function useDeckUpload() {
 
       try {
         const payload = await uploadDeck(file);
-        const pdfUrl = URL.createObjectURL(file);
 
         upsertDeck({
           deckId: payload.deckId,
           name: payload.name,
           slides: payload.slides,
-          pdfUrl,
+          storagePath: payload.storagePath,
+          signedUrl: payload.signedUrl,
+          signedUrlExpiresAt: Date.now() + payload.signedUrlExpiresIn * 1000,
           createdAt: Date.now(),
         });
 

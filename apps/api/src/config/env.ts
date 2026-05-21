@@ -18,6 +18,8 @@ const envSchema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   SUPABASE_JWT_SECRET: z.string().min(1),
+  SUPABASE_STORAGE_BUCKET: z.string().default('presentations'),
+  SUPABASE_SIGNED_URL_EXPIRES_SEC: z.coerce.number().default(3600),
 
   // Redis
   REDIS_URL: z.string().default('redis://localhost:6379'),

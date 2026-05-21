@@ -1,7 +1,10 @@
 import { Router, type Router as ExpressRouter } from 'express';
 import multer from 'multer';
 
+import { env } from '../../config/env';
+import { supabaseAdmin } from '../../config/supabase';
 import { authenticate } from '../../middleware/authenticate';
+import { getDeckRecord, upsertDeckRecord } from './decks.memory';
 
 // TODO: Wire up decks controller
 const router: ExpressRouter = Router();
@@ -20,6 +23,24 @@ const upload = multer({
     cb(null, true);
   },
 });
+
+function sanitizeFilename(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/-+/g, '-');
+}
+
+async function createSignedUrl(storagePath: string): Promise<string> {
+  const bucket = env.SUPABASE_STORAGE_BUCKET;
+  const expiresIn = env.SUPABASE_SIGNED_URL_EXPIRES_SEC;
+  const { data, error } = await supabaseAdmin.storage.from(bucket).createSignedUrl(storagePath, expiresIn);
+  if (error || !data?.signedUrl) {
+    throw new Error(error?.message ?? 'Failed to create signed URL');
+  }
+  return data.signedUrl;
+}
 
 /**
  * GET /api/v1/decks
@@ -65,14 +86,55 @@ router.post('/upload', authenticate, (req, res) => {
       return;
     }
 
-    const deckId = `deck_${Math.random().toString(36).slice(2, 10)}`;
-    const slides = Math.max(1, Math.ceil(file.size / 180_000));
+    void (async () => {
+      try {
+        const ownerId = req.user?.id;
+        if (!ownerId) {
+          res.status(401).json({ error: 'Unauthorized' });
+          return;
+        }
 
-    res.status(201).json({
-      deckId,
-      name: file.originalname || 'presentation.pdf',
-      slides,
-    });
+        const deckId = `deck_${Math.random().toString(36).slice(2, 10)}`;
+        const slides = Math.max(1, Math.ceil(file.size / 180_000));
+        const safeName = sanitizeFilename(file.originalname || 'presentation.pdf');
+        const storagePath = `${ownerId}/${deckId}/${Date.now()}-${safeName}`;
+
+        const { error: uploadError } = await supabaseAdmin.storage
+          .from(env.SUPABASE_STORAGE_BUCKET)
+          .upload(storagePath, file.buffer, {
+            contentType: 'application/pdf',
+            upsert: false,
+          });
+
+        if (uploadError) {
+          res.status(500).json({ error: `Storage upload failed: ${uploadError.message}` });
+          return;
+        }
+
+        upsertDeckRecord({
+          deckId,
+          ownerId,
+          name: file.originalname || 'presentation.pdf',
+          storagePath,
+          slides,
+          createdAt: Date.now(),
+        });
+
+        const signedUrl = await createSignedUrl(storagePath);
+        res.status(201).json({
+          deckId,
+          name: file.originalname || 'presentation.pdf',
+          slides,
+          storagePath,
+          signedUrl,
+          signedUrlExpiresIn: env.SUPABASE_SIGNED_URL_EXPIRES_SEC,
+        });
+      } catch (uploadFlowErr) {
+        const message =
+          uploadFlowErr instanceof Error ? uploadFlowErr.message : 'Unexpected upload failure';
+        res.status(500).json({ error: message });
+      }
+    })();
   });
 });
 
@@ -81,8 +143,44 @@ router.post('/upload', authenticate, (req, res) => {
  * Get a single deck with all slides
  */
 router.get('/:id', authenticate, (req, res) => {
-  // TODO: decksService.getDeck(req.params.id, req.user.id)
-  res.json({ data: { id: req.params['id'] } });
+  void (async () => {
+    const rawDeckId = req.params['id'];
+    const deckId = Array.isArray(rawDeckId) ? rawDeckId[0] : rawDeckId;
+    const userId = req.user?.id;
+
+    if (!deckId || !userId) {
+      res.status(400).json({ error: 'Invalid deck request' });
+      return;
+    }
+
+    const record = getDeckRecord(deckId);
+    if (!record) {
+      res.status(404).json({ error: 'Deck not found' });
+      return;
+    }
+    if (record.ownerId !== userId) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    try {
+      const signedUrl = await createSignedUrl(record.storagePath);
+      res.json({
+        data: {
+          deckId: record.deckId,
+          name: record.name,
+          slides: record.slides,
+          storagePath: record.storagePath,
+          signedUrl,
+          signedUrlExpiresIn: env.SUPABASE_SIGNED_URL_EXPIRES_SEC,
+        },
+      });
+    } catch (signedUrlError) {
+      const message =
+        signedUrlError instanceof Error ? signedUrlError.message : 'Failed to resolve deck URL';
+      res.status(500).json({ error: message });
+    }
+  })();
 });
 
 /**

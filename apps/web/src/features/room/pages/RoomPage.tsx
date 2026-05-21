@@ -20,6 +20,7 @@ import { ParticipantsList } from '@/features/sync/components/ParticipantsList';
 import { usePdfLoader } from '@/features/viewer/hooks/usePdfLoader';
 import { useDeckStore } from '@/features/decks/store/deckStore';
 import { getPresenterSocket } from '@/features/collaboration/lib/socketClient';
+import { getDeckById } from '@/features/decks/api/decksApi';
 
 export function RoomPage() {
   const { deckId } = useParams<{ deckId: string }>();
@@ -31,6 +32,7 @@ export function RoomPage() {
   const totalSlides = useViewerStore((s) => s.pdfDoc?.numPages ?? 0);
   const setCurrentPage = useViewerStore((s) => s.setCurrentPage);
   const deck = useDeckStore((s) => (deckId ? s.decks[deckId] : undefined));
+  const upsertDeck = useDeckStore((s) => s.upsertDeck);
   const { loadFromUrl } = usePdfLoader();
   const sync = useSyncEngine({ deckId: deckId ?? '', totalSlides });
   const exploration = useExplorationMode(sync);
@@ -58,9 +60,44 @@ export function RoomPage() {
   }, [viewerStore.currentPage, syncStore.isExploring, syncStore.session, syncStore.connectionStatus]);
 
   useEffect(() => {
-    if (!deck?.pdfUrl) return;
-    void loadFromUrl(deck.pdfUrl);
-  }, [deck?.pdfUrl, loadFromUrl]);
+    if (!deckId) return;
+
+    let cancelled = false;
+
+    const ensureDeckAndLoad = async () => {
+      const now = Date.now();
+      const hasUsableUrl = Boolean(deck?.signedUrl) && (deck?.signedUrlExpiresAt ?? 0) > now + 30_000;
+
+      if (!deck || !hasUsableUrl) {
+        try {
+          const payload = await getDeckById(deckId);
+          if (cancelled) return;
+
+          upsertDeck({
+            deckId: payload.deckId,
+            name: payload.name,
+            slides: payload.slides,
+            storagePath: payload.storagePath,
+            signedUrl: payload.signedUrl,
+            signedUrlExpiresAt: Date.now() + payload.signedUrlExpiresIn * 1000,
+            createdAt: Date.now(),
+          });
+          await loadFromUrl(payload.signedUrl);
+          return;
+        } catch {
+          if (cancelled) return;
+          return;
+        }
+      }
+
+      await loadFromUrl(deck.signedUrl);
+    };
+
+    void ensureDeckAndLoad();
+    return () => {
+      cancelled = true;
+    };
+  }, [deckId, deck, loadFromUrl, upsertDeck]);
 
   useEffect(() => {
     let socket: ReturnType<typeof getPresenterSocket> | null = null;
