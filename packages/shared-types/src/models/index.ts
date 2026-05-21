@@ -160,9 +160,12 @@ export interface Annotation {
   slideId: string;
   deckId: string;
   userId: string;
+  displayName: string;
   tool: AnnotationTool;
   color: string;
   strokeWidth: number;
+  opacity: number;
+  data: unknown;
   /** Flat array of points [x1, y1, x2, y2, ...] for freehand/arrow */
   points?: number[];
   /** Bounding rect for highlight */
@@ -173,6 +176,7 @@ export interface Annotation {
   position?: CursorPosition;
   /** If true, annotation is NOT persisted (e.g., laser pointer) */
   isEphemeral: boolean;
+  status: 'in-progress' | 'committed' | 'deleted';
   createdAt: string;
 }
 

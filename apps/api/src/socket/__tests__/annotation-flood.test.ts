@@ -35,19 +35,19 @@ describe('WebSocket: Annotation Flood Protection', () => {
       'flood-presenter-1',
       ['flood-viewer-1']
     );
-    const { presenterSocket, viewerSockets } = await sim.setupRoom(1);
-    const viewerSocket = viewerSockets[0]!;
+    const { presenterCollabSocket, viewerCollabSockets } = await sim.setupRoom(1);
+    const viewerSocket = viewerCollabSockets[0]!;
 
     // Set up recorder on viewer socket to count received events
     const recorder = new EventRecorder();
     recorder.attach(viewerSocket, ['annotation_drew']);
 
-    const sessionId = (presenterSocket as unknown as { _sessionId?: string })._sessionId ?? 'unknown';
+    const sessionId = (presenterCollabSocket as unknown as { _sessionId?: string })._sessionId ?? 'unknown';
 
     // Blast 500 annotation_draw events in < 1 second from the presenter's collab socket
     const FLOOD_COUNT = 500;
     for (let i = 0; i < FLOOD_COUNT; i++) {
-      (presenterSocket as unknown as { emit: (...args: unknown[]) => void }).emit(
+      (presenterCollabSocket as unknown as { emit: (...args: unknown[]) => void }).emit(
         'annotation_draw',
         {
           sessionId,
@@ -80,11 +80,11 @@ describe('WebSocket: Annotation Flood Protection', () => {
       'flood-presenter-2',
       ['flood-viewer-2']
     );
-    const { presenterSocket, viewerSockets } = await sim.setupRoom(1);
+    const { presenterCollabSocket } = await sim.setupRoom(1);
 
     // Blast 1000 events
     for (let i = 0; i < 1000; i++) {
-      (presenterSocket as unknown as { emit: (...args: unknown[]) => void }).emit(
+      (presenterCollabSocket as unknown as { emit: (...args: unknown[]) => void }).emit(
         'cursor_move',
         {
           sessionId: 'test-session',
@@ -121,15 +121,15 @@ describe('WebSocket: Annotation Flood Protection', () => {
       'flood-presenter-3',
       ['flood-viewer-3']
     );
-    const { presenterSocket, viewerSockets } = await sim.setupRoom(1);
-    const viewerSocket = viewerSockets[0]!;
+    const { presenterCollabSocket, viewerCollabSockets } = await sim.setupRoom(1);
+    const viewerSocket = viewerCollabSockets[0]!;
 
     const recorder = new EventRecorder();
     recorder.attach(viewerSocket, ['annotation_drew']);
 
     // Send 80 events (below limit) — all should pass
     for (let i = 0; i < 80; i++) {
-      (presenterSocket as unknown as { emit: (...args: unknown[]) => void }).emit(
+      (presenterCollabSocket as unknown as { emit: (...args: unknown[]) => void }).emit(
         'annotation_draw',
         { sessionId: 'test', slideId: 'slide-0', points: [i, i] }
       );
@@ -144,7 +144,7 @@ describe('WebSocket: Annotation Flood Protection', () => {
 
     // Send another 80 — should all pass again after reset
     for (let i = 0; i < 80; i++) {
-      (presenterSocket as unknown as { emit: (...args: unknown[]) => void }).emit(
+      (presenterCollabSocket as unknown as { emit: (...args: unknown[]) => void }).emit(
         'annotation_draw',
         { sessionId: 'test', slideId: 'slide-0', points: [i, i] }
       );

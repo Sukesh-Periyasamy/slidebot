@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@slidebot/shared-types": ["../../packages/shared-types"],
+      "@slidebot/shared-schemas": ["../../packages/shared-schemas"],
+      "@slidebot/shared-utils": ["../../packages/shared-utils"]
+    }
+  }
+}

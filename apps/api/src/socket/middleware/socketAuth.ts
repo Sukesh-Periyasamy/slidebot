@@ -52,6 +52,7 @@ export const socketAuthMiddleware: SocketMiddleware = async (socket, next) => {
       color: getPresenceColor(user.id),
       role: 'viewer',
       currentDeckId: null,
+      currentSessionId: null,
       currentSlideId: null,
     };
 

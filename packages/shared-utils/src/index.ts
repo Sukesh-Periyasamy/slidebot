@@ -1,10 +1,10 @@
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 
 /**
  * Generate a UUID v4
  * @example generateId() // "550e8400-e29b-41d4-a716-446655440000"
  */
-export const generateId = (): string => uuidv4();
+export const generateId = (): string => randomUUID();
 
 /**
  * Generate a short ID (8 chars) — for readable room codes

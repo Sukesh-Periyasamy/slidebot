@@ -1,9 +1,9 @@
-import { Router } from 'express';
+import { Router, type Router as ExpressRouter } from 'express';
 
 import { authenticate } from '../../middleware/authenticate';
 
 // TODO: Wire up decks controller
-const router = Router();
+const router: ExpressRouter = Router();
 
 /**
  * GET /api/v1/decks

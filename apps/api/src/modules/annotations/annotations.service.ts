@@ -9,11 +9,33 @@
  * - isEphemeral=true annotations (laser pointer) are NEVER persisted.
  */
 
-import type { Annotation as PrismaAnnotation, AnnotationTool } from '@prisma/client';
-
 import { prisma } from '../../config/database';
 import { logger } from '../../config/logger';
 import type { AnnotationDto, AnnotationDataPayload } from './annotations.types';
+
+type AnnotationTool =
+  | 'freehand'
+  | 'highlight'
+  | 'arrow'
+  | 'text'
+  | 'laser'
+  | 'select'
+  | 'eraser';
+
+interface PersistedAnnotation {
+  id: string;
+  slideId: string;
+  sessionId: string | null;
+  userId: string;
+  displayName: string;
+  tool: AnnotationTool;
+  color: string;
+  strokeWidth: number;
+  opacity: number;
+  data: unknown;
+  isEphemeral: boolean;
+  createdAt: Date;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -40,7 +62,7 @@ export interface SaveAnnotationInput {
 export class AnnotationService {
   // ── Save (create or upsert) ────────────────────────────────────────────────
 
-  async saveAnnotation(input: SaveAnnotationInput): Promise<PrismaAnnotation | null> {
+  async saveAnnotation(input: SaveAnnotationInput): Promise<PersistedAnnotation | null> {
     if (input.isEphemeral) return null; // Laser pointer etc — never persist
 
     try {
@@ -235,7 +257,7 @@ export class AnnotationService {
           annotationCount: payload.length,
         },
       })
-      .catch((err) => logger.error({ err }, 'Failed to build snapshot'));
+      .catch((err: unknown) => logger.error({ err }, 'Failed to build snapshot'));
 
     return payload;
   }
@@ -245,7 +267,7 @@ export class AnnotationService {
 // Mapper — Prisma row → AnnotationDto (frontend shape)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function toAnnotationDto(row: PrismaAnnotation): AnnotationDto {
+function toAnnotationDto(row: PersistedAnnotation): AnnotationDto {
   return {
     id: row.id,
     slideId: row.slideId,

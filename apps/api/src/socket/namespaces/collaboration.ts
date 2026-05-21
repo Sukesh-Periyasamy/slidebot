@@ -20,6 +20,7 @@
 import type { Namespace, Socket } from 'socket.io';
 
 import type {
+  Annotation,
   ClientToServerEvents,
   ServerToClientEvents,
   SocketData,
@@ -29,8 +30,16 @@ import { ROOMS } from '@slidebot/shared-types';
 import { logger } from '../../config/logger';
 import { annotationService } from '../../modules/annotations/annotations.service';
 import type { AnnotationDataPayload } from '../../modules/annotations/annotations.types';
-import type { AnnotationTool } from '@prisma/client';
 import { annotationRateLimiterMiddleware } from '../annotation-throttle';
+
+type AnnotationTool =
+  | 'freehand'
+  | 'highlight'
+  | 'arrow'
+  | 'text'
+  | 'laser'
+  | 'select'
+  | 'eraser';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -49,6 +58,8 @@ type CollabNamespace = Namespace<
   Record<string, never>,
   SocketData
 >;
+
+type BroadcastAnnotationTool = Annotation['tool'];
 
 /**
  * Extend AnnotationEndPayload to carry the full annotation data.
@@ -114,6 +125,7 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
               socket.emit('annotation_saved', {
                 slideId: ann.slideId,
                 annotation: {
+                  deckId: socket.data.currentDeckId ?? '',
                   id: ann.id,
                   slideId: ann.slideId,
                   userId: ann.userId,
@@ -124,7 +136,7 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
                   data: ann.data as never,
                   isEphemeral: ann.isEphemeral,
                   status: 'committed' as const,
-                  tool: (ann.data as { tool: string }).tool ?? 'freehand',
+                  tool: ((ann.data as { tool?: string }).tool ?? 'freehand') as BroadcastAnnotationTool,
                   createdAt: ann.createdAt,
                 },
               });
@@ -173,7 +185,7 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
 
     // ── yjs_sync_request ──────────────────────────────────────────────────────
     socket.on('yjs_sync_request', async ({ deckId }, ack) => {
-      ack?.({ ok: true, state: undefined });
+      ack?.({ ok: true });
     });
 
     // ── annotation_start ──────────────────────────────────────────────────────
@@ -212,7 +224,12 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
         // Laser pointer — just broadcast, never persist
         socket.to(room).emit('annotation_saved', {
           slideId: payload.slideId,
-          annotation: buildAnnotationForBroadcast(payload, userId, displayName),
+          annotation: buildAnnotationForBroadcast(
+            payload,
+            socket.data.currentDeckId ?? '',
+            userId,
+            displayName
+          ),
         });
         return;
       }
@@ -237,6 +254,7 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
         ns.to(room).emit('annotation_saved', {
           slideId: payload.slideId,
           annotation: {
+            deckId: socket.data.currentDeckId ?? '',
             id: savedAnnotation.id,
             slideId: savedAnnotation.slideId,
             userId: savedAnnotation.userId,
@@ -247,7 +265,7 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
             data: savedAnnotation.data as never,
             isEphemeral: savedAnnotation.isEphemeral,
             status: 'committed' as const,
-            tool: payload.tool,
+            tool: payload.tool as BroadcastAnnotationTool,
             createdAt: savedAnnotation.createdAt.toISOString(),
           },
         });
@@ -260,7 +278,12 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
         // DB save failed — still broadcast so real-time isn't broken
         socket.to(room).emit('annotation_saved', {
           slideId: payload.slideId,
-          annotation: buildAnnotationForBroadcast(payload, userId, displayName),
+          annotation: buildAnnotationForBroadcast(
+            payload,
+            socket.data.currentDeckId ?? '',
+            userId,
+            displayName
+          ),
         });
         logger.warn(
           { userId, annotationId: payload.annotationId },
@@ -313,9 +336,7 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
       }
 
       for (const room of rooms) {
-        socket.to(room).emit('user_left', {
-          user: { userId },
-        });
+        socket.to(room).emit('user_left', { userId });
       }
     });
   });
@@ -327,10 +348,12 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
 
 function buildAnnotationForBroadcast(
   payload: FullAnnotationEndPayload,
+  deckId: string,
   userId: string,
   displayName: string
 ) {
   return {
+    deckId,
     id: payload.annotationId,
     slideId: payload.slideId,
     userId,
@@ -341,7 +364,7 @@ function buildAnnotationForBroadcast(
     data: payload.data as never,
     isEphemeral: payload.isEphemeral,
     status: 'committed' as const,
-    tool: payload.tool,
+    tool: payload.tool as BroadcastAnnotationTool,
     createdAt: new Date().toISOString(),
   };
 }

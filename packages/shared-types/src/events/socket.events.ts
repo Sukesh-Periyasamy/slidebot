@@ -210,6 +210,7 @@ export interface SocketData {
   color: string;
   role: DeckRole;
   currentDeckId: string | null;
+  currentSessionId: string | null;
   currentSlideId: string | null;
 }
 

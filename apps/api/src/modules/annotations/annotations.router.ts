@@ -12,14 +12,14 @@
  * - DELETE is a soft delete (sets deletedAt) — supports undo-redo in future
  */
 
-import { Router, type Request, type Response, type NextFunction } from 'express';
+import { Router, type NextFunction, type Request, type Response, type Router as ExpressRouter } from 'express';
 
 import { authenticate } from '../../middleware/authenticate';
 import { annotationService } from './annotations.service';
 import type { SaveAnnotationRequest } from './annotations.types';
 import { Errors } from '../../middleware/errorHandler';
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 // ── GET /slide/:slideId — restore annotations for a slide ─────────────────────
 

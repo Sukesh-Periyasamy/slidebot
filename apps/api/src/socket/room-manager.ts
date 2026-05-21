@@ -155,8 +155,10 @@ export class RoomManager {
 
     // Clamp to valid range
     const newSlide = Math.max(0, Math.min(targetSlide, session.totalSlides - 1));
-    const newSeq = session.sequenceNum + 1;
     const now = Date.now();
+
+    // Increment the sequence number atomically so rapid slide changes cannot reuse a stale value.
+    const newSeq = await this.redis.hincrby(keys.session(sessionId), 'sequenceNum', 1);
 
     await this.redis.hset(keys.session(sessionId), {
       currentSlide: newSlide,

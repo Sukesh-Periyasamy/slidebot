@@ -113,6 +113,7 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
   // Use type cast to handle extended events
   ns.on('connection', (socket: PresenterSocket) => {
     const extSocket = socket as unknown as {
+      id: string;
       on: (event: string, handler: (...args: unknown[]) => void) => void;
       to: (room: string) => { emit: (event: string, payload: unknown) => void };
       join: (room: string) => Promise<void>;
@@ -206,7 +207,7 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
 
         const result = await handleReconnect(
           ns,
-          extSocket.id,
+          socket.id,
           userId,
           displayName,
           avatarUrl,
@@ -264,16 +265,13 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
         const { session, sequenceNum } = result;
 
         // Broadcast to ALL in room (including sender for confirmation)
-        ns.to(`session:${sessionId}`).emit(
-          'slide:changed' as never,
-          {
-            sessionId,
-            slideIndex: session.currentSlide,
-            presenterId: session.presenterId,
-            sequenceNum,
-            serverTimestamp: Date.now(),
-          } as never
-        );
+        (ns.to(`session:${sessionId}`) as any).emit('slide:changed', {
+          sessionId,
+          slideIndex: session.currentSlide,
+          presenterId: session.presenterId,
+          sequenceNum,
+          serverTimestamp: Date.now(),
+        });
 
         logger.debug({ sessionId, slideIndex: session.currentSlide, sequenceNum }, 'Slide changed');
       } catch (err) {
@@ -282,12 +280,13 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
     });
 
     // ── presenter:handoff ─────────────────────────────────────────────────
-    extSocket.on('presenter:handoff', async (payload: unknown) => {
+    extSocket.on('presenter:handoff', async (payload: unknown, ack?: unknown) => {
       const { sessionId, toUserId, toUserName } = payload as {
         sessionId: string;
         toUserId: string;
         toUserName: string;
       };
+      const callback = ack as ((res: { ok: boolean; error?: string }) => void) | undefined;
 
       try {
         const session = await roomManager.handoffPresenter(sessionId, userId, toUserId, toUserName);
@@ -297,23 +296,23 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
             code: 'FORBIDDEN',
             message: 'Only the current presenter can hand off',
           });
+          callback?.({ ok: false, error: 'Only the current presenter can hand off' });
           return;
         }
 
         // Broadcast handoff to all participants
-        ns.to(`session:${sessionId}`).emit(
-          'presenter:changed' as never,
-          {
-            sessionId,
-            newPresenterId: toUserId,
-            newPresenterName: toUserName,
-            previousPresenterId: userId,
-          } as never
-        );
+        (ns.to(`session:${sessionId}`) as any).emit('presenter:changed', {
+          sessionId,
+          newPresenterId: toUserId,
+          newPresenterName: toUserName,
+          previousPresenterId: userId,
+        });
 
         logger.info({ sessionId, from: userId, to: toUserId }, 'Presenter handoff');
+        callback?.({ ok: true });
       } catch (err) {
         logger.error({ err }, 'presenter:handoff error');
+        callback?.({ ok: false, error: 'Failed to hand off presenter' });
       }
     });
 
@@ -323,7 +322,7 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
       await roomManager.setExplorationMode(sessionId, userId, true);
 
       // Notify others (for presence UI)
-      extSocket.to(`session:${sessionId}`).emit('viewer:exploring' as never, { userId } as never);
+      (extSocket.to(`session:${sessionId}`) as any).emit('viewer:exploring', { userId });
 
       logger.debug({ sessionId, userId }, 'Viewer entered exploration mode');
     });
@@ -336,40 +335,36 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
       // Send current slide so viewer snaps back immediately
       const session = await roomManager.getSession(sessionId);
       if (session) {
-        socket.emit(
-          'slide:changed' as never,
-          {
-            sessionId,
-            slideIndex: session.currentSlide,
-            presenterId: session.presenterId,
-            sequenceNum: session.sequenceNum,
-            serverTimestamp: Date.now(),
-            isSnapback: true, // Client uses this to skip transition animation
-          } as never
-        );
+        (socket as any).emit('slide:changed', {
+          sessionId,
+          slideIndex: session.currentSlide,
+          presenterId: session.presenterId,
+          sequenceNum: session.sequenceNum,
+          serverTimestamp: Date.now(),
+          isSnapback: true, // Client uses this to skip transition animation
+        });
       }
 
       logger.debug({ sessionId, userId }, 'Viewer followed presenter');
     });
 
     // ── session:end ───────────────────────────────────────────────────────
-    extSocket.on('session:end', async (payload: unknown) => {
+    extSocket.on('session:end', async (payload: unknown, ack?: unknown) => {
       const { sessionId } = payload as { sessionId: string };
+      const callback = ack as ((res: { ok: boolean; error?: string }) => void) | undefined;
 
       const session = await roomManager.getSession(sessionId);
       if (!session || session.presenterId !== userId) return;
 
       await roomManager.endSession(sessionId);
 
-      ns.to(`session:${sessionId}`).emit(
-        'session:ended' as never,
-        {
-          sessionId,
-          endedBy: userId,
-        } as never
-      );
+      (ns.to(`session:${sessionId}`) as any).emit('session:ended', {
+        sessionId,
+        endedBy: userId,
+      });
 
       logger.info({ sessionId, userId }, 'Session ended by presenter');
+      callback?.({ ok: true });
     });
 
     // ── disconnect ────────────────────────────────────────────────────────
@@ -393,24 +388,18 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
         // We keep member for grace period so reconnect can restore cleanly
         if (!wasPresenter) {
           await roomManager.removeMember(sessionId, userId);
-          ns.to(room).emit(
-            'participant:left' as never,
-            {
-              sessionId,
-              userId,
-              displayName,
-            } as never
-          );
+          (ns.to(room) as any).emit('participant:left', {
+            sessionId,
+            userId,
+            displayName,
+          });
         } else {
           // Presenter disconnected — start grace period
           // Don't remove member yet; they may reconnect within GRACE_MS
-          ns.to(room).emit(
-            'presenter:disconnected' as never,
-            {
-              sessionId,
-              presenterId: userId,
-            } as never
-          );
+          (ns.to(room) as any).emit('presenter:disconnected', {
+            sessionId,
+            presenterId: userId,
+          });
 
           // Grace period: if presenter doesn't return in 15s, notify room
           initiatePresenterGrace(sessionId, userId, ns);
@@ -458,7 +447,7 @@ async function handleJoinSession(
   }
 
   // Notify existing members
-  socket.to(`session:${sessionId}`).emit('participant:joined', {
+  (socket.to(`session:${sessionId}`) as any).emit('participant:joined', {
     sessionId,
     member: {
       userId,

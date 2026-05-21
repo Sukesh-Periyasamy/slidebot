@@ -19,7 +19,7 @@ describe('WebSocket: Reconnect & Recovery', () => {
   it('restores state when a viewer reconnects', async () => {
     const sim = new RoomSimulator(server.url, 'deck-rec-1', 'presenter-rec-1', ['viewer-rec-1']);
     const { viewerSockets, sessionId } = await sim.setupRoom(1);
-    let viewerSocket = viewerSockets[0];
+    let viewerSocket = viewerSockets[0]!;
 
     // Drop connection and reconnect
     viewerSocket = await ReconnectSimulator.simulateDropAndReconnect((viewerSocket as any).pool, viewerSocket, 100);
@@ -41,7 +41,7 @@ describe('WebSocket: Reconnect & Recovery', () => {
   it('triggers grace period when presenter drops', async () => {
     const sim = new RoomSimulator(server.url, 'deck-rec-2', 'presenter-rec-2', ['viewer-rec-2']);
     const { presenterSocket, viewerSockets } = await sim.setupRoom(1);
-    const viewerSocket = viewerSockets[0];
+    const viewerSocket = viewerSockets[0]!;
 
     const viewerRecorder = new EventRecorder();
     viewerRecorder.attach(viewerSocket, ['presenter:disconnected', 'presenter:reconnected']);

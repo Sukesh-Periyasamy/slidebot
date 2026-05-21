@@ -1,9 +1,9 @@
-import { Router } from 'express';
+import { Router, type Router as ExpressRouter } from 'express';
 
 import { authenticate } from '../../middleware/authenticate';
 
 // TODO: Wire up slides controller
-const router = Router({ mergeParams: true }); // mergeParams to access deckId
+const router: ExpressRouter = Router({ mergeParams: true }); // mergeParams to access deckId
 
 /**
  * GET /api/v1/decks/:deckId/slides

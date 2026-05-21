@@ -29,7 +29,9 @@ export class RoomSimulator {
    */
   async setupRoom(viewerCount: number): Promise<{
     presenterSocket: Socket;
+    presenterCollabSocket: Socket;
     viewerSockets: Socket[];
+    viewerCollabSockets: Socket[];
     sessionId: string;
   }> {
     const presenterSocket = await this.presenterPool.createClient();

@@ -7,13 +7,22 @@ import { logger } from '../config/logger';
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class AppError extends Error {
+  public readonly code: string;
+  public override readonly message: string;
+  public readonly statusCode: number;
+  public readonly details: Record<string, string[]> | undefined;
+
   constructor(
-    public readonly code: string,
-    public readonly message: string,
-    public readonly statusCode: number = 500,
-    public readonly details?: Record<string, string[]>
+    code: string,
+    message: string,
+    statusCode: number = 500,
+    details?: Record<string, string[]>
   ) {
     super(message);
+    this.code = code;
+    this.message = message;
+    this.statusCode = statusCode;
+    this.details = details;
     this.name = 'AppError';
     Error.captureStackTrace(this, this.constructor);
   }

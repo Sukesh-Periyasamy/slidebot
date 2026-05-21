@@ -6,9 +6,11 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "prebuild": "pnpm --filter @slidebot/shared-schemas build && pnpm --filter @slidebot/shared-types build && pnpm --filter @slidebot/shared-utils build",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit",
+    "pretypecheck": "pnpm --filter @slidebot/shared-schemas build && pnpm --filter @slidebot/shared-types build && pnpm --filter @slidebot/shared-utils build",
+    "typecheck": "tsc -p tsconfig.typecheck.json --noEmit",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "test": "vitest run",

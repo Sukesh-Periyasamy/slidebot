@@ -18,7 +18,7 @@ describe('WebSocket: Presenter Handoff & Switching', () => {
   it('allows presenter to handoff to a viewer', async () => {
     const sim = new RoomSimulator(server.url, 'deck-1', 'presenter-1', ['viewer-1']);
     const { presenterSocket, viewerSockets, sessionId } = await sim.setupRoom(1);
-    const viewerSocket = viewerSockets[0];
+    const viewerSocket = viewerSockets[0]!;
 
     const viewerRecorder = new EventRecorder();
     viewerRecorder.attach(viewerSocket, ['presenter:changed']);
@@ -41,7 +41,7 @@ describe('WebSocket: Presenter Handoff & Switching', () => {
   it('rejects slide changes from non-presenters after handoff', async () => {
     const sim = new RoomSimulator(server.url, 'deck-2', 'presenter-2', ['viewer-2']);
     const { presenterSocket, viewerSockets, sessionId } = await sim.setupRoom(1);
-    const viewerSocket = viewerSockets[0];
+    const viewerSocket = viewerSockets[0]!;
 
     const presenterRecorder = new EventRecorder();
     presenterRecorder.attach(presenterSocket, ['error']);

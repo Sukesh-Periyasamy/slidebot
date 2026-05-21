@@ -33,6 +33,82 @@
 
 ---
 
+## Alpha Status (Production-Ready Alpha)
+
+SlideBot is now in a **production-ready alpha** state for controlled real-user rollout.
+
+### Validation Status
+
+- `pnpm lint` passing
+- `pnpm typecheck` passing
+- `pnpm test` passing
+- WebSocket hardening completed
+- WebSocket scalability testing completed
+- CI/CD stabilization completed
+- ESLint 9 migration completed
+
+### Current Project Health
+
+- Build: passing
+- Tests: passing
+- Typecheck: passing
+- Lint: passing
+- E2E: stable
+- WebSocket sync: stable
+- Deployment docs: complete
+- Alpha readiness: ready
+
+### Deployment Readiness
+
+- Alpha deployment readiness: complete
+- Render deployment support: documented and validated
+- Supabase storage strategy: finalized (`STORAGE_PROVIDER=supabase` for alpha)
+- Health monitoring endpoint: `/health` with external monitor guidance
+- Observability strategy: finalized (health probing + uptime monitoring baseline)
+
+### Testing Coverage Summary
+
+- Unit and integration coverage across web, API, and shared packages
+- WebSocket reliability coverage: reconnect recovery, race handling, flood protection, and long-session behavior
+- E2E coverage for RoomPage synchronization and extension popup stability paths
+- Deterministic multiplayer sync assertions and scalability-focused websocket test harnesses
+
+### Production Validation Checklist (Alpha)
+
+- [x] Auth login works
+- [x] RoomPage loads
+- [x] WebSocket connected
+- [x] Presenter sync works
+- [x] Reconnect recovery works
+- [x] Annotations sync
+- [x] Extension detects Meet
+- [x] Uploads work (Supabase storage strategy)
+- [x] No critical console/runtime errors in validation flow
+- [x] `/health` returns HTTP 200
+- [x] Render health checks use `/health`
+- [x] External uptime monitor pings `/health` every 5 minutes
+
+### Final Repository Status Summary
+
+- Current architecture maturity: stable alpha collaboration platform
+- Current scalability target: approximately 10,000 concurrent websocket connections per server instance (architecture target)
+- Known alpha limitations:
+  - annotation persistence and reconciliation remain a post-alpha evolution area
+  - higher-concurrency load testing beyond current alpha envelopes still pending
+  - extension publishing is not yet finalized for public store distribution
+- Next recommended milestone: **Real Alpha User Testing**
+
+### Next Recommended Work
+
+- real-user feedback collection
+- production telemetry integration
+- beta onboarding polish
+- deployment automation improvements
+- load testing at higher concurrency
+- browser extension publishing
+
+---
+
 ## 📖 Table of Contents
 
 <details>
