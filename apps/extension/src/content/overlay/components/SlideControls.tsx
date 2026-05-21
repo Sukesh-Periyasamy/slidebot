@@ -21,11 +21,11 @@ export function SlideControls({ session, status }: SlideControlsProps) {
   // the full controls live in the web app
   const handlePrev = () => {
     // TODO: extend background to relay slide:goto events
-    console.log('[SlideBot] prev slide');
+    console.warn('[SlideBot] prev slide');
   };
 
   const handleNext = () => {
-    console.log('[SlideBot] next slide');
+    console.warn('[SlideBot] next slide');
   };
 
   return (

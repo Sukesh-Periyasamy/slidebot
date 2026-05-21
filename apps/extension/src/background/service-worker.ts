@@ -43,11 +43,11 @@ let currentStatus: Partial<ExtensionStatus> = {
 
 chrome.runtime.onInstalled.addListener(({ reason }) => {
   if (reason === 'install') {
-    console.log('[SlideBot] Extension installed');
+    console.warn('[SlideBot] Extension installed');
     // Open onboarding page
     void chrome.tabs.create({ url: `${getWebAppUrl()}/extension-welcome` });
   } else if (reason === 'update') {
-    console.log('[SlideBot] Extension updated');
+    console.warn('[SlideBot] Extension updated');
   }
 
   // Set up periodic heartbeat alarm
@@ -82,7 +82,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       void chrome.action.setBadgeText({ text: 'MEET', tabId });
       void chrome.action.setBadgeBackgroundColor({ color: '#6173F2', tabId });
 
-      console.log(`[SlideBot BG] Meet tab detected: ${meetCode} (tab ${tabId})`);
+      console.warn(`[SlideBot BG] Meet tab detected: ${meetCode} (tab ${tabId})`);
     }
   } else {
     if (activeMeetTabs.has(tabId)) {
@@ -91,7 +91,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       currentStatus = { ...currentStatus, isOnMeet: false, meetCode: null };
 
       void chrome.action.setBadgeText({ text: '', tabId });
-      console.log(`[SlideBot BG] Left Meet: ${meetCode}`);
+      console.warn(`[SlideBot BG] Left Meet: ${meetCode}`);
     }
   }
 });
@@ -248,5 +248,5 @@ function getWebAppUrl(): string {
 
 // Keep service worker alive during active sessions
 chrome.runtime.onConnect.addListener((port) => {
-  console.log('[SlideBot BG] Port connected:', port.name);
+  console.warn('[SlideBot BG] Port connected:', port.name);
 });

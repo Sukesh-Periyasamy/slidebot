@@ -131,9 +131,9 @@ describe('WebSocket: Scalability Report', () => {
 
   afterAll(async () => {
     // Print the full scalability report to stdout for CI artifact capture
-    console.log('\n=== SCALABILITY REPORT ===');
-    console.log(JSON.stringify(allReports, null, 2));
-    console.log('=========================\n');
+    console.warn('\n=== SCALABILITY REPORT ===');
+    console.warn(JSON.stringify(allReports, null, 2));
+    console.warn('=========================\n');
     await server.close();
   });
 
@@ -141,7 +141,7 @@ describe('WebSocket: Scalability Report', () => {
     const report = await runScalabilityScenario(server, 2, 20, 'scale-2clients');
     allReports.push(report);
 
-    console.log(`[2 clients] avg=${report.avgLatencyMs}ms p99=${report.p99LatencyMs}ms`);
+    console.warn(`[2 clients] avg=${report.avgLatencyMs}ms p99=${report.p99LatencyMs}ms`);
     expect(report.p99LatencyMs).toBeLessThan(200);
   }, 45_000);
 
@@ -149,7 +149,7 @@ describe('WebSocket: Scalability Report', () => {
     const report = await runScalabilityScenario(server, 5, 20, 'scale-5clients');
     allReports.push(report);
 
-    console.log(`[5 clients] avg=${report.avgLatencyMs}ms p99=${report.p99LatencyMs}ms`);
+    console.warn(`[5 clients] avg=${report.avgLatencyMs}ms p99=${report.p99LatencyMs}ms`);
     expect(report.p99LatencyMs).toBeLessThan(200);
   }, 60_000);
 
@@ -157,7 +157,7 @@ describe('WebSocket: Scalability Report', () => {
     const report = await runScalabilityScenario(server, 10, 15, 'scale-10clients');
     allReports.push(report);
 
-    console.log(`[10 clients] avg=${report.avgLatencyMs}ms p99=${report.p99LatencyMs}ms`);
+    console.warn(`[10 clients] avg=${report.avgLatencyMs}ms p99=${report.p99LatencyMs}ms`);
     expect(report.p99LatencyMs).toBeLessThan(200);
   }, 60_000);
 
@@ -165,7 +165,7 @@ describe('WebSocket: Scalability Report', () => {
     const report = await runScalabilityScenario(server, 20, 10, 'scale-20clients');
     allReports.push(report);
 
-    console.log(`[20 clients] avg=${report.avgLatencyMs}ms p99=${report.p99LatencyMs}ms`);
+    console.warn(`[20 clients] avg=${report.avgLatencyMs}ms p99=${report.p99LatencyMs}ms`);
     expect(report.p99LatencyMs).toBeLessThan(200);
   }, 90_000);
 });

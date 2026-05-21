@@ -3,5 +3,5 @@ export const logger = {
   warn: (...args: any[]) => console.warn(...args),
   error: (...args: any[]) => console.error(...args),
   debug: (...args: any[]) => console.debug(...args),
-  log: (...args: any[]) => console.log(...args),
+  log: (...args: any[]) => console.warn(...args),
 };
