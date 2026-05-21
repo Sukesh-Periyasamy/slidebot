@@ -30,26 +30,48 @@ const queryClient = new QueryClient({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function AuthProvider({ children }: { children: ReactNode }) {
-  const { setSession, setLoading } = useAuthStore();
+  const { setSession, setLoading, setError } = useAuthStore();
 
   useEffect(() => {
+    let isMounted = true;
+    setLoading();
+
     // 1. Load initial session (handles page refresh)
-    void supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session, data.session?.user ?? null);
-    });
+    const loadInitialSession = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (!isMounted) return;
+
+        if (error) {
+          setError(error.message);
+          return;
+        }
+
+        setSession(data.session, data.session?.user ?? null);
+      } catch (error) {
+        if (!isMounted) return;
+        const message = error instanceof Error ? error.message : 'Failed to restore session';
+        setError(message);
+      }
+    };
+    void loadInitialSession();
 
     // 2. Subscribe to auth state changes (login, logout, token refresh)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted) return;
       setSession(session, session?.user ?? null);
 
       // Invalidate all queries on auth change
       void queryClient.invalidateQueries();
     });
 
-    return () => subscription.unsubscribe();
-  }, [setSession]);
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [setSession, setLoading, setError]);
 
   return <>{children}</>;
 }
