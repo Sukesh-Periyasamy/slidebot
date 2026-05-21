@@ -48,6 +48,8 @@ Add the following variables in the Render dashboard under **Environment → Envi
 | `SUPABASE_URL` | Supabase API base URL. |
 | `SUPABASE_ANON_KEY` | Public anon key (frontend also needs this). |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service‑role key – **secret** (backend only). |
+| `SUPABASE_STORAGE_BUCKET` | Supabase Storage bucket for uploaded PDFs (`presentations`). |
+| `SUPABASE_SIGNED_URL_EXPIRES_SEC` | Signed URL TTL in seconds (recommended: `3600`). |
 | `JWT_SECRET` | Secret for signing session JWTs. |
 | `CORS_ORIGINS` | Comma‑separated list of allowed origins, e.g. `https://app.slidebot.app,https://frontend.vercel.app`. |
 | `STORAGE_PROVIDER` | `supabase` for alpha. Treat local disk as development only. |
@@ -81,6 +83,7 @@ Open the app in a browser and verify the Socket.IO connection through the fronte
 - [ ] Annotations sync
 - [ ] Extension detects Meet
 - [ ] Uploads work
+- [ ] Uploaded room deck still loads after hard refresh on `/room/:deckId`
 - [ ] No console errors
 - [ ] Mobile layout is acceptable
 - [ ] `/health` returns HTTP 200

@@ -1,6 +1,11 @@
-# SlideBot Alpha Deployment Script
+# SlideBot Deployment Script
 
-This short runbook keeps the alpha deployment path low-maintenance and production-safe.
+This runbook keeps deployment low-maintenance and production-safe.
+
+## Live Services
+
+- Frontend: `https://slidebot-web.vercel.app`
+- Backend API: `https://slidebot-api-mvb8.onrender.com`
 
 ## Health Monitoring
 
@@ -43,6 +48,7 @@ Use `/` as the Render root directory and `pnpm --filter @slidebot/api start` as 
 - [ ] Annotations sync
 - [ ] Extension detects Meet
 - [ ] Uploads work
+- [ ] Uploaded deck remains available after hard refresh on `/room/:roomId`
 - [ ] No console errors
 - [ ] Mobile layout is acceptable
 - [ ] `/health` returns HTTP 200
@@ -54,3 +60,16 @@ Use `/` as the Render root directory and `pnpm --filter @slidebot/api start` as 
 ## Operational Note
 
 Free-tier hosting providers may suspend idle instances or affect long-lived websocket stability during inactivity periods. SlideBot automatically attempts reconnect recovery when websocket interruption occurs.
+
+## Storage Configuration (Required)
+
+SlideBot now expects Supabase Storage for persisted presentation PDFs:
+
+- Bucket name: `presentations`
+- Bucket visibility: private (recommended)
+- Backend signs access URLs per request
+
+Required API environment variables:
+
+- `SUPABASE_STORAGE_BUCKET=presentations`
+- `SUPABASE_SIGNED_URL_EXPIRES_SEC=3600`

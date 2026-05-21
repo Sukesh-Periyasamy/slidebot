@@ -10,6 +10,14 @@
 
 - Use Supabase Storage for alpha uploads.
 - Do not rely on the Render filesystem for persisted PDFs or other user files.
+- Verify `SUPABASE_STORAGE_BUCKET` matches the created bucket name (default `presentations`).
+- Verify `SUPABASE_SIGNED_URL_EXPIRES_SEC` is set (for example `3600`) so room loads can refresh links before expiry.
+
+## Room Fails After Refresh
+
+- Confirm `GET /api/v1/decks/:deckId` returns deck metadata with a fresh `signedUrl`.
+- Confirm backend has not restarted since deck upload when using in-memory deck metadata.
+- If backend restarts frequently, persist deck metadata in database storage as the next hardening step.
 
 ## WebSocket Smoke Test Fails
 

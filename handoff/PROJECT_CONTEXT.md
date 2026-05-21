@@ -12,6 +12,8 @@ SlideBot is a collaborative multiplayer presentation platform focused on synchro
 - Observability strategy finalized.
 - Extension popup stabilized.
 - RoomPage stabilized.
+- Persistent deck storage implemented (Supabase Storage + signed URL retrieval).
+- Room hard-refresh recovery for uploaded decks implemented.
 - CI/CD stabilization complete.
 - ESLint 9 migration complete.
 
@@ -26,6 +28,7 @@ SlideBot is a collaborative multiplayer presentation platform focused on synchro
 - Current scalability target: ~10,000 concurrent websocket connections per server instance (architecture target).
 - Known alpha limitations:
   - annotation persistence/reconciliation remains next-phase work
+  - deck metadata is currently held in API memory (resets on backend restart)
   - higher concurrency load testing still needed
   - browser extension store publishing not finalized
 - Next recommended milestone: **Real Alpha User Testing**
