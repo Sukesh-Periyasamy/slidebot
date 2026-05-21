@@ -2,6 +2,7 @@
   "name": "@slidebot/shared-types",
   "version": "0.0.1",
   "private": true,
+  "type": "module",
   "description": "Shared TypeScript types for SlideBot — used by web, api, and extension",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
