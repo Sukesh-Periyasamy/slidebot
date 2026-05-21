@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Domain models
-export * from './models';
+export * from './models/index.js';
 
 // Socket.IO event types
 export * from './events/socket.events';
