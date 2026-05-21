@@ -17,7 +17,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\" --ignore-path .prettierignore",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css}\" --ignore-path .prettierignore",
     "clean": "turbo run clean && rimraf node_modules",
-    "prepare": "command -v husky >/dev/null 2>&1 && husky"
+    "prepare": "command -v husky >/dev/null 2>&1 && husky || true"
   },
   "devDependencies": {
     "@slidebot/eslint-config": "workspace:*",
@@ -48,7 +48,7 @@
     ]
   },
   "engines": {
-    "node": ">=20.0.0",
+    "node": "20.x",
     "pnpm": ">=9.0.0"
   },
   "packageManager": "pnpm@9.12.0"
