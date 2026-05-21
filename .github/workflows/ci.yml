@@ -13,24 +13,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: 20
-
-      - name: Enable Corepack + pnpm
+      - name: Setup pnpm
         run: |
           corepack enable
           corepack prepare pnpm@9.12.0 --activate
           pnpm --version
 
-      - name: Cache pnpm store
-        uses: actions/cache@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
         with:
-          path: ~/.pnpm-store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-
+          node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Ensure pnpm available in PATH
+        run: pnpm --version
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
