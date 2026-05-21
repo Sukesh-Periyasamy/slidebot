@@ -61,35 +61,37 @@ export function ConnectionStatusBar() {
   const config = STATUS_CONFIG[status];
   const { Icon, label, color, bg } = config;
 
-  // Only show when not connected
-  const shouldShow = status !== 'connected';
-
   return (
-    <AnimatePresence>
-      {shouldShow && (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: 'auto', opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className={`overflow-hidden ${bg}`}
-        >
-          <div
-            className={`flex items-center justify-center gap-2 py-1.5 text-xs font-medium ${color}`}
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+      <AnimatePresence mode="wait">
+        {status !== 'connected' && (
+          <motion.div
+            key="status-pill"
+            initial={{ y: -20, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: -20, opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className={`flex items-center gap-2 rounded-full px-3 py-1.5 shadow-md border ${bg} ${
+              status === 'reconnecting' ? 'border-amber-500/30 shadow-amber-500/10' : 'border-surface-800'
+            } backdrop-blur-md`}
           >
-            <Icon
-              size={12}
-              className={status === 'reconnecting' || status === 'connecting' ? 'animate-spin' : ''}
-            />
-            <span>
+            {status === 'reconnecting' ? (
+              <div className="relative flex h-2 w-2 items-center justify-center">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+              </div>
+            ) : (
+              <Icon size={14} className={color} />
+            )}
+            <span className={`text-xs font-medium ${color}`}>
               {label}
               {(status === 'reconnecting' || status === 'error') && reconnectAttempts > 0 && (
-                <span className="ml-1 text-surface-500">(attempt {reconnectAttempts})</span>
+                <span className="ml-1 opacity-70">(attempt {reconnectAttempts})</span>
               )}
             </span>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

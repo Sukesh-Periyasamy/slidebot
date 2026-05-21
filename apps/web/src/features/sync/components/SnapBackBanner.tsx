@@ -15,6 +15,7 @@ interface SnapBackBannerProps {
   presenterSlide: number;
   totalSlides: number;
   slideDelta: number;
+  isVisible: boolean;
   onSnapBack: () => void;
   onDismiss?: () => void;
 }
@@ -24,6 +25,7 @@ export function SnapBackBanner({
   presenterSlide,
   totalSlides,
   slideDelta,
+  isVisible,
   onSnapBack,
 }: SnapBackBannerProps) {
   const isBehind = slideDelta < 0;
@@ -35,14 +37,15 @@ export function SnapBackBanner({
 
   return (
     <AnimatePresence>
-      <motion.div
-        key="snap-back-banner"
-        initial={{ y: 80, opacity: 0, scale: 0.95 }}
-        animate={{ y: 0, opacity: 1, scale: 1 }}
-        exit={{ y: 80, opacity: 0, scale: 0.95 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-        className="absolute bottom-20 left-1/2 -translate-x-1/2 z-50 pointer-events-auto"
-      >
+      {isVisible && (
+        <motion.div
+          key="snap-back-banner"
+          initial={{ y: 80, opacity: 0, scale: 0.95 }}
+          animate={{ y: 0, opacity: 1, scale: 1 }}
+          exit={{ y: 80, opacity: 0, scale: 0.95 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+          className="absolute bottom-20 left-1/2 -translate-x-1/2 z-50 pointer-events-auto"
+        >
         <div className="flex items-center gap-3 glass rounded-2xl px-4 py-3 shadow-panel border border-amber-500/20">
           {/* Pulsing indicator */}
           <div className="relative flex-shrink-0">
@@ -72,8 +75,9 @@ export function SnapBackBanner({
             <Zap size={12} />
             Snap Back
           </button>
-        </div>
-      </motion.div>
+          </div>
+        </motion.div>
+      )}
     </AnimatePresence>
   );
 }

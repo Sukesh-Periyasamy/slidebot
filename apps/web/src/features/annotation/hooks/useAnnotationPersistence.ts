@@ -132,7 +132,7 @@ export function useAnnotationPersistence({
 
       saveQueueRef.current.set(annotation.id, {
         annotation,
-        sessionId: syncStore.getState().session?.sessionId ?? '',
+        sessionId: useSyncStore.getState().session?.sessionId ?? '',
         retries: 0,
         scheduledAt: Date.now() + 500, // Debounce 500ms
       });

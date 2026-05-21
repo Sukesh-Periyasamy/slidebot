@@ -25,6 +25,7 @@ export const RoomHeader = memo(function RoomHeader({
   onToggleParticipants,
 }: RoomHeaderProps) {
   const session = useSyncStore((s) => s.session);
+  const status = useSyncStore((s) => s.connectionStatus);
   const [copied, setCopied] = useState(false);
 
   const handleCopyLink = async () => {
@@ -49,6 +50,16 @@ export const RoomHeader = memo(function RoomHeader({
           <span className="hidden sm:flex items-center gap-1 rounded-full bg-surface-800 px-2 py-0.5 text-[10px] font-mono text-surface-500">
             #{session.sessionId.slice(-6).toUpperCase()}
           </span>
+        )}
+        
+        {/* Presenter Badge */}
+        {session?.presenterName && (
+          <div className="hidden sm:flex items-center gap-1.5 ml-2 px-2.5 py-0.5 rounded-full bg-brand-500/10 border border-brand-500/20">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand-400" />
+            <span className="text-[10px] font-medium text-brand-300">
+              <span className="opacity-75">Presenter:</span> {session.presenterName}
+            </span>
+          </div>
         )}
       </div>
 
@@ -86,6 +97,16 @@ export const RoomHeader = memo(function RoomHeader({
             )}
           </AnimatePresence>
         </button>
+
+        {/* Sync Health */}
+        <div 
+          className={`h-2 w-2 rounded-full mx-1 ${
+            status === 'connected' ? 'bg-emerald-500' :
+            status === 'reconnecting' || status === 'connecting' ? 'bg-amber-500 animate-pulse' :
+            'bg-red-500'
+          }`} 
+          title={`Status: ${status}`}
+        />
 
         {/* Participants toggle */}
         <button
