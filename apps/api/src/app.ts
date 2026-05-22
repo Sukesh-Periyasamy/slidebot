@@ -21,6 +21,7 @@ import { annotationsRouter } from './modules/annotations/annotations.router';
  */
 export function createApp(): Application {
   const app = express();
+  const allowedOrigins = ['https://slidebot-web.vercel.app', 'http://localhost:5173'];
 
   // ── Security middleware ────────────────────────────────────────────────────
   app.use(
@@ -33,7 +34,19 @@ export function createApp(): Application {
   // ── CORS ──────────────────────────────────────────────────────────────────
   app.use(
     cors({
-      origin: env.CORS_ORIGINS,
+      origin(origin, callback) {
+        if (!origin) {
+          callback(null, true);
+          return;
+        }
+
+        if (allowedOrigins.includes(origin)) {
+          callback(null, true);
+          return;
+        }
+
+        callback(new Error(`CORS blocked: ${origin}`));
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
