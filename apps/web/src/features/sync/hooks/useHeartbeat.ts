@@ -1,7 +1,7 @@
 /**
  * useHeartbeat — application-level ping/pong for WebSocket health monitoring.
  *
- * Responds to server 'ping' events with 'pong', tracks round-trip latency,
+ * Responds to server 'app:ping' events with 'app:pong', tracks round-trip latency,
  * and exposes connection health metrics to the UI (ConnectionHealth component).
  *
  * This supplements Socket.IO's built-in heartbeat with application-level
@@ -42,7 +42,7 @@ export function useHeartbeat(): HeartbeatHealth {
     const onPing = (payload: { ts: number }) => {
       pingTimestampRef.current = payload?.ts ?? Date.now();
       // Respond immediately
-      (socket as unknown as { emit: (e: string) => void }).emit('pong');
+      (socket as unknown as { emit: (e: string) => void }).emit('app:pong');
     };
 
     const onPong = () => {
@@ -53,12 +53,12 @@ export function useHeartbeat(): HeartbeatHealth {
       pingTimestampRef.current = null;
     };
 
-    socket.on('ping' as never, onPing as never);
-    socket.on('pong' as never, onPong as never);
+    socket.on('app:ping' as never, onPing as never);
+    socket.on('app:pong' as never, onPong as never);
 
     return () => {
-      socket.off('ping' as never, onPing as never);
-      socket.off('pong' as never, onPong as never);
+      socket.off('app:ping' as never, onPing as never);
+      socket.off('app:pong' as never, onPong as never);
     };
   }, []);
 

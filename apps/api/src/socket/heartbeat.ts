@@ -2,8 +2,8 @@
  * Heartbeat system — keeps connections alive and detects stale sockets.
  *
  * Strategy:
- * - Server emits `ping` every PING_INTERVAL ms
- * - Client must respond with `pong` within PONG_TIMEOUT ms
+ * - Server emits `app:ping` every PING_INTERVAL ms
+ * - Client must respond with `app:pong` within PONG_TIMEOUT ms
  * - If pong not received, socket is considered stale and forcibly disconnected
  * - Reconnecting clients get full state via session:join ack
  *
@@ -61,11 +61,11 @@ export function attachHeartbeat(
       }
     }, PONG_TIMEOUT_MS);
 
-    socket.emit('ping' as never, { ts: Date.now() } as never);
+    socket.emit('app:ping' as never, { ts: Date.now() } as never);
   };
 
   // Listen for pong
-  socket.on('pong' as never, () => {
+  socket.on('app:pong' as never, () => {
     if (hb.pongTimer) clearTimeout(hb.pongTimer);
     hb.pongTimer = null;
     hb.missedPongs = 0;
