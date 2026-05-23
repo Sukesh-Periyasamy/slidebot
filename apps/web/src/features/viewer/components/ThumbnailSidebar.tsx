@@ -34,6 +34,7 @@ export function ThumbnailSidebar() {
   const setIsExploring = useSyncStore((s) => s.setIsExploring);
 
   const presenterSlide = session?.currentSlide ?? 1;
+  const lastAutoScrollRef = useRef<{ sessionId: string | null; slide: number } | null>(null);
 
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -48,11 +49,17 @@ export function ThumbnailSidebar() {
   // ── Auto-scroll ──────────────────────────────────────────────────────────
   // If following the presenter, snap the sidebar to the presenter's active slide.
   useEffect(() => {
-    if (!isThumbnailStripOpen || totalPages === 0) return;
+    if (!isThumbnailStripOpen || totalPages === 0 || !session?.sessionId) return;
     if (!isExploring && !isPresenter) {
+      const last = lastAutoScrollRef.current;
+      if (last?.sessionId === session.sessionId && last.slide === presenterSlide) {
+        return;
+      }
+
       virtualizer.scrollToIndex(presenterSlide - 1, { align: 'center', behavior: 'smooth' });
+      lastAutoScrollRef.current = { sessionId: session.sessionId, slide: presenterSlide };
     }
-  }, [presenterSlide, isExploring, isPresenter, isThumbnailStripOpen, virtualizer, totalPages]);
+  }, [presenterSlide, isExploring, isPresenter, isThumbnailStripOpen, virtualizer, totalPages, session?.sessionId]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handleThumbnailClick = useCallback(
