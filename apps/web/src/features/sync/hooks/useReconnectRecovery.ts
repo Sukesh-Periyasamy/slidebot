@@ -123,7 +123,6 @@ export function useReconnectRecovery({
   onSlideRestored,
   onAnnotationRestore,
 }: UseReconnectRecoveryOptions) {
-  const store = useSyncStore();
   const isRecoveringRef = useRef(false);
   const recoveryCountRef = useRef(0);
 
@@ -136,6 +135,7 @@ export function useReconnectRecovery({
     const attempt = recoveryCountRef.current;
     console.info({ deckId, sessionId, attempt }, 'Starting reconnect recovery');
 
+    const store = useSyncStore.getState();
     store.setConnectionStatus('reconnecting');
 
     try {
@@ -168,20 +168,24 @@ export function useReconnectRecovery({
             const { session, members = [], isPresenter = false } = res;
 
             // Restore sync store from server snapshot (source of truth)
-            store.initSession(normaliseSession(session), members.map(normaliseMember), isPresenter);
+            useSyncStore.getState().initSession(
+              normaliseSession(session),
+              members.map(normaliseMember),
+              isPresenter
+            );
 
-            store.setConnectionStatus('connected');
+            useSyncStore.getState().setConnectionStatus('connected');
 
             // Restore exploration mode from persisted state
             // Only restore if it matches context (non-presenter)
             if (persisted.isExploring && !isPresenter) {
-              store.setIsExploring(true);
+              useSyncStore.getState().setIsExploring(true);
               if (persisted.localSlide > 0) {
                 onSlideRestored?.(persisted.localSlide);
               }
             } else {
               // Follow presenter (default recovery)
-              store.setIsExploring(false);
+              useSyncStore.getState().setIsExploring(false);
               onSlideRestored?.(session.currentSlide);
             }
 
@@ -207,11 +211,11 @@ export function useReconnectRecovery({
       });
     } catch (err) {
       console.error({ err }, 'Reconnect recovery threw');
-      store.setConnectionStatus('error');
+      useSyncStore.getState().setConnectionStatus('error');
     } finally {
       isRecoveringRef.current = false;
     }
-  }, [roomId, deckId, sessionId, userId, store, onSlideRestored, onAnnotationRestore]);
+  }, [roomId, deckId, sessionId, userId, onSlideRestored, onAnnotationRestore]);
 
   return { recover };
 }
