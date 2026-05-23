@@ -60,40 +60,32 @@ model User {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
-  ownedDecks     Deck[]               @relation("DeckOwner")
+  ownedDecks     Deck[]
   collaborations DeckCollaborator[]
   annotations    Annotation[]
   sessions       PresentationSession[] @relation("SessionPresenter")
   presentedRooms Room[]               @relation("RoomPresenter")
-  roomParticipation RoomParticipant[]
+  roomParticipants  RoomParticipant[]
 
   @@map("users")
 }
 
 model Deck {
-  id           String    @id @default(uuid())
-  ownerId      String    @map("owner_id")
-  name         String    @default("")
-  storagePath  String    @default("") @map("storage_path")
-  slides       Int       @default(1)
-  title        String
-  description  String?
-  thumbnailUrl String?   @map("thumbnail_url")
-  settings     Json      @default("{\"theme\":\"light\",\"defaultBackground\":\"#FFFFFF\",\"aspectRatio\":\"16:9\"}")
-  /// Yjs document binary snapshot (full CRDT state)
-  yjsSnapshot  Bytes?    @map("yjs_snapshot")
-  /// Yjs vector clock for conflict detection on reconnect
-  yjsClock     Int       @default(0) @map("yjs_clock")
-  deletedAt    DateTime? @map("deleted_at")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  id          String   @id @default(cuid())
+  ownerId     String
+  name        String
+  storagePath String   @default("")
+  slides      Int      @default(1)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
-  owner          User                  @relation("DeckOwner", fields: [ownerId], references: [id])
-  slideEntities  Slide[]
-  collaborators  DeckCollaborator[]
-  sessions       PresentationSession[]
-  rooms          Room[]
+  owner         User                  @relation(fields: [ownerId], references: [id])
+  rooms         Room[]
+  slideEntities Slide[]
+  collaborators DeckCollaborator[]
+  sessions      PresentationSession[]
 
   @@index([ownerId])
   @@map("decks")

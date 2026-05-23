@@ -134,7 +134,6 @@ router.post('/upload', authenticate, (req, res) => {
             id: deckId,
             ownerId,
             name: file.originalname || 'presentation.pdf',
-            title: file.originalname || 'presentation.pdf',
             storagePath,
             slides,
           },
@@ -157,7 +156,7 @@ router.post('/upload', authenticate, (req, res) => {
         res.status(201).json({
           deckId: deck.id,
           roomId: room.id,
-          name: deck.name || deck.title,
+          name: deck.name,
           slides: deck.slides,
           storagePath,
           signedUrl,
@@ -193,7 +192,6 @@ router.get('/:id', authenticate, (req, res) => {
         id: true,
         ownerId: true,
         name: true,
-        title: true,
         slides: true,
         storagePath: true,
         createdAt: true,
@@ -214,7 +212,7 @@ router.get('/:id', authenticate, (req, res) => {
       res.json({
         data: {
           deckId: record.id,
-          name: record.name || record.title,
+          name: record.name,
           slides: record.slides,
           storagePath: record.storagePath,
           signedUrl,

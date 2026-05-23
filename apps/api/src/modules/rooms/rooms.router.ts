@@ -56,7 +56,6 @@ router.get('/', authenticate, async (req, res) => {
         select: {
           id: true,
           name: true,
-          title: true,
           slides: true,
         },
       },
@@ -74,7 +73,7 @@ router.get('/', authenticate, async (req, res) => {
       endedAt: room.endedAt?.toISOString() ?? null,
       deck: {
         deckId: room.deck.id,
-        name: room.deck.name || room.deck.title,
+        name: room.deck.name,
         slides: room.deck.slides,
       },
     })),
@@ -149,7 +148,6 @@ router.get('/:id', authenticate, async (req, res) => {
           id: true,
           ownerId: true,
           name: true,
-          title: true,
           slides: true,
           storagePath: true,
         },
@@ -192,7 +190,7 @@ router.get('/:id', authenticate, async (req, res) => {
       endedAt: room.endedAt?.toISOString() ?? null,
       deck: {
         deckId: room.deck.id,
-        name: room.deck.name || room.deck.title,
+        name: room.deck.name,
         slides: room.deck.slides,
         storagePath: room.deck.storagePath,
         signedUrl,
