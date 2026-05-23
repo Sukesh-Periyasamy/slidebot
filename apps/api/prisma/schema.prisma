@@ -100,16 +100,16 @@ model Deck {
 }
 
 model Room {
-  id          String      @id @default(uuid())
-  deckId       String      @map("deck_id")
-  presenterId  String      @map("presenter_id")
-  status       RoomStatus  @default(active)
-  createdAt    DateTime    @default(now()) @map("created_at")
-  endedAt      DateTime?   @map("ended_at")
+  id          String   @id @default(uuid())
+  deckId      String
+  presenterId String
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  endedAt     DateTime?
 
-  deck          Deck               @relation(fields: [deckId], references: [id], onDelete: Cascade)
-  presenter     User               @relation("RoomPresenter", fields: [presenterId], references: [id])
-  participants  RoomParticipant[]
+  deck         Deck              @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  presenter    User              @relation("RoomPresenter", fields: [presenterId], references: [id])
+  participants RoomParticipant[]
 
   @@index([deckId])
   @@index([presenterId])

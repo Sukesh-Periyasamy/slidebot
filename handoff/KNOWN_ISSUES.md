@@ -6,7 +6,7 @@
 ## Technical Debt
 - **Testing Architecture:** While the WebSocket test harness is highly effective, scaling it to test hundreds of simultaneous connections might trigger local event loop bottlenecks in Node. The current tests are capped at ~20 simulated clients to prevent arbitrary timeout failures.
 - **REST API Coverage:** The test coverage is heavily biased towards WebSockets at the moment. Standard REST endpoints require additional unit tests.
-- **Deck Metadata Persistence:** Deck records are currently stored in an in-memory map in the API process. Uploaded PDFs persist in Supabase Storage, but deck metadata lookup for room refresh will fail if the API process restarts before database-backed deck persistence is introduced.
+- **Migration Baseline Safety:** Prisma migration history now includes a baseline-style migration for room/deck persistence. Future schema evolution should be reviewed carefully to avoid drift between Prisma model names and SQL column naming conventions.
 
 ## Performance Issues
 - **Canvas Rendering (Anticipated):** As annotation persistence is developed, rendering thousands of collaborative strokes in Konva may require path simplification or batching optimizations. We must ensure this does not block the React main thread.

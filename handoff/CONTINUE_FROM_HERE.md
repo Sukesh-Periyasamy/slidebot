@@ -14,13 +14,14 @@ SlideBot is stabilized as a production-ready alpha collaborative platform. Repos
 - RoomPage stabilized.
 - Persistent deck storage implemented (Supabase Storage + signed URL retrieval).
 - Room hard-refresh recovery for uploaded decks implemented.
+- Persistent relational room/deck storage implemented (decks, rooms, room_participants).
+- Room URLs decoupled from deck IDs (`/room/:roomId`).
 
 ## Final Repository Status Summary
 - Current architecture maturity: stable alpha.
 - Current scalability target: ~10,000 concurrent websocket connections per server instance (architecture target).
 - Known alpha limitations:
   - annotation persistence/reconciliation still pending next phase
-  - deck metadata is currently held in API memory (resets on backend restart)
   - higher-concurrency load tests still required
   - browser extension public store publishing still pending
 - Next recommended milestone: **Real Alpha User Testing**

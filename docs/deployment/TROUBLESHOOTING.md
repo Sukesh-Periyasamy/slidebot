@@ -15,9 +15,25 @@
 
 ## Room Fails After Refresh
 
-- Confirm `GET /api/v1/decks/:deckId` returns deck metadata with a fresh `signedUrl`.
-- Confirm backend has not restarted since deck upload when using in-memory deck metadata.
-- If backend restarts frequently, persist deck metadata in database storage as the next hardening step.
+- Confirm `GET /api/v1/rooms/:id` returns room + deck metadata with a fresh `signedUrl`.
+- Confirm room route uses `/room/:roomId` (not `/room/:deckId`).
+- Confirm Prisma migrations are applied so `rooms` and `room_participants` tables exist.
+
+## Prisma Migration Fails
+
+- If `npx prisma migrate deploy` reports missing `DIRECT_URL`, set both `DATABASE_URL` and `DIRECT_URL`.
+- Run migration from `apps/api` directory:
+  - `npx prisma migrate deploy`
+- Verify migration file exists:
+  - `apps/api/prisma/migrations/20260522_rooms_and_deck_persistence/migration.sql`
+
+## CORS Errors in Browser
+
+- Confirm backend allowlist includes:
+  - `https://slidebot-web.vercel.app`
+  - `http://localhost:5173`
+- Do not use `origin: '*'` with `credentials: true`.
+- Ensure CORS middleware is mounted before `/api/v1/...` routes.
 
 ## WebSocket Smoke Test Fails
 

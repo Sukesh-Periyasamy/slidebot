@@ -148,8 +148,9 @@ User
 → Upload PDF
 → API Upload Endpoint
 → Supabase Storage
-→ Deck Metadata
-→ Room Creation
+→ Deck Record (Postgres)
+→ Room Record (Postgres)
+→ Room Participants (Postgres)
 → PDF.js Rendering
 → Socket.IO Slide Sync
 ```
@@ -164,6 +165,9 @@ Implemented:
 * Upload
 * Persistent storage
 * Signed URLs
+* Persistent deck metadata (DB)
+* Persistent room metadata (DB)
+* Persistent room participants (DB)
 * Room routing
 * PDF rendering
 * Slide sync
@@ -171,8 +175,6 @@ Implemented:
 
 Planned:
 
-* Room persistence DB
-* Participant tracking
 * Presenter handoff
 * Live annotations
 * Multiplayer controls

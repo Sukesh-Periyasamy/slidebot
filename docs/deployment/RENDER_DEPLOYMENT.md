@@ -44,6 +44,7 @@ Add the following variables in the Render dashboard under **Environment → Envi
 |----------|-------------|
 | `PORT` | Port Render expects the service to listen on (default `10000`). |
 | `DATABASE_URL` | PostgreSQL connection string (Supabase). |
+| `DIRECT_URL` | Direct PostgreSQL connection string required for Prisma migration/deploy. |
 | `REDIS_URL` | Redis instance URL (Render can provision a free Redis add‑on). |
 | `SUPABASE_URL` | Supabase API base URL. |
 | `SUPABASE_ANON_KEY` | Public anon key (frontend also needs this). |
@@ -65,7 +66,18 @@ Add the following variables in the Render dashboard under **Environment → Envi
 
 > Use Supabase Storage for uploads on alpha. Render's filesystem is ephemeral and should not be relied upon for persisted uploads.
 
-## 5. Deploy & Verify
+## 5. Run Prisma Migrations
+
+Run Prisma migrations before traffic cutover:
+
+```bash
+cd apps/api
+npx prisma migrate deploy
+```
+
+If migration fails with missing env vars, ensure both `DATABASE_URL` and `DIRECT_URL` are set in Render.
+
+## 6. Deploy & Verify
 After the service is created Render will start a build. When it finishes:
 ```bash
 # Verify the health endpoint
@@ -74,7 +86,7 @@ curl https://slidebot-api.onrender.com/health
 ```
 Open the app in a browser and verify the Socket.IO connection through the frontend RoomPage smoke test or the browser's DevTools Network/WebSocket inspector. Use Socket.IO-compatible validation only; raw `wscat` does not speak the Socket.IO protocol.
 
-## 6. Deployment Validation Checklist
+## 7. Deployment Validation Checklist
 - [ ] Auth login works
 - [ ] RoomPage loads
 - [ ] WebSocket connected
@@ -83,7 +95,8 @@ Open the app in a browser and verify the Socket.IO connection through the fronte
 - [ ] Annotations sync
 - [ ] Extension detects Meet
 - [ ] Uploads work
-- [ ] Uploaded room deck still loads after hard refresh on `/room/:deckId`
+- [ ] Uploaded room deck still loads after hard refresh on `/room/:roomId`
+- [ ] `/api/v1/rooms` endpoints return expected responses
 - [ ] No console errors
 - [ ] Mobile layout is acceptable
 - [ ] `/health` returns HTTP 200
@@ -91,7 +104,7 @@ Open the app in a browser and verify the Socket.IO connection through the fronte
 - [ ] Better Stack or UptimeRobot monitor pings `/health` every 5 minutes
 - [ ] WebSocket reconnect behavior works after a brief connection drop
 
-## 7. Auto‑Deploy on Git Push
+## 8. Auto‑Deploy on Git Push
 Render automatically rebuilds on every push to the selected branch. Ensure the **Build Command** and **Start Command** remain unchanged.
 
 ---

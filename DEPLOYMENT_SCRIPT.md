@@ -36,6 +36,13 @@ pnpm turbo run typecheck
 pnpm turbo run lint
 ```
 
+Before starting the API in production, apply Prisma migrations:
+
+```bash
+cd apps/api
+npx prisma migrate deploy
+```
+
 Use `/` as the Render root directory and `pnpm --filter @slidebot/api start` as the backend start command in production.
 
 ## Validation Checklist
@@ -49,6 +56,7 @@ Use `/` as the Render root directory and `pnpm --filter @slidebot/api start` as 
 - [ ] Extension detects Meet
 - [ ] Uploads work
 - [ ] Uploaded deck remains available after hard refresh on `/room/:roomId`
+- [ ] `/api/v1/rooms` list/get/join/leave endpoints respond correctly
 - [ ] No console errors
 - [ ] Mobile layout is acceptable
 - [ ] `/health` returns HTTP 200
@@ -73,3 +81,5 @@ Required API environment variables:
 
 - `SUPABASE_STORAGE_BUCKET=presentations`
 - `SUPABASE_SIGNED_URL_EXPIRES_SEC=3600`
+- `DATABASE_URL=<postgres-connection-string>`
+- `DIRECT_URL=<direct-postgres-connection-string>`
