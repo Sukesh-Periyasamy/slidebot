@@ -15,11 +15,30 @@ import {
   recoverPresenterSession,
 } from '@/features/sync/hooks/useReconnectRecovery';
 
+const isDev = import.meta.env.DEV;
+
 interface SessionContext {
   roomId: string;
   deckId: string;
   totalSlides: number;
 }
+
+type SessionLifecycleState =
+  | 'idle'
+  | 'joining'
+  | 'active'
+  | 'recovering'
+  | 'switching'
+  | 'leaving';
+
+const allowedTransitions: Record<SessionLifecycleState, SessionLifecycleState[]> = {
+  idle: ['switching', 'joining'],
+  switching: ['joining', 'idle'],
+  joining: ['active', 'idle'],
+  active: ['recovering', 'switching', 'leaving'],
+  recovering: ['active', 'idle'],
+  leaving: ['idle'],
+};
 
 interface EnsureSessionInput extends SessionContext {
   userId: string;
@@ -71,6 +90,37 @@ class SessionManager {
   private boundPresenterSocket: Socket | null = null;
   private unbindPresenterListeners: (() => void) | null = null;
   private unsubscribers: Array<() => void> = [];
+  private sessionState: SessionLifecycleState = 'idle';
+  private lastTransitionAt: number | null = null;
+
+  private trace(action: string, details: Record<string, unknown> = {}): void {
+    if (!isDev) return;
+    console.debug('[session]', {
+      action,
+      state: this.sessionState,
+      ...details,
+    });
+  }
+
+  private setSessionState(next: SessionLifecycleState, details: Record<string, unknown> = {}): void {
+    if (this.sessionState === next) return;
+    const prev = this.sessionState;
+    const allowed = allowedTransitions[prev].includes(next);
+    if (!allowed) {
+      const message = `[SessionManager] Invalid transition: ${prev} -> ${next}`;
+      if (isDev) {
+        throw new Error(message);
+      }
+      logger.warn(message, { prev, next, ...details });
+      return;
+    }
+
+    const now = Date.now();
+    const durationMs = this.lastTransitionAt ? now - this.lastTransitionAt : null;
+    this.lastTransitionAt = now;
+    this.sessionState = next;
+    this.trace('state:transition', { prev, next, durationMs, ...details });
+  }
 
   start(): void {
     if (this.started) {
@@ -126,6 +176,35 @@ class SessionManager {
       return;
     }
 
+    this.trace('ensureSession', {
+      roomId: input.roomId,
+      deckId: input.deckId,
+      sessionId: useSyncStore.getState().session?.sessionId ?? null,
+    });
+
+    const existingSession = useSyncStore.getState().session;
+    const alreadyInTargetSession =
+      this.activeContext?.roomId === input.roomId &&
+      this.activeContext?.deckId === input.deckId &&
+      existingSession?.sessionId === input.roomId &&
+      existingSession?.deckId === input.deckId;
+
+    if (alreadyInTargetSession) {
+      this.setSessionState('active', {
+        roomId: input.roomId,
+        deckId: input.deckId,
+      });
+      this.updateSessionContext({
+        roomId: input.roomId,
+        deckId: input.deckId,
+        totalSlides: input.totalSlides,
+      });
+      await socketManager.ensureConnected();
+      this.bindPresenterSocketListeners();
+      return;
+    }
+
+    this.setSessionState('switching', { roomId: input.roomId, deckId: input.deckId });
     await this.switchRoom(input.roomId);
 
     this.activeContext = {
@@ -134,15 +213,48 @@ class SessionManager {
       totalSlides: input.totalSlides,
     };
 
+    this.setSessionState('joining', { roomId: input.roomId, deckId: input.deckId });
     await socketManager.ensureConnected();
     this.bindPresenterSocketListeners();
     await this.joinPresenterSession(input.roomId, input.deckId);
+    this.setSessionState('active', { roomId: input.roomId, deckId: input.deckId });
+  }
+
+  updateSessionContext(context: SessionContext): void {
+    if (!context.roomId || !context.deckId) {
+      return;
+    }
+
+    if (
+      this.activeContext?.roomId === context.roomId &&
+      this.activeContext?.deckId === context.deckId &&
+      this.activeContext.totalSlides === context.totalSlides
+    ) {
+      return;
+    }
+
+    this.trace('updateSessionContext', {
+      roomId: context.roomId,
+      deckId: context.deckId,
+      totalSlides: context.totalSlides,
+    });
+
+    this.activeContext = {
+      roomId: context.roomId,
+      deckId: context.deckId,
+      totalSlides: context.totalSlides,
+    };
   }
 
   async switchRoom(nextRoomId: string): Promise<void> {
     if (!nextRoomId) {
       return;
     }
+
+    this.trace('switchRoom', {
+      fromRoomId: this.activeContext?.roomId ?? this.getCurrentJoinedRoomId(),
+      toRoomId: nextRoomId,
+    });
 
     if (this.roomSwitchPromise) {
       await this.roomSwitchPromise;
@@ -181,15 +293,20 @@ class SessionManager {
       return;
     }
 
+    this.trace('leaveActiveRoom', { roomId });
+    this.setSessionState('leaving', { roomId });
+
     await this.leaveRoomMembership(roomId);
     this.joinedRooms.clear();
     this.activeContext = null;
     this.shouldRecoverOnConnect = false;
+    this.setSessionState('idle');
     clearReconnectState();
     useSyncStore.getState().reset();
   }
 
   resetForLogout(): void {
+    this.setSessionState('idle');
     this.activeContext = null;
     this.joinedRooms.clear();
     this.roomJoinPromises.clear();
@@ -585,6 +702,10 @@ class SessionManager {
     }
 
     this.recoveringPromise = (async () => {
+      this.setSessionState('recovering', {
+        roomId: this.activeContext?.roomId,
+        deckId: this.activeContext?.deckId,
+      });
       const restored = await recoverPresenterSession(
         socket,
         {
@@ -600,6 +721,10 @@ class SessionManager {
       if (!restored) {
         useSyncStore.getState().setConnectionStatus('error');
       }
+      this.setSessionState('active', {
+        roomId: this.activeContext?.roomId,
+        deckId: this.activeContext?.deckId,
+      });
     })().finally(() => {
       this.recoveringPromise = null;
     });

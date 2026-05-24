@@ -24,6 +24,7 @@ export function useSyncEngine({
   const session = useSyncStore((s) => s.session);
   const isPresenter = useSyncStore((s) => s.isPresenter);
   const hasNotifiedEndRef = useRef(false);
+  const bootstrapKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     sessionManager.start();
@@ -34,6 +35,12 @@ export function useSyncEngine({
       return;
     }
 
+    const bootstrapKey = `${user.id}:${roomId}:${deckId}`;
+    if (bootstrapKeyRef.current === bootstrapKey) {
+      return;
+    }
+    bootstrapKeyRef.current = bootstrapKey;
+
     void sessionManager.ensureSession({
       roomId,
       deckId,
@@ -41,6 +48,14 @@ export function useSyncEngine({
       userId: user.id,
     });
   }, [user?.id, roomId, deckId, totalSlides]);
+
+  useEffect(() => {
+    if (!roomId || !deckId || totalSlides <= 0) {
+      return;
+    }
+
+    sessionManager.updateSessionContext({ roomId, deckId, totalSlides });
+  }, [roomId, deckId, totalSlides]);
 
   useEffect(() => {
     if (!onSlideChange || !session) {

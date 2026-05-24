@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useSyncEngine } from '@/features/sync/hooks/useSyncEngine';
@@ -25,11 +25,16 @@ import { sessionManager } from '@/features/collaboration/lib/sessionManager';
 export function RoomPage() {
   const navigate = useNavigate();
   const { roomId } = useParams<{ roomId: string }>();
-  const syncStore = useSyncStore();
-  const viewerStore = useViewerStore();
+  const session = useSyncStore((s) => s.session);
+  const members = useSyncStore((s) => s.members);
+  const isExploring = useSyncStore((s) => s.isExploring);
+  const isPresenter = useSyncStore((s) => s.isPresenter);
+  const connectionStatus = useSyncStore((s) => s.connectionStatus);
+  const currentPage = useViewerStore((s) => s.currentPage);
   const [canvasDims, setCanvasDims] = useState({ w: 0, h: 0 });
   const [participantsPanelOpen, setParticipantsPanelOpen] = useState(false);
   const [resolvedDeckId, setResolvedDeckId] = useState<string | null>(null);
+  const bootstrappedRoomIdRef = useRef<string | null>(null);
 
   const handleDimensionsChange = useCallback((w: number, h: number) => {
     setCanvasDims((prev) => {
@@ -48,9 +53,9 @@ export function RoomPage() {
   const sync = useSyncEngine({ roomId: roomId ?? '', deckId: resolvedDeckId ?? '', totalSlides });
   const exploration = useExplorationMode(sync);
   const annotationSync = useAnnotationSync({
-    sessionId: syncStore.session?.sessionId ?? '',
+    sessionId: session?.sessionId ?? '',
     deckId: resolvedDeckId ?? '',
-    slideId: `${resolvedDeckId ?? 'deck'}-${viewerStore.currentPage}`,
+    slideId: `${resolvedDeckId ?? 'deck'}-${currentPage}`,
   });
 
   const resetViewer = useViewerStore((s) => s.reset);
@@ -61,16 +66,20 @@ export function RoomPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       (window as { __TEST_SYNC_STATE__?: unknown }).__TEST_SYNC_STATE__ = {
-        currentPage: viewerStore.currentPage,
-        isExploring: syncStore.isExploring,
-        session: syncStore.session,
-        connectionState: syncStore.connectionStatus,
+        currentPage,
+        isExploring,
+        session,
+        connectionState: connectionStatus,
       };
     }
-  }, [viewerStore.currentPage, syncStore.isExploring, syncStore.session, syncStore.connectionStatus]);
+  }, [currentPage, isExploring, session, connectionStatus]);
 
   useEffect(() => {
     if (!roomId) {
+      return;
+    }
+
+    if (bootstrappedRoomIdRef.current === roomId) {
       return;
     }
 
@@ -83,6 +92,7 @@ export function RoomPage() {
           return;
         }
 
+        bootstrappedRoomIdRef.current = roomId;
         setResolvedDeckId(room.deck.deckId);
         upsertDeck({
           deckId: room.deck.deckId,
@@ -132,7 +142,7 @@ export function RoomPage() {
         onLeave={() => {
           void handleLeave();
         }}
-        participantCount={Object.keys(syncStore.members).length}
+        participantCount={Object.keys(members).length}
         participantsPanelOpen={participantsPanelOpen}
         onToggleParticipants={() => setParticipantsPanelOpen((prev) => !prev)}
       />
@@ -146,7 +156,7 @@ export function RoomPage() {
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div style={{ width: canvasDims.w, height: canvasDims.h, position: 'relative' }}>
               <AnnotationCanvas
-                slideId={`${resolvedDeckId ?? 'deck'}-${viewerStore.currentPage}`}
+                slideId={`${resolvedDeckId ?? 'deck'}-${currentPage}`}
                 width={canvasDims.w}
                 height={canvasDims.h}
                 sync={annotationSync}
@@ -155,11 +165,11 @@ export function RoomPage() {
           </div>
 
           <SnapBackBanner
-            presenterName={syncStore.session?.presenterName ?? ''}
-            presenterSlide={syncStore.session?.currentSlide ?? 0}
-            totalSlides={syncStore.session?.totalSlides ?? 0}
-            slideDelta={(viewerStore.currentPage ?? 0) - (syncStore.session?.currentSlide ?? 0)}
-            isVisible={syncStore.isExploring && !syncStore.isPresenter}
+            presenterName={session?.presenterName ?? ''}
+            presenterSlide={session?.currentSlide ?? 0}
+            totalSlides={session?.totalSlides ?? 0}
+            slideDelta={(currentPage ?? 0) - (session?.currentSlide ?? 0)}
+            isVisible={isExploring && !isPresenter}
             onSnapBack={sync.followPresenter}
           />
 
