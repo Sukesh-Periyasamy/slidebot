@@ -2,7 +2,6 @@ import { useRef, useEffect, memo } from 'react';
 import { Loader2, AlertTriangle, FileX } from 'lucide-react';
 
 import { usePdfRenderer } from '../hooks/usePdfRenderer';
-import { usePdfLoader } from '../hooks/usePdfLoader';
 import { useViewerStore } from '../store/viewerStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -26,19 +25,27 @@ export const SlideCanvas = memo(function SlideCanvas({ onDimensionsChange }: Sli
   usePdfRenderer({ canvasRef, pageNumber: currentPage });
 
   // Track canvas dimensions for annotation overlay alignment
+  // Use a ref so the observer callback always calls the latest prop
+  // without re-creating the ResizeObserver (avoids infinite loops).
+  const onDimensionsChangeRef = useRef(onDimensionsChange);
+  onDimensionsChangeRef.current = onDimensionsChange;
+
   useEffect(() => {
-    if (!canvasRef.current || !onDimensionsChange) return;
+    if (!canvasRef.current) return;
 
     const observer = new ResizeObserver(() => {
       const canvas = canvasRef.current;
-      if (canvas) {
-        onDimensionsChange(canvas.clientWidth, canvas.clientHeight);
+      if (!canvas || !onDimensionsChangeRef.current) return;
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (w > 0 && h > 0) {
+        onDimensionsChangeRef.current(w, h);
       }
     });
 
-    if (canvasRef.current) observer.observe(canvasRef.current);
+    observer.observe(canvasRef.current);
     return () => observer.disconnect();
-  }, [onDimensionsChange]);
+  }, []);
 
   // ── Loading state ─────────────────────────────────────────────────────────
   if (isLoading) {

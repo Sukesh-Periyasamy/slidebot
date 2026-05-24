@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 
 import { useSyncEngine } from '@/features/sync/hooks/useSyncEngine';
@@ -27,6 +27,12 @@ export function RoomPage() {
   const syncStore = useSyncStore();
   const viewerStore = useViewerStore();
   const [canvasDims, setCanvasDims] = useState({ w: 0, h: 0 });
+  const handleDimensionsChange = useCallback((w: number, h: number) => {
+    setCanvasDims((prev) => {
+      if (prev.w === w && prev.h === h) return prev;
+      return { w, h };
+    });
+  }, []);
   const [participantsPanelOpen, setParticipantsPanelOpen] = useState(false);
   const [resolvedDeckId, setResolvedDeckId] = useState<string | null>(null);
 
@@ -169,7 +175,7 @@ export function RoomPage() {
         {/* ── Main Canvas Area ───────────────────────────────────────────── */}
         <main className="flex-1 relative flex flex-col items-center justify-center bg-surface-900 overflow-hidden">
           {/* Active slide PDF render */}
-          <SlideCanvas onDimensionsChange={(w, h) => setCanvasDims({ w, h })} />
+          <SlideCanvas onDimensionsChange={handleDimensionsChange} />
 
           {/* Collaborative annotations layer (Yjs) */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
