@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Wifi, WifiOff, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
+import { useHeartbeat } from '../hooks/useHeartbeat';
 import { selectConnectionStatus, useSyncStore } from '../store/syncStore';
 import type { ConnectionStatus } from '../store/syncStore';
 
@@ -60,6 +61,8 @@ export function ConnectionStatusBar() {
   const reconnectAttempts = useSyncStore((s) => s.reconnectAttempts);
   const config = STATUS_CONFIG[status];
   const { Icon, label, color, bg } = config;
+
+  useHeartbeat();
 
   return (
     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
