@@ -24,38 +24,38 @@ export function useSyncEngine({
   const session = useSyncStore((s) => s.session);
   const isPresenter = useSyncStore((s) => s.isPresenter);
   const hasNotifiedEndRef = useRef(false);
-  const bootstrapKeyRef = useRef<string | null>(null);
+  const initializedRef = useRef(false);
+
+  const roomIdRef = useRef(roomId);
+  const deckIdRef = useRef(deckId);
+  const userIdRef = useRef(user?.id ?? '');
+
+  roomIdRef.current = roomId;
+  deckIdRef.current = deckId;
+  userIdRef.current = user?.id ?? '';
 
   useEffect(() => {
     sessionManager.start();
   }, []);
 
   useEffect(() => {
-    if (!user?.id || !roomId || !deckId) {
-      return;
-    }
-
-    const bootstrapKey = `${user.id}:${roomId}:${deckId}`;
-    if (bootstrapKeyRef.current === bootstrapKey) {
-      return;
-    }
-    bootstrapKeyRef.current = bootstrapKey;
-
+    if (initializedRef.current) return;
+    if (!userIdRef.current || !roomIdRef.current || !deckIdRef.current) return;
+    initializedRef.current = true;
     void sessionManager.ensureSession({
-      roomId,
-      deckId,
-      totalSlides,
-      userId: user.id,
+      roomId: roomIdRef.current,
+      deckId: deckIdRef.current,
+      userId: userIdRef.current,
     });
-  }, [user?.id, roomId, deckId, totalSlides]);
+  }, []);
 
   useEffect(() => {
-    if (!roomId || !deckId || totalSlides <= 0) {
+    if (totalSlides <= 0) {
       return;
     }
 
-    sessionManager.updateSessionContext({ roomId, deckId, totalSlides });
-  }, [roomId, deckId, totalSlides]);
+    sessionManager.updateSlides(totalSlides);
+  }, [totalSlides]);
 
   useEffect(() => {
     if (!onSlideChange || !session) {

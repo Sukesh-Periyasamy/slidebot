@@ -40,7 +40,9 @@ const allowedTransitions: Record<SessionLifecycleState, SessionLifecycleState[]>
   leaving: ['idle'],
 };
 
-interface EnsureSessionInput extends SessionContext {
+interface EnsureSessionInput {
+  roomId: string;
+  deckId: string;
   userId: string;
 }
 
@@ -92,6 +94,7 @@ class SessionManager {
   private unsubscribers: Array<() => void> = [];
   private sessionState: SessionLifecycleState = 'idle';
   private lastTransitionAt: number | null = null;
+  private transitionInFlight = false;
 
   private trace(action: string, details: Record<string, unknown> = {}): void {
     if (!isDev) return;
@@ -108,9 +111,7 @@ class SessionManager {
     const allowed = allowedTransitions[prev].includes(next);
     if (!allowed) {
       const message = `[SessionManager] Invalid transition: ${prev} -> ${next}`;
-      if (isDev) {
-        throw new Error(message);
-      }
+      console.error(message, { prev, next, ...details });
       logger.warn(message, { prev, next, ...details });
       return;
     }
@@ -162,17 +163,31 @@ class SessionManager {
     );
 
     this.unsubscribers.push(
-      useViewerStore.subscribe(
-        (state) => state.currentPage,
-        (currentPage) => {
-          this.broadcastPresenterSlide(currentPage);
-        }
-      )
+      useViewerStore.subscribe((state) => state.currentPage, (currentPage) => {
+        this.broadcastPresenterSlide(currentPage);
+      })
     );
+  }
+
+  private queueStoreUpdate(action: () => void): void {
+    if (typeof queueMicrotask === 'function') {
+      queueMicrotask(action);
+      return;
+    }
+
+    setTimeout(action, 0);
   }
 
   async ensureSession(input: EnsureSessionInput): Promise<void> {
     if (!input.roomId || !input.deckId || !input.userId) {
+      return;
+    }
+
+    if (this.transitionInFlight) {
+      this.trace('ensureSession:in_flight', {
+        roomId: input.roomId,
+        deckId: input.deckId,
+      });
       return;
     }
 
@@ -182,42 +197,43 @@ class SessionManager {
       sessionId: useSyncStore.getState().session?.sessionId ?? null,
     });
 
-    const existingSession = useSyncStore.getState().session;
-    const alreadyInTargetSession =
-      this.activeContext?.roomId === input.roomId &&
-      this.activeContext?.deckId === input.deckId &&
-      existingSession?.sessionId === input.roomId &&
-      existingSession?.deckId === input.deckId;
+    this.transitionInFlight = true;
 
-    if (alreadyInTargetSession) {
-      this.setSessionState('active', {
+    try {
+      const existingSession = useSyncStore.getState().session;
+      const alreadyInTargetSession =
+        this.activeContext?.roomId === input.roomId &&
+        this.activeContext?.deckId === input.deckId &&
+        existingSession?.sessionId === input.roomId &&
+        existingSession?.deckId === input.deckId;
+
+      if (alreadyInTargetSession) {
+        this.setSessionState('active', {
+          roomId: input.roomId,
+          deckId: input.deckId,
+        });
+        await socketManager.ensureConnected();
+        this.bindPresenterSocketListeners();
+        return;
+      }
+
+      this.setSessionState('switching', { roomId: input.roomId, deckId: input.deckId });
+      await this.switchRoom(input.roomId);
+
+      this.activeContext = {
         roomId: input.roomId,
         deckId: input.deckId,
-      });
-      this.updateSessionContext({
-        roomId: input.roomId,
-        deckId: input.deckId,
-        totalSlides: input.totalSlides,
-      });
+        totalSlides: this.activeContext?.totalSlides ?? 0,
+      };
+
+      this.setSessionState('joining', { roomId: input.roomId, deckId: input.deckId });
       await socketManager.ensureConnected();
       this.bindPresenterSocketListeners();
-      return;
+      await this.joinPresenterSession(input.roomId, input.deckId);
+      this.setSessionState('active', { roomId: input.roomId, deckId: input.deckId });
+    } finally {
+      this.transitionInFlight = false;
     }
-
-    this.setSessionState('switching', { roomId: input.roomId, deckId: input.deckId });
-    await this.switchRoom(input.roomId);
-
-    this.activeContext = {
-      roomId: input.roomId,
-      deckId: input.deckId,
-      totalSlides: input.totalSlides,
-    };
-
-    this.setSessionState('joining', { roomId: input.roomId, deckId: input.deckId });
-    await socketManager.ensureConnected();
-    this.bindPresenterSocketListeners();
-    await this.joinPresenterSession(input.roomId, input.deckId);
-    this.setSessionState('active', { roomId: input.roomId, deckId: input.deckId });
   }
 
   updateSessionContext(context: SessionContext): void {
@@ -243,6 +259,27 @@ class SessionManager {
       roomId: context.roomId,
       deckId: context.deckId,
       totalSlides: context.totalSlides,
+    };
+  }
+
+  updateSlides(totalSlides: number): void {
+    if (!this.activeContext || totalSlides <= 0) {
+      return;
+    }
+
+    if (this.activeContext.totalSlides === totalSlides) {
+      return;
+    }
+
+    this.trace('updateSlides', {
+      roomId: this.activeContext.roomId,
+      deckId: this.activeContext.deckId,
+      totalSlides,
+    });
+
+    this.activeContext = {
+      ...this.activeContext,
+      totalSlides,
     };
   }
 
@@ -302,7 +339,7 @@ class SessionManager {
     this.shouldRecoverOnConnect = false;
     this.setSessionState('idle');
     clearReconnectState();
-    useSyncStore.getState().reset();
+    this.queueStoreUpdate(() => useSyncStore.getState().reset());
   }
 
   resetForLogout(): void {
@@ -318,7 +355,7 @@ class SessionManager {
     this.unbindPresenterListeners = null;
     this.boundPresenterSocket = null;
     clearReconnectState();
-    useSyncStore.getState().reset();
+    this.queueStoreUpdate(() => useSyncStore.getState().reset());
   }
 
   async gotoSlide(slideIndex: number): Promise<void> {
@@ -536,36 +573,40 @@ class SessionManager {
       sequenceNum: number;
       isSnapback?: boolean;
     }) => {
-      const store = useSyncStore.getState();
-      store.updateCurrentSlide(payload.slideIndex, payload.sequenceNum);
+      this.queueStoreUpdate(() => {
+        const store = useSyncStore.getState();
+        store.updateCurrentSlide(payload.slideIndex, payload.sequenceNum);
 
-      if (!store.isExploring || payload.isSnapback) {
-        useViewerStore.getState().setCurrentPage(payload.slideIndex + 1);
-      }
+        if (!store.isExploring || payload.isSnapback) {
+          useViewerStore.getState().setCurrentPage(payload.slideIndex + 1);
+        }
 
-      const sessionId = store.session?.sessionId;
-      if (sessionId) {
-        persistReconnectState({
-          sessionId,
-          isExploring: store.isExploring,
-          localSlide: store.isExploring
-            ? useViewerStore.getState().currentPage
-            : payload.slideIndex + 1,
-        });
-      }
+        const sessionId = store.session?.sessionId;
+        if (sessionId) {
+          persistReconnectState({
+            sessionId,
+            isExploring: store.isExploring,
+            localSlide: store.isExploring
+              ? useViewerStore.getState().currentPage
+              : payload.slideIndex + 1,
+          });
+        }
+      });
     };
 
     const onLightweightSlideChange = (payload: { roomId: string; slide: number }) => {
-      const store = useSyncStore.getState();
-      if (store.isPresenter) {
-        return;
-      }
+      this.queueStoreUpdate(() => {
+        const store = useSyncStore.getState();
+        if (store.isPresenter) {
+          return;
+        }
 
-      if (payload.roomId !== (store.session?.sessionId ?? '')) {
-        return;
-      }
+        if (payload.roomId !== (store.session?.sessionId ?? '')) {
+          return;
+        }
 
-      useViewerStore.getState().setCurrentPage(payload.slide);
+        useViewerStore.getState().setCurrentPage(payload.slide);
+      });
     };
 
     const onPresenterChanged = (payload: {
@@ -573,62 +614,80 @@ class SessionManager {
       newPresenterName: string;
       previousPresenterId: string;
     }) => {
-      const store = useSyncStore.getState();
-      store.transferPresenter(payload.newPresenterId, payload.newPresenterName);
+      this.queueStoreUpdate(() => {
+        const store = useSyncStore.getState();
+        store.transferPresenter(payload.newPresenterId, payload.newPresenterName);
 
-      const currentUserId = useAuthStore.getState().user?.id;
-      const isNowPresenter = payload.newPresenterId === currentUserId;
-      const wasPresenter = payload.previousPresenterId === currentUserId;
+        const currentUserId = useAuthStore.getState().user?.id;
+        const isNowPresenter = payload.newPresenterId === currentUserId;
+        const wasPresenter = payload.previousPresenterId === currentUserId;
 
-      store.setIsPresenter(isNowPresenter);
+        store.setIsPresenter(isNowPresenter);
 
-      if (isNowPresenter) {
-        store.receiveHandoff();
-        window.setTimeout(() => useSyncStore.getState().completeHandoff(), 1500);
-      } else if (wasPresenter) {
-        store.completeHandoff();
-        window.setTimeout(() => useSyncStore.getState().setIsExploring(false), 500);
-      }
+        if (isNowPresenter) {
+          store.receiveHandoff();
+          window.setTimeout(() => useSyncStore.getState().completeHandoff(), 1500);
+        } else if (wasPresenter) {
+          store.completeHandoff();
+          window.setTimeout(() => useSyncStore.getState().setIsExploring(false), 500);
+        }
+      });
     };
 
     const onParticipantJoined = (payload: { member: ServerMember }) => {
-      useSyncStore.getState().addMember({
-        ...payload.member,
-        isConnected: true,
+      this.queueStoreUpdate(() => {
+        useSyncStore.getState().addMember({
+          ...payload.member,
+          isConnected: true,
+        });
       });
     };
 
     const onParticipantReconnected = (payload: { userId: string }) => {
-      useSyncStore.getState().setMemberConnected(payload.userId, true);
+      this.queueStoreUpdate(() => {
+        useSyncStore.getState().setMemberConnected(payload.userId, true);
+      });
     };
 
     const onParticipantLeft = (payload: { userId: string }) => {
-      useSyncStore.getState().removeMember(payload.userId);
+      this.queueStoreUpdate(() => {
+        useSyncStore.getState().removeMember(payload.userId);
+      });
     };
 
     const onPresenterDisconnected = (payload: { presenterId: string }) => {
       if (payload.presenterId === useAuthStore.getState().user?.id) {
         return;
       }
-      useSyncStore.getState().setPresenterDisconnected(true);
-      useSyncStore.getState().setMemberConnected(payload.presenterId, false);
+      this.queueStoreUpdate(() => {
+        useSyncStore.getState().setPresenterDisconnected(true);
+        useSyncStore.getState().setMemberConnected(payload.presenterId, false);
+      });
     };
 
     const onPresenterReconnected = (payload: { presenterId: string }) => {
-      useSyncStore.getState().setPresenterDisconnected(false);
-      useSyncStore.getState().setMemberConnected(payload.presenterId, true);
+      this.queueStoreUpdate(() => {
+        useSyncStore.getState().setPresenterDisconnected(false);
+        useSyncStore.getState().setMemberConnected(payload.presenterId, true);
+      });
     };
 
     const onPresenterGraceExpired = () => {
-      useSyncStore.getState().setPresenterDisconnected(true);
+      this.queueStoreUpdate(() => {
+        useSyncStore.getState().setPresenterDisconnected(true);
+      });
     };
 
     const onViewerExploring = (payload: { userId: string }) => {
-      useSyncStore.getState().setMemberExploring(payload.userId, true);
+      this.queueStoreUpdate(() => {
+        useSyncStore.getState().setMemberExploring(payload.userId, true);
+      });
     };
 
     const onSessionEnded = () => {
-      useSyncStore.getState().endSession();
+      this.queueStoreUpdate(() => {
+        useSyncStore.getState().endSession();
+      });
       this.shouldRecoverOnConnect = false;
       clearReconnectState();
     };
@@ -647,7 +706,9 @@ class SessionManager {
       }
 
       this.shouldRecoverOnConnect = true;
-      useSyncStore.getState().setConnectionStatus('reconnecting');
+      this.queueStoreUpdate(() => {
+        useSyncStore.getState().setConnectionStatus('reconnecting');
+      });
     };
 
     socket.on('session:state', onSessionState);
@@ -719,7 +780,9 @@ class SessionManager {
       );
 
       if (!restored) {
-        useSyncStore.getState().setConnectionStatus('error');
+        this.queueStoreUpdate(() => {
+          useSyncStore.getState().setConnectionStatus('error');
+        });
       }
       this.setSessionState('active', {
         roomId: this.activeContext?.roomId,
@@ -733,37 +796,39 @@ class SessionManager {
   }
 
   private applySessionState(payload: SessionStatePayload): void {
-    const store = useSyncStore.getState();
+    this.queueStoreUpdate(() => {
+      const store = useSyncStore.getState();
 
-    store.initSession(
-      {
+      store.initSession(
+        {
+          sessionId: payload.session.sessionId,
+          deckId: payload.session.deckId,
+          presenterId: payload.session.presenterId,
+          presenterName: payload.session.presenterName,
+          currentSlide: payload.session.currentSlide,
+          totalSlides: payload.session.totalSlides,
+          sequenceNum: payload.session.sequenceNum,
+          status: payload.session.status as 'active' | 'waiting' | 'ended',
+        },
+        payload.members.map((member) => ({
+          userId: member.userId,
+          displayName: member.displayName,
+          avatarUrl: member.avatarUrl,
+          color: member.color,
+          role: member.role,
+          isExploring: member.isExploring,
+          isConnected: true,
+        })),
+        payload.isPresenter
+      );
+
+      store.setConnectionStatus('connected');
+
+      persistReconnectState({
         sessionId: payload.session.sessionId,
-        deckId: payload.session.deckId,
-        presenterId: payload.session.presenterId,
-        presenterName: payload.session.presenterName,
-        currentSlide: payload.session.currentSlide,
-        totalSlides: payload.session.totalSlides,
-        sequenceNum: payload.session.sequenceNum,
-        status: payload.session.status as 'active' | 'waiting' | 'ended',
-      },
-      payload.members.map((member) => ({
-        userId: member.userId,
-        displayName: member.displayName,
-        avatarUrl: member.avatarUrl,
-        color: member.color,
-        role: member.role,
-        isExploring: member.isExploring,
-        isConnected: true,
-      })),
-      payload.isPresenter
-    );
-
-    store.setConnectionStatus('connected');
-
-    persistReconnectState({
-      sessionId: payload.session.sessionId,
-      isExploring: store.isExploring,
-      localSlide: useViewerStore.getState().currentPage,
+        isExploring: store.isExploring,
+        localSlide: useViewerStore.getState().currentPage,
+      });
     });
   }
 
