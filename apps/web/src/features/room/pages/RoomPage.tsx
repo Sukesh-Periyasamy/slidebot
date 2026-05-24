@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 
 import { useSyncEngine } from '@/features/sync/hooks/useSyncEngine';
@@ -35,6 +35,7 @@ export function RoomPage() {
   }, []);
   const [participantsPanelOpen, setParticipantsPanelOpen] = useState(false);
   const [resolvedDeckId, setResolvedDeckId] = useState<string | null>(null);
+  const hasCommittedJoinRef = useRef(false);
 
   const totalSlides = useViewerStore((s) => s.pdfDoc?.numPages ?? 0);
   const setCurrentPage = useViewerStore((s) => s.setCurrentPage);
@@ -76,6 +77,9 @@ export function RoomPage() {
     const ensureDeckAndLoad = async () => {
       try {
         await joinRoom(roomId);
+        if (cancelled) return;
+
+        hasCommittedJoinRef.current = true;
         const room = await getRoomById(roomId);
         if (cancelled) return;
 
@@ -99,6 +103,9 @@ export function RoomPage() {
     void ensureDeckAndLoad();
     return () => {
       cancelled = true;
+
+      if (!hasCommittedJoinRef.current) return;
+
       void leaveRoom(roomId);
     };
   }, [roomId, loadFromUrl, upsertDeck]);
