@@ -8,7 +8,7 @@
  */
 
 import { memo } from 'react';
-import { useHeartbeat } from '../hooks/useHeartbeat';
+import { useHeartbeatState } from '../hooks/useHeartbeatState';
 import { useSyncStore } from '../store/syncStore';
 
 interface ConnectionHealthProps {
@@ -20,7 +20,7 @@ export const ConnectionHealth = memo(function ConnectionHealth({
   showLatency = true,
 }: ConnectionHealthProps) {
   const connectionStatus = useSyncStore((s) => s.connectionStatus);
-  const { latencyMs } = useHeartbeat();
+  const { latencyMs } = useHeartbeatState();
 
   const isHighLatency = latencyMs !== null && latencyMs > 200;
 

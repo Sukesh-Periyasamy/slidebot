@@ -12,6 +12,17 @@ import { roomManager } from '../room-manager';
 import { getPresenceColor } from '@slidebot/shared-utils';
 import { attachHeartbeat } from '../heartbeat';
 import { handleReconnect, initiatePresenterGrace } from '../reconnect-handler';
+import { assertSingleServerListener } from '../dev-listener-assert';
+import {
+  RealtimeSchemas,
+  REALTIME_EVENTS,
+  type SessionCreatePayload,
+  type SessionJoinPayload,
+  type SessionScopedPayload,
+  type SlideChangePayload,
+  type SlideGotoPayload,
+  type PresenterHandoffPayload,
+} from '@slidebot/shared-types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -130,8 +141,13 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
 
     // ── session:create ────────────────────────────────────────────────────
     extSocket.on('session:create', async (payload: unknown, ack: unknown) => {
-      const { deckId, totalSlides } = payload as { deckId: string; totalSlides: number };
       const callback = ack as (res: SessionAckResponse) => void;
+      const parsed = RealtimeSchemas.sessionCreate.safeParse(payload);
+      if (!parsed.success) {
+        callback({ ok: false, error: 'Invalid session:create payload' });
+        return;
+      }
+      const { deckId, totalSlides } = parsed.data as SessionCreatePayload;
 
       try {
         // Check if deck already has an active session
@@ -190,8 +206,13 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
 
     // ── session:join ──────────────────────────────────────────────────────
     extSocket.on('session:join', async (payload: unknown, ack: unknown) => {
-      const { sessionId, deckId } = payload as { sessionId?: string; deckId?: string };
       const callback = ack as (res: SessionAckResponse) => void;
+      const parsed = RealtimeSchemas.sessionJoin.safeParse(payload);
+      if (!parsed.success) {
+        callback({ ok: false, error: 'Invalid session:join payload' });
+        return;
+      }
+      const { sessionId, deckId } = parsed.data as SessionJoinPayload;
 
       try {
         // Find session by sessionId or by deckId
@@ -273,15 +294,11 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
 
     // ── slide:goto ────────────────────────────────────────────────────────
     extSocket.on('slide:goto', async (payload: unknown) => {
-      const {
-        sessionId,
-        slideIndex,
-        sequenceNum: clientSeq,
-      } = payload as {
-        sessionId: string;
-        slideIndex: number;
-        sequenceNum: number;
-      };
+      const parsed = RealtimeSchemas.slideGoto.safeParse(payload);
+      if (!parsed.success) {
+        return;
+      }
+      const { sessionId, slideIndex } = parsed.data as SlideGotoPayload;
 
       try {
         const result = await roomManager.changeSlide(sessionId, userId, slideIndex);
@@ -314,8 +331,11 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
 
     // ── slide:change (MVP lightweight sync channel) ───────────────────────
     extSocket.on('slide:change', (payload: unknown) => {
-      const { roomId, slide } = payload as { roomId: string; slide: number };
-      if (!roomId || typeof slide !== 'number') return;
+      const parsed = RealtimeSchemas.slideChange.safeParse(payload);
+      if (!parsed.success) {
+        return;
+      }
+      const { roomId, slide } = parsed.data as SlideChangePayload;
 
       (ns.to(`session:${roomId}`) as any).emit('slide:change', {
         roomId,
@@ -325,12 +345,13 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
 
     // ── presenter:handoff ─────────────────────────────────────────────────
     extSocket.on('presenter:handoff', async (payload: unknown, ack?: unknown) => {
-      const { sessionId, toUserId, toUserName } = payload as {
-        sessionId: string;
-        toUserId: string;
-        toUserName: string;
-      };
       const callback = ack as ((res: { ok: boolean; error?: string }) => void) | undefined;
+      const parsed = RealtimeSchemas.presenterHandoff.safeParse(payload);
+      if (!parsed.success) {
+        callback?.({ ok: false, error: 'Invalid presenter:handoff payload' });
+        return;
+      }
+      const { sessionId, toUserId, toUserName } = parsed.data as PresenterHandoffPayload;
 
       try {
         const session = await roomManager.handoffPresenter(sessionId, userId, toUserId, toUserName);
@@ -362,7 +383,11 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
 
     // ── viewer:explore ────────────────────────────────────────────────────
     extSocket.on('viewer:explore', async (payload: unknown) => {
-      const { sessionId } = payload as { sessionId: string };
+      const parsed = RealtimeSchemas.sessionScoped.safeParse(payload);
+      if (!parsed.success) {
+        return;
+      }
+      const { sessionId } = parsed.data as SessionScopedPayload;
       await roomManager.setExplorationMode(sessionId, userId, true);
 
       // Notify others (for presence UI)
@@ -373,7 +398,11 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
 
     // ── viewer:follow ─────────────────────────────────────────────────────
     extSocket.on('viewer:follow', async (payload: unknown) => {
-      const { sessionId } = payload as { sessionId: string };
+      const parsed = RealtimeSchemas.sessionScoped.safeParse(payload);
+      if (!parsed.success) {
+        return;
+      }
+      const { sessionId } = parsed.data as SessionScopedPayload;
       await roomManager.setExplorationMode(sessionId, userId, false);
 
       // Send current slide so viewer snaps back immediately
@@ -394,8 +423,13 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
 
     // ── session:end ───────────────────────────────────────────────────────
     extSocket.on('session:end', async (payload: unknown, ack?: unknown) => {
-      const { sessionId } = payload as { sessionId: string };
       const callback = ack as ((res: { ok: boolean; error?: string }) => void) | undefined;
+      const parsed = RealtimeSchemas.sessionScoped.safeParse(payload);
+      if (!parsed.success) {
+        callback?.({ ok: false, error: 'Invalid session:end payload' });
+        return;
+      }
+      const { sessionId } = parsed.data as SessionScopedPayload;
 
       const session = await roomManager.getSession(sessionId);
       if (!session || session.presenterId !== userId) return;
@@ -452,6 +486,11 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
         }
       }
     });
+
+    assertSingleServerListener(socket, REALTIME_EVENTS.SESSION_CREATE, 'PresenterNamespace');
+    assertSingleServerListener(socket, REALTIME_EVENTS.SESSION_JOIN, 'PresenterNamespace');
+    assertSingleServerListener(socket, REALTIME_EVENTS.SLIDE_GOTO, 'PresenterNamespace');
+    assertSingleServerListener(socket, REALTIME_EVENTS.PRESENTER_HANDOFF, 'PresenterNamespace');
   });
 }
 

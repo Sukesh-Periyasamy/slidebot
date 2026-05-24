@@ -57,7 +57,7 @@ export function attachHeartbeat(
           { userId: opts.userId, socketId: socket.id },
           'Too many missed pongs — forcing disconnect'
         );
-        socket.disconnect(true);
+        socket.disconnect();
       }
     }, PONG_TIMEOUT_MS);
 

@@ -1,32 +1,9 @@
-/**
- * useReconnectRecovery — orchestrates full state recovery after reconnect.
- *
- * Triggered by: socket 'connect' event when the client was previously connected
- * (i.e., this is a reconnect, not an initial connect).
- *
- * Recovery sequence:
- * 1. Re-emit session:join with known sessionId → server returns full snapshot
- * 2. Restore SyncStore state from snapshot
- * 3. Restore exploration mode from sessionStorage
- * 4. If presenter: re-confirm authority
- * 5. Trigger annotation restore (via refetch)
- * 6. Emit presence_restore so the UI shows "recovered"
- *
- * Design:
- * - Idempotent — safe to call multiple times
- * - Uses ref-guarded sequence to prevent double-recovery
- * - Emits UI status changes throughout for loading states
- */
+import type { Socket } from 'socket.io-client';
 
-import { useCallback, useRef } from 'react';
-import { getPresenterSocket } from '@/features/collaboration/lib/socketClient';
+import { logger } from '@/lib/logger';
+import { RealtimeSchemas } from '@slidebot/shared-types';
 import { useSyncStore } from '../store/syncStore';
 import type { SyncSession, SessionMember } from '../store/syncStore';
-// using console instead of logger
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────────────────
 
 interface ServerSession {
   sessionId: string;
@@ -56,20 +33,11 @@ interface SessionJoinAck {
   error?: string;
 }
 
-interface UseReconnectRecoveryOptions {
+export interface ReconnectContext {
   roomId: string;
   deckId: string;
-  sessionId: string | null;
-  userId: string;
-  /** Called with the restored slide index so the viewer can seek */
-  onSlideRestored?: ((slideIndex: number) => void) | undefined;
-  /** Called when annotation restore should be triggered */
-  onAnnotationRestore?: ((slideId: string) => void) | undefined;
+  onSlideRestored?: (slidePage: number) => void;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Persistence helpers (sessionStorage — survives refresh, not new tab)
-// ─────────────────────────────────────────────────────────────────────────────
 
 const PERSIST_KEY_EXPLORING = 'slidebot:isExploring';
 const PERSIST_KEY_LOCAL_SLIDE = 'slidebot:localSlide';
@@ -85,7 +53,7 @@ export function persistReconnectState(state: {
     sessionStorage.setItem(PERSIST_KEY_EXPLORING, state.isExploring ? '1' : '0');
     sessionStorage.setItem(PERSIST_KEY_LOCAL_SLIDE, String(state.localSlide));
   } catch {
-    // sessionStorage unavailable — non-fatal
+    // no-op
   }
 }
 
@@ -95,11 +63,11 @@ export function clearReconnectState(): void {
     sessionStorage.removeItem(PERSIST_KEY_EXPLORING);
     sessionStorage.removeItem(PERSIST_KEY_LOCAL_SLIDE);
   } catch {
-    /* noop */
+    // no-op
   }
 }
 
-function loadReconnectState() {
+export function loadReconnectState() {
   try {
     return {
       sessionId: sessionStorage.getItem(PERSIST_KEY_SESSION),
@@ -111,140 +79,89 @@ function loadReconnectState() {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Hook
-// ─────────────────────────────────────────────────────────────────────────────
+export async function recoverPresenterSession(
+  socket: Socket,
+  context: ReconnectContext,
+  explicitSessionId: string | null
+): Promise<boolean> {
+  const persisted = loadReconnectState();
+  const targetSessionId = explicitSessionId ?? persisted.sessionId ?? context.roomId;
 
-export function useReconnectRecovery({
-  roomId,
-  deckId,
-  sessionId,
-  userId,
-  onSlideRestored,
-  onAnnotationRestore,
-}: UseReconnectRecoveryOptions) {
-  const isRecoveringRef = useRef(false);
-  const recoveryCountRef = useRef(0);
+  if (!targetSessionId) {
+    return false;
+  }
 
-  const recover = useCallback(async () => {
-    // Prevent concurrent recoveries
-    if (isRecoveringRef.current) return;
-    isRecoveringRef.current = true;
-    recoveryCountRef.current++;
+  useSyncStore.getState().setConnectionStatus('reconnecting');
 
-    const attempt = recoveryCountRef.current;
-    console.info({ deckId, sessionId, attempt }, 'Starting reconnect recovery');
-
-    const store = useSyncStore.getState();
-    store.setConnectionStatus('reconnecting');
-
-    try {
-      const socket = getPresenterSocket();
-
-      // Load persisted state from before disconnect
-      const persisted = loadReconnectState();
-      const targetSessionId = sessionId ?? persisted.sessionId;
-
-      if (!targetSessionId) {
-        console.warn({ deckId }, 'No session ID for recovery — starting fresh');
-        store.setConnectionStatus('connected');
-        isRecoveringRef.current = false;
-        return;
-      }
-
-      // Re-emit session:join — server returns full snapshot
-      await new Promise<void>((resolve) => {
-        socket.emit(
-          'session:join',
-          { deckId, sessionId: targetSessionId || roomId },
-          (res: SessionJoinAck) => {
-            if (!res.ok || !res.session) {
-              console.error({ error: res.error }, 'Recovery: session:join failed');
-              store.setConnectionStatus('error');
-              resolve();
-              return;
-            }
-
-            const { session, members = [], isPresenter = false } = res;
-
-            // Restore sync store from server snapshot (source of truth)
-            useSyncStore.getState().initSession(
-              normaliseSession(session),
-              members.map(normaliseMember),
-              isPresenter
-            );
-
-            useSyncStore.getState().setConnectionStatus('connected');
-
-            // Restore exploration mode from persisted state
-            // Only restore if it matches context (non-presenter)
-            if (persisted.isExploring && !isPresenter) {
-              useSyncStore.getState().setIsExploring(true);
-              if (persisted.localSlide > 0) {
-                onSlideRestored?.(persisted.localSlide);
-              }
-            } else {
-              // Follow presenter (default recovery)
-              useSyncStore.getState().setIsExploring(false);
-              onSlideRestored?.(session.currentSlide);
-            }
-
-            // Trigger annotation restore for current slide
-            if (onAnnotationRestore) {
-              const slideId = `${session.deckId}:${session.currentSlide}`;
-              onAnnotationRestore(slideId);
-            }
-
-            console.info(
-              {
-                sessionId: session.sessionId,
-                currentSlide: session.currentSlide,
-                isPresenter,
-                attempt,
-              },
-              'Reconnect recovery complete'
-            );
-
-            resolve();
-          }
-        );
-      });
-    } catch (err) {
-      console.error({ err }, 'Reconnect recovery threw');
-      useSyncStore.getState().setConnectionStatus('error');
-    } finally {
-      isRecoveringRef.current = false;
+  const result = await new Promise<SessionJoinAck>((resolve) => {
+    const payload = {
+      sessionId: targetSessionId,
+      deckId: context.deckId,
+    };
+    if (!RealtimeSchemas.sessionJoin.safeParse(payload).success) {
+      resolve({ ok: false, error: 'Invalid session:join payload during reconnect' });
+      return;
     }
-  }, [roomId, deckId, sessionId, userId, onSlideRestored, onAnnotationRestore]);
+    socket.emit(
+      'session:join',
+      payload,
+      (ack: SessionJoinAck) => resolve(ack)
+    );
+  });
 
-  return { recover };
+  if (!result.ok || !result.session) {
+    logger.warn('[ReconnectRecovery] session:join failed during recovery', result.error);
+    useSyncStore.getState().setConnectionStatus('error');
+    return false;
+  }
+
+  const restoredSession = normaliseSession(result.session);
+  const members = (result.members ?? []).map(normaliseMember);
+  const isPresenter = result.isPresenter ?? false;
+
+  useSyncStore.getState().initSession(restoredSession, members, isPresenter);
+  useSyncStore.getState().setConnectionStatus('connected');
+
+  if (!isPresenter && persisted.isExploring && persisted.localSlide > 0) {
+    useSyncStore.getState().setIsExploring(true);
+    context.onSlideRestored?.(persisted.localSlide);
+  } else {
+    useSyncStore.getState().setIsExploring(false);
+    context.onSlideRestored?.(restoredSession.currentSlide + 1);
+  }
+
+  persistReconnectState({
+    sessionId: restoredSession.sessionId,
+    isExploring: useSyncStore.getState().isExploring,
+    localSlide: useSyncStore.getState().isExploring
+      ? persisted.localSlide
+      : restoredSession.currentSlide + 1,
+  });
+
+  return true;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Normalisers
-// ─────────────────────────────────────────────────────────────────────────────
-
-function normaliseSession(s: ServerSession): SyncSession {
+function normaliseSession(session: ServerSession): SyncSession {
   return {
-    sessionId: s.sessionId,
-    deckId: s.deckId,
-    presenterId: s.presenterId,
-    presenterName: s.presenterName,
-    currentSlide: s.currentSlide,
-    totalSlides: s.totalSlides,
-    sequenceNum: s.sequenceNum,
-    status: s.status as SyncSession['status'],
+    sessionId: session.sessionId,
+    deckId: session.deckId,
+    presenterId: session.presenterId,
+    presenterName: session.presenterName,
+    currentSlide: session.currentSlide,
+    totalSlides: session.totalSlides,
+    sequenceNum: session.sequenceNum,
+    status: session.status as SyncSession['status'],
   };
 }
 
-function normaliseMember(m: ServerMember): SessionMember {
+function normaliseMember(member: ServerMember): SessionMember {
   return {
-    userId: m.userId,
-    displayName: m.displayName,
-    avatarUrl: m.avatarUrl,
-    color: m.color,
-    role: m.role,
-    isExploring: m.isExploring,
+    userId: member.userId,
+    displayName: member.displayName,
+    avatarUrl: member.avatarUrl,
+    color: member.color,
+    role: member.role,
+    isExploring: member.isExploring,
     isConnected: true,
   };
 }

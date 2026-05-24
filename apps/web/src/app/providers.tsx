@@ -4,6 +4,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
 import { supabase } from '@/lib/supabase';
 import { selectIsInitialized, useAuthStore } from '@/features/auth/store/authStore';
+import { SessionProvider } from '@/features/collaboration/providers/SessionProvider';
 
 // ── TanStack Query client config ───────────────────────────────────────────────
 const queryClient = new QueryClient({
@@ -54,8 +55,9 @@ function AuthProvider({ children }: { children: ReactNode }) {
         const message = error instanceof Error ? error.message : 'Failed to restore session';
         setError(message);
       } finally {
-        if (!isMounted) return;
-        setInitialized(true);
+        if (isMounted) {
+          setInitialized(true);
+        }
       }
     };
     void loadInitialSession();
@@ -94,7 +96,7 @@ export function AppProviders({ children }: AppProvidersProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        {isInitialized ? children : <AuthBootstrapSplash />}
+        <SessionProvider>{isInitialized ? children : <AuthBootstrapSplash />}</SessionProvider>
       </AuthProvider>
       {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>

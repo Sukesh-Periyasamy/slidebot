@@ -25,12 +25,13 @@ import type {
   ServerToClientEvents,
   SocketData,
 } from '@slidebot/shared-types';
-import { ROOMS } from '@slidebot/shared-types';
+import { ROOMS, REALTIME_EVENTS, RealtimeSchemas } from '@slidebot/shared-types';
 
 import { logger } from '../../config/logger';
 import { annotationService } from '../../modules/annotations/annotations.service';
 import type { AnnotationDataPayload } from '../../modules/annotations/annotations.types';
 import { annotationRateLimiterMiddleware } from '../annotation-throttle';
+import { assertSingleServerListener } from '../dev-listener-assert';
 
 type AnnotationTool =
   | 'freehand'
@@ -91,7 +92,13 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
     // Drops excess cursor_move / annotation_draw / laser_move events silently
     socket.use(annotationRateLimiterMiddleware(socket as unknown as Parameters<typeof annotationRateLimiterMiddleware>[0]));
 
-    socket.on('join_deck', async ({ deckId, slideId }, ack) => {
+    socket.on('join_deck', async (rawPayload, ack) => {
+      const parsed = RealtimeSchemas.joinDeck.safeParse(rawPayload);
+      if (!parsed.success) {
+        ack?.({ ok: false, error: { code: 'INTERNAL_ERROR', message: 'Invalid join_deck payload' } });
+        return;
+      }
+      const { deckId, slideId } = parsed.data;
       try {
         const room = ROOMS.deck(deckId);
         await socket.join(room);
@@ -158,7 +165,12 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
     });
 
     // ── leave_deck ────────────────────────────────────────────────────────────
-    socket.on('leave_deck', async ({ deckId }) => {
+    socket.on('leave_deck', async (rawPayload) => {
+      const parsed = RealtimeSchemas.leaveDeck.safeParse(rawPayload);
+      if (!parsed.success) {
+        return;
+      }
+      const { deckId } = parsed.data;
       const room = ROOMS.deck(deckId);
       await socket.leave(room);
       socket.data.currentDeckId = null;
@@ -167,7 +179,12 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
     });
 
     // ── cursor_move ───────────────────────────────────────────────────────────
-    socket.on('cursor_move', ({ deckId, slideId, position }) => {
+    socket.on('cursor_move', (rawPayload) => {
+      const parsed = RealtimeSchemas.cursorMove.safeParse(rawPayload);
+      if (!parsed.success) {
+        return;
+      }
+      const { deckId, slideId, position } = parsed.data;
       // Ephemeral — broadcast only, never written to DB
       socket.to(ROOMS.deck(deckId)).emit('cursor_update', {
         userId,
@@ -191,6 +208,9 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
     // ── annotation_start ──────────────────────────────────────────────────────
     // Broadcast only — no DB write. Client sees live preview.
     socket.on('annotation_start', (payload) => {
+      if (!RealtimeSchemas.annotationStart.safeParse(payload).success) {
+        return;
+      }
       const room = ROOMS.deck(socket.data.currentDeckId ?? '');
       socket.to(room).emit('annotation_started', {
         ...payload,
@@ -201,6 +221,9 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
     // ── annotation_draw ───────────────────────────────────────────────────────
     // Broadcast only — no DB write. Streaming incremental points.
     socket.on('annotation_draw', (payload) => {
+      if (!RealtimeSchemas.annotationDraw.safeParse(payload).success) {
+        return;
+      }
       const room = ROOMS.deck(socket.data.currentDeckId ?? '');
       socket.to(room).emit('annotation_drew', {
         ...payload,
@@ -211,6 +234,9 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
     // ── annotation_end ────────────────────────────────────────────────────────
     // Persist non-ephemeral annotations. Broadcast annotation_saved to room.
     socket.on('annotation_end', async (rawPayload) => {
+      if (!RealtimeSchemas.annotationEnd.safeParse(rawPayload).success) {
+        return;
+      }
       // The shared type has a minimal shape; cast to our richer internal type
       const payload = rawPayload as unknown as FullAnnotationEndPayload;
       const room = ROOMS.deck(socket.data.currentDeckId ?? '');
@@ -293,7 +319,12 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
     });
 
     // ── annotation_delete ─────────────────────────────────────────────────────
-    socket.on('annotation_delete', async ({ slideId, annotationId }) => {
+    socket.on('annotation_delete', async (rawPayload) => {
+      const parsed = RealtimeSchemas.annotationDelete.safeParse(rawPayload);
+      if (!parsed.success) {
+        return;
+      }
+      const { slideId, annotationId } = parsed.data;
       const room = ROOMS.deck(socket.data.currentDeckId ?? '');
 
       // Soft-delete in DB (verifies ownership inside service)
@@ -313,7 +344,12 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
     });
 
     // ── annotation_clear ──────────────────────────────────────────────────────
-    socket.on('annotation_clear', async ({ slideId }) => {
+    socket.on('annotation_clear', async (rawPayload) => {
+      const parsed = RealtimeSchemas.annotationClear.safeParse(rawPayload);
+      if (!parsed.success) {
+        return;
+      }
+      const { slideId } = parsed.data;
       const room = ROOMS.deck(socket.data.currentDeckId ?? '');
 
       // Note: we soft-delete all (any user can clear — presenter only in future)
@@ -339,6 +375,12 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
         socket.to(room).emit('user_left', { userId });
       }
     });
+
+    assertSingleServerListener(socket, REALTIME_EVENTS.JOIN_DECK, 'CollaborationNamespace');
+    assertSingleServerListener(socket, REALTIME_EVENTS.CURSOR_MOVE, 'CollaborationNamespace');
+    assertSingleServerListener(socket, REALTIME_EVENTS.ANNOTATION_START, 'CollaborationNamespace');
+    assertSingleServerListener(socket, REALTIME_EVENTS.ANNOTATION_DRAW, 'CollaborationNamespace');
+    assertSingleServerListener(socket, REALTIME_EVENTS.ANNOTATION_END, 'CollaborationNamespace');
   });
 }
 

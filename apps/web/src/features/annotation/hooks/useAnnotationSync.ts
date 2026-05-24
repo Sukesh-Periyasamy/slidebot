@@ -1,11 +1,10 @@
 import { useEffect, useRef, useCallback, useMemo } from 'react';
-import { nanoid } from 'nanoid';
 
 import { useAuthStore } from '@/features/auth/store/authStore';
-import {
-  getCollaborationSocket,
-  onStatusChange,
-} from '@/features/collaboration/lib/socketClient';
+import { socketManager } from '@/features/collaboration/lib/socketManager';
+import { assertSingleSocketListener } from '@/features/collaboration/lib/socketDebug';
+import { logger } from '@/lib/logger';
+import { RealtimeSchemas } from '@slidebot/shared-types';
 import { useAnnotationStore } from '../store/annotationStore';
 import type {
   Annotation,
@@ -13,10 +12,6 @@ import type {
   LaserPointerState,
   LiveStroke,
 } from '../types/annotation.types';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Throttle helper (no lodash dependency)
-// ─────────────────────────────────────────────────────────────────────────────
 
 function throttle<T extends (...args: Parameters<T>) => void>(
   fn: T,
@@ -49,30 +44,32 @@ function throttle<T extends (...args: Parameters<T>) => void>(
   return { fn: throttled, cancel };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// useAnnotationSync — Socket.IO ↔ annotation store bridge
-// ─────────────────────────────────────────────────────────────────────────────
-
 interface UseAnnotationSyncOptions {
   sessionId: string;
+  deckId: string;
   slideId: string;
-  /** Whether this user can annotate (false for view-only sessions) */
   canAnnotate?: boolean;
 }
 
 export function useAnnotationSync({
   sessionId,
+  deckId,
   slideId,
   canAnnotate = true,
 }: UseAnnotationSyncOptions) {
   const user = useAuthStore((s) => s.user);
   const store = useAnnotationStore();
-  const socketRef = useRef<ReturnType<typeof getCollaborationSocket> | null>(null);
+  const socketRef = useRef<ReturnType<typeof socketManager.getCollaborationSocket> | null>(null);
 
-  // ── Incoming events (remote → local store) ────────────────────────────────
   useEffect(() => {
-    const bindListeners = (socket: ReturnType<typeof getCollaborationSocket>) => {
-      // Another user started drawing
+    if (!user?.id || !deckId || !slideId || !sessionId) {
+      return;
+    }
+
+    let unbind: (() => void) | undefined;
+    let statusUnsub: (() => void) | undefined;
+
+    const bindListeners = (socket: NonNullable<ReturnType<typeof socketManager.getCollaborationSocket>>) => {
       const onAnnotationStart = (payload: {
         annotationId: string;
         userId: string;
@@ -84,8 +81,9 @@ export function useAnnotationSync({
         slideId: string;
         initialPoint: CursorPosition;
       }) => {
-        if (payload.userId === user?.id) return; // Ignore own events
-        if (payload.slideId !== slideId) return;
+        if (payload.userId === user.id || payload.slideId !== slideId) {
+          return;
+        }
 
         const stroke: LiveStroke = {
           annotationId: payload.annotationId,
@@ -96,34 +94,38 @@ export function useAnnotationSync({
           tool: payload.tool as Annotation['data']['tool'],
           points: [payload.initialPoint.x, payload.initialPoint.y],
         };
+
         useAnnotationStore.getState().setLiveStroke(payload.userId, stroke);
       };
 
-      // Incremental points from a remote user
       const onAnnotationDraw = (payload: { userId: string; slideId: string; points: number[] }) => {
-        if (payload.userId === user?.id) return;
-        if (payload.slideId !== slideId) return;
+        if (payload.userId === user.id || payload.slideId !== slideId) {
+          return;
+        }
+
         useAnnotationStore.getState().appendLiveStrokePoints(payload.userId, payload.points);
       };
 
-      // Remote user committed their annotation
       const onAnnotationEnd = (payload: {
         userId: string;
         slideId: string;
         annotation: Annotation;
       }) => {
-        if (payload.userId === user?.id) return;
-        if (payload.slideId !== slideId) return;
+        if (payload.userId === user.id || payload.slideId !== slideId) {
+          return;
+        }
+
         useAnnotationStore.getState().commitLiveStroke(payload.userId, payload.annotation);
       };
 
-      // Annotation deleted
       const onAnnotationDelete = (payload: { slideId: string; annotationId: string }) => {
-        if (payload.slideId !== slideId) return;
+        if (payload.slideId !== slideId) {
+          return;
+        }
+
         useAnnotationStore.getState().removeAnnotation(payload.annotationId);
       };
 
-      // Remote cursor position update
       const onCursorUpdate = (payload: {
         userId: string;
         displayName: string;
@@ -131,8 +133,9 @@ export function useAnnotationSync({
         slideId: string;
         position: CursorPosition;
       }) => {
-        if (payload.userId === user?.id) return;
-        if (payload.slideId !== slideId) return;
+        if (payload.userId === user.id || payload.slideId !== slideId) {
+          return;
+        }
 
         useAnnotationStore.getState().updateCursor(payload.userId, {
           userId: payload.userId,
@@ -143,7 +146,6 @@ export function useAnnotationSync({
         });
       };
 
-      // Laser pointer update
       const onLaserUpdate = (payload: {
         userId: string;
         displayName: string;
@@ -151,8 +153,9 @@ export function useAnnotationSync({
         slideId: string;
         trail: CursorPosition[];
       }) => {
-        if (payload.userId === user?.id) return;
-        if (payload.slideId !== slideId) return;
+        if (payload.userId === user.id || payload.slideId !== slideId) {
+          return;
+        }
 
         useAnnotationStore.getState().updateLaser(payload.userId, {
           userId: payload.userId,
@@ -167,12 +170,11 @@ export function useAnnotationSync({
         useAnnotationStore.getState().removeLaser(payload.userId);
       };
 
-      // User left — clean up their cursor and strokes
       const onUserLeft = (payload: { userId: string }) => {
-        const s = useAnnotationStore.getState();
-        s.removeCursor(payload.userId);
-        s.removeLaser(payload.userId);
-        s.removeLiveStroke(payload.userId);
+        const current = useAnnotationStore.getState();
+        current.removeCursor(payload.userId);
+        current.removeLaser(payload.userId);
+        current.removeLiveStroke(payload.userId);
       };
 
       socket.on('annotation_started', onAnnotationStart);
@@ -183,6 +185,11 @@ export function useAnnotationSync({
       socket.on('laser_update', onLaserUpdate);
       socket.on('laser_ended', onLaserEnd);
       socket.on('user_left', onUserLeft);
+
+      assertSingleSocketListener(socket, 'annotation_started', 'AnnotationSync');
+      assertSingleSocketListener(socket, 'annotation_drew', 'AnnotationSync');
+      assertSingleSocketListener(socket, 'annotation_ended', 'AnnotationSync');
+      assertSingleSocketListener(socket, 'cursor_update', 'AnnotationSync');
 
       return () => {
         socket.off('annotation_started', onAnnotationStart);
@@ -196,64 +203,72 @@ export function useAnnotationSync({
       };
     };
 
-    const attachWhenReady = (): (() => void) | undefined => {
-      if (!socketRef.current) {
-        try {
-          socketRef.current = getCollaborationSocket();
-        } catch {
-          return undefined;
-        }
+    const attachSocket = () => {
+      const socket = socketManager.getCollaborationSocket();
+      if (!socket) {
+        return false;
       }
 
-      return bindListeners(socketRef.current);
+      socketRef.current = socket;
+      const joinDeckPayload = { deckId, slideId };
+      if (!RealtimeSchemas.joinDeck.safeParse(joinDeckPayload).success) {
+        logger.warn('[AnnotationSync] Dropped invalid join_deck payload', joinDeckPayload);
+        return false;
+      }
+      socket.emit('join_deck', joinDeckPayload, () => undefined);
+      unbind = bindListeners(socket);
+      return true;
     };
 
-    const cleanup = attachWhenReady();
-    if (cleanup) {
-      return cleanup;
+    if (!attachSocket()) {
+      statusUnsub = socketManager.onStatusChange((status) => {
+        if (status !== 'connected') {
+          return;
+        }
+
+        if (attachSocket()) {
+          statusUnsub?.();
+          statusUnsub = undefined;
+        }
+      });
     }
 
-    const unsubscribe = onStatusChange((status) => {
-      if (status !== 'connected' || socketRef.current) return;
-      try {
-        socketRef.current = getCollaborationSocket();
-      } catch {
-        return;
-      }
-    });
+    return () => {
+      unbind?.();
+      statusUnsub?.();
+      socketRef.current = null;
+    };
+  }, [sessionId, deckId, slideId, user?.id]);
 
-    return () => unsubscribe();
-    // IMPORTANT: `useAnnotationStore.getState()` is used inside callbacks (not the
-    // reactive store proxy) — this effect only re-runs when session/slide/user changes.
-  }, [sessionId, slideId, user?.id]);
-
-  // ── Stale cursor cleanup (every 5s) ──────────────────────────────────────
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
-      const STALE_MS = 5000;
-      // Use getState() to avoid stale closure over the store reference
-      const s = useAnnotationStore.getState();
+      const staleMs = 5000;
+      const state = useAnnotationStore.getState();
 
-      Object.entries(s.cursors).forEach(([userId, cursor]) => {
-        if (now - cursor.lastSeen > STALE_MS) s.removeCursor(userId);
+      Object.entries(state.cursors).forEach(([userId, cursor]) => {
+        if (now - cursor.lastSeen > staleMs) {
+          state.removeCursor(userId);
+        }
       });
 
-      Object.entries(s.laserPointers).forEach(([userId, laser]) => {
-        if (now - (laser as LaserPointerState).lastSeen > STALE_MS) s.removeLaser(userId);
+      Object.entries(state.laserPointers).forEach(([userId, laser]) => {
+        if (now - (laser as LaserPointerState).lastSeen > staleMs) {
+          state.removeLaser(userId);
+        }
       });
     }, 2000);
 
     return () => clearInterval(interval);
-  }, []); // No deps — interval reads fresh state via getState()
-
-  // ── Outgoing emitters (local → socket) ───────────────────────────────────
+  }, []);
 
   const emitAnnotationStart = useCallback(
     (annotationId: string, tool: string, initialPoint: CursorPosition) => {
-      if (!canAnnotate || !user) return;
-      if (!socketRef.current) return;
-      socketRef.current.emit('annotation_start', {
+      if (!canAnnotate || !user || !socketRef.current) {
+        return;
+      }
+
+      const payload = {
         sessionId,
         slideId,
         annotationId,
@@ -262,80 +277,131 @@ export function useAnnotationSync({
         strokeWidth: store.toolConfig.strokeWidth,
         opacity: store.toolConfig.opacity,
         initialPoint,
-      });
+      };
+      if (!RealtimeSchemas.annotationStart.safeParse(payload).success) {
+        logger.warn('[AnnotationSync] Dropped invalid annotation_start payload', payload);
+        return;
+      }
+      socketRef.current.emit('annotation_start', payload);
     },
     [canAnnotate, user, sessionId, slideId, store.toolConfig]
   );
 
-  const emitAnnotationPoints = useCallback(
-    (...args: Parameters<typeof emitAnnotationPointsInner.fn>) =>
-      emitAnnotationPointsInner.fn(...args),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [canAnnotate, user, sessionId, slideId]
-  );
-
-  // Stable reference for the throttled inner function
   const emitAnnotationPointsInner = useMemo(
-    () => throttle((points: number[]) => {
-      if (!canAnnotate || !user) return;
-      if (!socketRef.current) return;
-      socketRef.current.emit('annotation_draw', { sessionId, slideId, points });
-    }, 33), // ~30fps
+    () =>
+      throttle((points: number[]) => {
+        if (!canAnnotate || !user || !socketRef.current) {
+          return;
+        }
+
+        const payload = { sessionId, slideId, points };
+        if (!RealtimeSchemas.annotationDraw.safeParse(payload).success) {
+          logger.warn('[AnnotationSync] Dropped invalid annotation_draw payload', payload);
+          return;
+        }
+        socketRef.current.emit('annotation_draw', payload);
+      }, 33),
     [canAnnotate, user, sessionId, slideId]
   );
 
-  // Cancel RAF on unmount
+  const emitAnnotationPoints = useCallback(
+    (...args: Parameters<typeof emitAnnotationPointsInner.fn>) => emitAnnotationPointsInner.fn(...args),
+    [emitAnnotationPointsInner]
+  );
+
   useEffect(() => () => emitAnnotationPointsInner.cancel(), [emitAnnotationPointsInner]);
 
   const emitAnnotationEnd = useCallback(
     (annotation: Annotation) => {
-      if (!canAnnotate || !user) return;
-      if (!socketRef.current) return;
-      socketRef.current.emit('annotation_end', { sessionId, slideId, annotation });
+      if (!canAnnotate || !user || !socketRef.current) {
+        return;
+      }
+
+      const payload = { sessionId, slideId, annotation };
+      if (!RealtimeSchemas.annotationEnd.safeParse(payload).success) {
+        logger.warn('[AnnotationSync] Dropped invalid annotation_end payload', payload);
+        return;
+      }
+      socketRef.current.emit('annotation_end', payload);
     },
     [canAnnotate, user, sessionId, slideId]
   );
 
   const emitAnnotationDelete = useCallback(
     (annotationId: string) => {
-      if (!canAnnotate || !user) return;
-      if (!socketRef.current) return;
-      socketRef.current.emit('annotation_delete', { sessionId, slideId, annotationId });
+      if (!canAnnotate || !user || !socketRef.current) {
+        return;
+      }
+
+      const payload = { sessionId, slideId, annotationId };
+      if (!RealtimeSchemas.annotationDelete.safeParse(payload).success) {
+        logger.warn('[AnnotationSync] Dropped invalid annotation_delete payload', payload);
+        return;
+      }
+      socketRef.current.emit('annotation_delete', payload);
     },
     [canAnnotate, user, sessionId, slideId]
   );
 
   const emitCursorMoveInner = useMemo(
-    () => throttle((position: CursorPosition) => {
-      if (!user) return;
-      if (!socketRef.current) return;
-      socketRef.current.emit('cursor_move', { sessionId, slideId, position });
-    }, 33), // ~30fps
-    [user, sessionId, slideId]
+    () =>
+      throttle((position: CursorPosition) => {
+        if (!user || !socketRef.current) {
+          return;
+        }
+
+        const payload = { deckId, sessionId, slideId, position };
+        if (!RealtimeSchemas.cursorMove.safeParse(payload).success) {
+          logger.warn('[AnnotationSync] Dropped invalid cursor_move payload', payload);
+          return;
+        }
+        socketRef.current.emit('cursor_move', payload);
+      }, 33),
+    [user, deckId, sessionId, slideId]
   );
+
   const emitCursorMove = useCallback(
     (...args: Parameters<typeof emitCursorMoveInner.fn>) => emitCursorMoveInner.fn(...args),
     [emitCursorMoveInner]
   );
+
   useEffect(() => () => emitCursorMoveInner.cancel(), [emitCursorMoveInner]);
 
   const emitLaserMoveInner = useMemo(
-    () => throttle((trail: CursorPosition[]) => {
-      if (!canAnnotate || !user) return;
-      if (!socketRef.current) return;
-      socketRef.current.emit('laser_move', { sessionId, slideId, trail });
-    }, 16), // ~60fps for laser
+    () =>
+      throttle((trail: CursorPosition[]) => {
+        if (!canAnnotate || !user || !socketRef.current) {
+          return;
+        }
+
+        const payload = { sessionId, slideId, trail };
+        if (!RealtimeSchemas.laserMove.safeParse(payload).success) {
+          logger.warn('[AnnotationSync] Dropped invalid laser_move payload', payload);
+          return;
+        }
+        socketRef.current.emit('laser_move', payload);
+      }, 16),
     [canAnnotate, user, sessionId, slideId]
   );
+
   const emitLaserMove = useCallback(
     (...args: Parameters<typeof emitLaserMoveInner.fn>) => emitLaserMoveInner.fn(...args),
     [emitLaserMoveInner]
   );
+
   useEffect(() => () => emitLaserMoveInner.cancel(), [emitLaserMoveInner]);
 
   const emitLaserEnd = useCallback(() => {
-    if (!socketRef.current) return;
-    socketRef.current.emit('laser_end', { sessionId, slideId });
+    if (!socketRef.current) {
+      return;
+    }
+
+    const payload = { sessionId, slideId };
+    if (!RealtimeSchemas.laserEnd.safeParse(payload).success) {
+      logger.warn('[AnnotationSync] Dropped invalid laser_end payload', payload);
+      return;
+    }
+    socketRef.current.emit('laser_end', payload);
   }, [sessionId, slideId]);
 
   return {
