@@ -22,13 +22,11 @@ interface UsePdfRendererOptions {
  */
 export function usePdfRenderer({ canvasRef, pageNumber, fixedScale }: UsePdfRendererOptions) {
   const pdfDoc = useViewerStore((s) => s.pdfDoc);
-  const zoom = useViewerStore((s) => s.zoom);
-  const setIsRendering = useViewerStore((s) => s.setIsRendering);
-  const setComputedScale = useViewerStore((s) => s.setComputedScale);
 
   // Track active render task for cancellation
   const renderTaskRef = useRef<RenderTask | null>(null);
   const isMountedRef = useRef(true);
+  const zoomRef = useRef(useViewerStore.getState().zoom);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -60,6 +58,7 @@ export function usePdfRenderer({ canvasRef, pageNumber, fixedScale }: UsePdfRend
     if (!isMountedRef.current || !canvasRef.current) return;
 
     const dpr = window.devicePixelRatio || 1;
+    const zoom = useViewerStore.getState().zoom;
 
     // Determine rendering scale
     let scale: number;
@@ -80,7 +79,7 @@ export function usePdfRenderer({ canvasRef, pageNumber, fixedScale }: UsePdfRend
 
       const currentComputedScale = useViewerStore.getState().computedScale;
       if (Math.abs(currentComputedScale - scale) > 0.001) {
-        setComputedScale(scale);
+        useViewerStore.getState().setComputedScale(scale);
       }
     } else {
       scale = zoom as number;
@@ -99,7 +98,9 @@ export function usePdfRenderer({ canvasRef, pageNumber, fixedScale }: UsePdfRend
     // Scale context for DPR
     ctx.scale(dpr, dpr);
 
-    if (!fixedScale) setIsRendering(true);
+    if (!fixedScale) {
+      useViewerStore.getState().setIsRendering(true);
+    }
 
     try {
       // @ts-expect-error - pdfjs-dist types are out of sync with library requirements
@@ -117,12 +118,31 @@ export function usePdfRenderer({ canvasRef, pageNumber, fixedScale }: UsePdfRend
       }
     } finally {
       if (isMountedRef.current && !fixedScale) {
-        setIsRendering(false);
+        useViewerStore.getState().setIsRendering(false);
       }
       renderTaskRef.current = null;
       page.cleanup();
     }
-  }, [pdfDoc, pageNumber, zoom, fixedScale, canvasRef, setIsRendering, setComputedScale]);
+  }, [pdfDoc, pageNumber, fixedScale, canvasRef]);
+
+  // Re-render when zoom changes without making renderPage itself reactive to zoom.
+  useEffect(() => {
+    if (fixedScale) {
+      return;
+    }
+
+    return useViewerStore.subscribe(
+      (state) => state.zoom,
+      (nextZoom) => {
+        if (nextZoom === zoomRef.current) {
+          return;
+        }
+
+        zoomRef.current = nextZoom;
+        void renderPage();
+      }
+    );
+  }, [fixedScale, renderPage]);
 
   // Re-render on page change, zoom change, or doc load
   useEffect(() => {
