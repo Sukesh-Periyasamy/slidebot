@@ -12,6 +12,7 @@ import { AnnotationCanvas } from '@/features/annotation/components/AnnotationCan
 import { RoomOverlays } from '@/features/sync/components/RoomOverlays';
 import { ConnectionStatusBar } from '@/features/sync/components/ConnectionStatusBar';
 import { PresenterControls } from '@/features/sync/components/PresenterControls';
+import { PresenterOverlay } from '@/features/sync/components/PresenterOverlay';
 import { useExplorationMode } from '@/features/sync/hooks/useExplorationMode';
 import { SnapBackBanner } from '@/features/sync/components/SnapBackBanner';
 import { useViewerStore } from '@/features/viewer/store/viewerStore';
@@ -164,6 +165,7 @@ export function RoomPage() {
           <div className="pointer-events-none absolute left-4 top-4 z-20 hidden max-w-[70%] lg:block">
             <PresencePills />
           </div>
+          <PresenterOverlay />
 
           <SlideCanvas onDimensionsChange={handleDimensionsChange} />
 

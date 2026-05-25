@@ -6,6 +6,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useWorkspaceStore } from '@/features/workspaces/store/workspaceStore';
 import { listWorkspaces } from '@/features/workspaces/api/workspaceApi';
 import { useEffect } from 'react';
+import { NotificationCenter } from '@/shared/components/NotificationCenter';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AppLayout — sidebar + main content area for protected pages
@@ -124,7 +125,11 @@ function Sidebar() {
       </nav>
 
       {/* User profile + sign out */}
-      <div className="p-3 border-t border-surface-800/50">
+      <div className="mt-auto p-3 border-t border-surface-800/50 flex flex-col gap-2">
+        <div className="flex items-center justify-between px-2">
+          <NotificationCenter />
+        </div>
+        
         <div className="flex items-center gap-2.5 rounded-lg px-3 py-2 hover:bg-surface-800 transition-colors group">
           {/* Avatar */}
           <div className="h-7 w-7 rounded-full bg-brand-500/20 flex items-center justify-center flex-shrink-0 text-xs font-semibold text-brand-300">

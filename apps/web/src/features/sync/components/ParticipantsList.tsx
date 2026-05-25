@@ -1,8 +1,10 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Circle, Compass, Loader2, Sparkles } from 'lucide-react';
+import { Circle, Compass, Loader2, Sparkles, Mic, MicOff, Star, MoreVertical } from 'lucide-react';
 
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { useSyncStore } from '@/features/sync/store/syncStore';
 import { usePresence } from '@/features/presence/hooks/usePresence';
+import { useState } from 'react';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ParticipantsList — live presence panel showing all room members
@@ -15,6 +17,8 @@ interface ParticipantsListProps {
 export function ParticipantsList({ isOpen }: ParticipantsListProps) {
   const user = useAuthStore((s) => s.user);
   const { participants } = usePresence();
+  const isCurrentUserPresenter = useSyncStore((s) => s.isPresenter);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 
   return (
     <AnimatePresence>
@@ -44,8 +48,9 @@ export function ParticipantsList({ isOpen }: ParticipantsListProps) {
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.15 }}
+                  onMouseLeave={() => setMenuOpenId(null)}
                 >
-                  <div className="flex items-center gap-2.5 rounded-lg px-2.5 py-2">
+                  <div className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 hover:bg-surface-800/50 group relative">
                     {/* Avatar */}
                     <div className="relative flex-shrink-0">
                       <div
@@ -102,6 +107,28 @@ export function ParticipantsList({ isOpen }: ParticipantsListProps) {
                         Last seen {new Date(member.lastSeenAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
+
+                    {/* Presenter Controls */}
+                    {isCurrentUserPresenter && member.userId !== user?.id && (
+                      <div className="relative">
+                        <button 
+                          onClick={() => setMenuOpenId(menuOpenId === member.userId ? null : member.userId)}
+                          className="p-1 rounded-md text-surface-500 hover:text-surface-200 hover:bg-surface-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <MoreVertical size={14} />
+                        </button>
+                        {menuOpenId === member.userId && (
+                          <div className="absolute right-0 top-full mt-1 w-32 bg-surface-800 border border-surface-700 rounded-md shadow-lg z-50 overflow-hidden py-1">
+                            <button className="w-full text-left px-3 py-1.5 text-xs text-surface-200 hover:bg-surface-700 flex items-center gap-2">
+                              <Star size={12} /> Spotlight
+                            </button>
+                            <button className="w-full text-left px-3 py-1.5 text-xs text-surface-200 hover:bg-surface-700 flex items-center gap-2">
+                              <MicOff size={12} /> Mute
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </motion.li>
               ))}
