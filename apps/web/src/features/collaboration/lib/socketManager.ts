@@ -1,9 +1,11 @@
 import { io, type Socket } from 'socket.io-client';
 import type { Subscription } from '@supabase/supabase-js';
+import customParser from 'socket.io-msgpack-parser';
 
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 import { heartbeatManager } from './heartbeatManager';
+import { useRealtimeDebugStore } from '@/features/debug/store/realtimeDebugStore';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error';
 
@@ -24,6 +26,7 @@ function buildSocketOptions(token: string) {
     timeout: 10_000,
     pingTimeout: 30_000,
     pingInterval: 25_000,
+    parser: customParser,
   };
 }
 
@@ -132,6 +135,23 @@ class SocketManager {
     this.presenterSocket = presenterSocket;
     this.collaborationSocket = collaborationSocket;
 
+    if (import.meta.env.DEV) {
+      const debugStore = useRealtimeDebugStore.getState();
+      const trackIncoming = (event: string, ...args: any[]) => {
+        debugStore.incrementEvents('received');
+        debugStore.incrementBytes('received', JSON.stringify(args).length);
+      };
+      const trackOutgoing = (event: string, ...args: any[]) => {
+        debugStore.incrementEvents('sent');
+        debugStore.incrementBytes('sent', JSON.stringify(args).length);
+      };
+
+      presenterSocket.onAny(trackIncoming);
+      presenterSocket.onAnyOutgoing(trackOutgoing);
+      collaborationSocket.onAny(trackIncoming);
+      collaborationSocket.onAnyOutgoing(trackOutgoing);
+    }
+
     this.bindLifecycleListeners(presenterSocket, collaborationSocket);
     this.bindAuthRefresh(presenterSocket, collaborationSocket);
     heartbeatManager.attach(presenterSocket);
@@ -221,6 +241,11 @@ class SocketManager {
   private emitStatus(status: ConnectionStatus): void {
     this.status = status;
     this.statusListeners.forEach((listener) => listener(status));
+    if (import.meta.env.DEV) {
+      useRealtimeDebugStore.getState().updateMetrics({
+        socketStatus: status === 'connecting' || status === 'error' ? 'disconnected' : status,
+      });
+    }
   }
 
   private emitReconnectAttempts(attempts: number): void {

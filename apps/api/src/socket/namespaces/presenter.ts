@@ -14,6 +14,10 @@ import { attachHeartbeat } from '../heartbeat';
 import { handleReconnect, initiatePresenterGrace } from '../reconnect-handler';
 import { assertSingleServerListener } from '../dev-listener-assert';
 import {
+  createSocketDedupe,
+  validateAnnotationEvent,
+} from '../annotation-ingress-validator';
+import {
   RealtimeSchemas,
   REALTIME_EVENTS,
   type SessionCreatePayload,
@@ -136,6 +140,9 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
     const { userId, displayName, avatarUrl, color } = socket.data;
     logger.info({ userId, socketId: socket.id }, 'User connected to /presenter');
 
+    // Per-socket duplicate packet tracker (bounded sliding window)
+    const { isDuplicate } = createSocketDedupe();
+
     // Attach application-level heartbeat (supplements Socket.IO's built-in)
     attachHeartbeat(socket, { namespace: '/presenter', userId });
 
@@ -178,6 +185,13 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
           { userId, displayName },
           totalSlides
         );
+
+        // Acquire lease for the new session
+        const acquired = await roomManager.acquirePresenterLease(session.sessionId, userId);
+        if (!acquired) {
+          logger.warn({ sessionId: session.sessionId, userId }, 'Failed to acquire lease on create');
+          // Normally shouldn't happen on create, but handled for safety
+        }
 
         await roomManager.addMember(session.sessionId, {
           userId,
@@ -274,6 +288,14 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
           return;
         }
 
+        if (result.wasPresenter) {
+          const acquired = await roomManager.acquirePresenterLease(targetSessionId, userId);
+          if (!acquired) {
+            callback({ ok: false, error: 'Another presenter is active in this session' });
+            return;
+          }
+        }
+
         await extSocket.join(`session:${targetSessionId}`);
         if ((extSocket as any).data) {
           (extSocket as any).data.currentDeckId = deckId ?? '';
@@ -365,6 +387,10 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
           return;
         }
 
+        // Release current lease and acquire for new presenter to ensure atomic transfer
+        await roomManager.releasePresenterLease(sessionId, userId);
+        await roomManager.acquirePresenterLease(sessionId, toUserId);
+
         // Broadcast handoff to all participants
         (ns.to(`session:${sessionId}`) as any).emit('presenter:changed', {
           sessionId,
@@ -434,6 +460,7 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
       const session = await roomManager.getSession(sessionId);
       if (!session || session.presenterId !== userId) return;
 
+      await roomManager.releasePresenterLease(sessionId, userId);
       await roomManager.endSession(sessionId);
 
       (ns.to(`session:${sessionId}`) as any).emit('session:ended', {
@@ -485,6 +512,28 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
           logger.info({ sessionId, userId }, 'Presenter disconnected — grace period started');
         }
       }
+    });
+
+    // ── annotation_event (presenter namespace) ────────────────────────────
+    // Presenter can also emit annotation_event (e.g. pointer, erase).
+    // Validated with full ingress schema before broadcasting to session room.
+    extSocket.on('annotation_event', (rawPayload: unknown) => {
+      const result = validateAnnotationEvent(
+        rawPayload,
+        userId,
+        isDuplicate,
+        '/presenter'
+      );
+
+      if (!result.ok) {
+        return;
+      }
+
+      const sessionId = socket.data.currentSessionId;
+      if (!sessionId) return;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ns.to(`session:${sessionId}`).emit('annotation_event_broadcast', result.event as any);
     });
 
     assertSingleServerListener(socket, REALTIME_EVENTS.SESSION_CREATE, 'PresenterNamespace');

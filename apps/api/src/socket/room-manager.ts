@@ -15,6 +15,8 @@
 import { getRedisClient } from '../config/redis';
 import { logger } from '../config/logger';
 import { generateId } from '@slidebot/shared-utils';
+import { gzipSync, unzipSync } from 'zlib';
+import { INSTANCE_ID, instanceManager } from './instance-manager';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -57,6 +59,8 @@ const keys = {
   memberInfo: (id: string, userId: string) => `session:${id}:member:${userId}`,
   /** Maps deckId → active sessionId for quick lookup */
   deckSession: (deckId: string) => `deck:${deckId}:activeSession`,
+  /** Bounded replay queue for annotation events */
+  replayQueue: (deckId: string, slideId: string) => `deck:${deckId}:slide:${slideId}:replay`,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -176,6 +180,55 @@ export class RoomManager {
     };
   }
 
+  // ── Presenter authority lock ────────────────────────────────────────────────
+
+  async acquirePresenterLease(sessionId: string, userId: string): Promise<boolean> {
+    const key = `session:${sessionId}:presenter_lease`;
+    const result = await this.redis.set(key, `${userId}:${INSTANCE_ID}`, 'EX', 15, 'NX');
+    
+    if (result !== 'OK') {
+      // If the lease already exists but is held by the SAME user, allow renewal
+      const current = await this.redis.get(key);
+      if (current && current.startsWith(`${userId}:`)) {
+        await this.redis.expire(key, 15);
+        return true;
+      }
+      
+      // Orphan cleanup check (Failover Recovery)
+      if (current) {
+        const [, instanceId] = current.split(':');
+        if (instanceId) {
+          const alive = await instanceManager.isInstanceAlive(instanceId);
+          if (!alive) {
+            logger.warn({ sessionId, deadInstanceId: instanceId }, 'Stealing lease from dead instance');
+            await this.redis.set(key, `${userId}:${INSTANCE_ID}`, 'EX', 15);
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+    return true;
+  }
+
+  async renewPresenterLease(sessionId: string, userId: string): Promise<boolean> {
+    const key = `session:${sessionId}:presenter_lease`;
+    const current = await this.redis.get(key);
+    if (current && current.startsWith(`${userId}:`)) {
+      await this.redis.expire(key, 15);
+      return true;
+    }
+    return false;
+  }
+
+  async releasePresenterLease(sessionId: string, userId: string): Promise<void> {
+    const key = `session:${sessionId}:presenter_lease`;
+    const current = await this.redis.get(key);
+    if (current && current.startsWith(`${userId}:`)) {
+      await this.redis.del(key);
+    }
+  }
+
   // ── Presenter handoff ─────────────────────────────────────────────────────
 
   async handoffPresenter(
@@ -204,7 +257,7 @@ export class RoomManager {
       updatedAt: now,
     });
 
-    logger.info({ sessionId, fromUserId, toUserId }, 'Presenter handoff');
+    logger.info({ event: 'audit', action: 'ownership_transfer', sessionId, fromUserId, toUserId }, 'Presenter ownership transferred');
     return { ...session, presenterId: toUserId, presenterName: toUserName, updatedAt: now };
   }
 
@@ -258,6 +311,132 @@ export class RoomManager {
 
   async getMemberCount(sessionId: string): Promise<number> {
     return this.redis.scard(keys.members(sessionId));
+  }
+
+  // ── Replay Queue & Compaction ──────────────────────────────────────────────
+  
+  async compactReplayQueue(deckId: string, slideId: string): Promise<void> {
+    const streamKey = keys.replayQueue(deckId, slideId);
+    const snapshotKey = `${streamKey}:snapshot`;
+    
+    // Fetch all current events
+    const rawEvents = await this.redis.xrange(streamKey, '-', '+');
+    if (rawEvents.length === 0) return;
+    
+    // Parse them
+    const events = rawEvents.map((e) => {
+      try {
+        const payloadIndex = e[1]?.indexOf('payload') + 1;
+        let payloadString = e[1]?.[payloadIndex];
+        if (!payloadString) return null;
+        if (payloadString.startsWith('gz:')) {
+          payloadString = unzipSync(Buffer.from(payloadString.slice(3), 'base64')).toString('utf8');
+        }
+        return JSON.parse(payloadString);
+      } catch {
+        return null;
+      }
+    }).filter(Boolean);
+    
+    // Fetch previous snapshot
+    let snapshotEvents: any[] = [];
+    const prevSnapshotRaw = await this.redis.get(snapshotKey);
+    if (prevSnapshotRaw) {
+      try {
+        let prevString = prevSnapshotRaw;
+        if (prevString.startsWith('gz:')) {
+          prevString = unzipSync(Buffer.from(prevString.slice(3), 'base64')).toString('utf8');
+        }
+        snapshotEvents = JSON.parse(prevString);
+      } catch (err) {
+        logger.error({ err, deckId, slideId }, 'Failed to parse previous snapshot');
+      }
+    }
+    
+    // Append new events to snapshot
+    // In a real delta-merge, we would reconcile points. For now, we just append to a flat array.
+    snapshotEvents.push(...events);
+    
+    // Save new snapshot (compressed)
+    const newSnapshotStr = JSON.stringify(snapshotEvents);
+    const compressedSnapshot = 'gz:' + gzipSync(newSnapshotStr).toString('base64');
+    
+    const pipeline = this.redis.pipeline();
+    pipeline.set(snapshotKey, compressedSnapshot, 'EX', SESSION_TTL);
+    // Trim the stream up to the last ID we just compacted
+    const lastEvent = rawEvents[rawEvents.length - 1];
+    const lastId = lastEvent ? lastEvent[0] : null;
+    if (lastId) {
+      pipeline.xtrim(streamKey, 'MINID', lastId);
+    }
+    await pipeline.exec();
+    
+    logger.debug({ deckId, slideId, compactedEvents: events.length }, 'Replay queue compacted');
+  }
+
+  /**
+   * Enqueue a real-time event to the bounded room replay queue.
+   * Keeps the last 200 events (or 50 in degraded mode) to prevent memory/Redis bloat.
+   */
+  async enqueueReplayEvent(deckId: string, slideId: string, eventPayload: any, isDegraded = false): Promise<void> {
+    const key = keys.replayQueue(deckId, slideId);
+    let serialized = JSON.stringify(eventPayload);
+    
+    // Adaptive compression threshold: compress if larger than 512 bytes
+    if (Buffer.byteLength(serialized, 'utf8') > 512) {
+      serialized = 'gz:' + gzipSync(serialized).toString('base64');
+    }
+    
+    const pipeline = this.redis.pipeline();
+    // Using Redis Streams: ~ caps the stream efficiently (approximate trimming)
+    const maxLen = isDegraded ? 50 : 200;
+    pipeline.xadd(key, 'MAXLEN', '~', maxLen, '*', 'payload', serialized);
+    pipeline.expire(key, SESSION_TTL);
+    await pipeline.exec();
+  }
+
+  /**
+   * Retrieve the bounded replay queue for a room.
+   */
+  async getReplayEvents(deckId: string, slideId: string): Promise<any[]> {
+    const streamKey = keys.replayQueue(deckId, slideId);
+    const snapshotKey = `${streamKey}:snapshot`;
+    
+    const [snapshotRaw, rawEvents] = await Promise.all([
+      this.redis.get(snapshotKey),
+      this.redis.xrange(streamKey, '-', '+')
+    ]);
+    
+    let snapshotEvents: any[] = [];
+    if (snapshotRaw) {
+      try {
+        let prevString = snapshotRaw;
+        if (prevString.startsWith('gz:')) {
+          prevString = unzipSync(Buffer.from(prevString.slice(3), 'base64')).toString('utf8');
+        }
+        snapshotEvents = JSON.parse(prevString);
+      } catch (err) {
+        logger.error({ err, deckId, slideId }, 'Failed to parse snapshot');
+      }
+    }
+
+    const streamEvents = rawEvents.map((e) => {
+      try {
+        const payloadIndex = (e[1]?.indexOf('payload') ?? -1) + 1;
+        let payloadString = e[1]?.[payloadIndex];
+        if (!payloadString) return null;
+        
+        if (payloadString.startsWith('gz:')) {
+          payloadString = unzipSync(Buffer.from(payloadString.slice(3), 'base64')).toString('utf8');
+        }
+        
+        return JSON.parse(payloadString);
+      } catch {
+        return null;
+      }
+    }).filter(Boolean);
+    
+    return [...snapshotEvents, ...streamEvents];
   }
 
   // ── Serialization helpers ─────────────────────────────────────────────────

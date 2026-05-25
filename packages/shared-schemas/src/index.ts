@@ -96,6 +96,96 @@ export const paginationSchema = z.object({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Realtime AnnotationEvent ingress validation
+// Full envelope validation for socket→manager→store boundary.
+// This is intentionally STRICT (strip unknown keys, validate all fields).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const annotationSchemaVersionSchema = z.enum(['v1']);
+
+export const annotationOwnershipSchema = z.object({
+  ownerId: z.string().min(1, 'ownerId is required'),
+  isPresenterOverride: z.boolean().default(false),
+});
+
+export const annotationEventTypeSchema = z.enum([
+  'stroke:chunk',
+  'stroke:start',
+  'stroke:end',
+  'erase',
+  'undo',
+  'redo',
+  'lock',
+  'unlock',
+  'meta',
+]);
+
+/**
+ * Full server-side ingress validation schema for AnnotationEvent packets.
+ *
+ * Responsibilities:
+ * - Validates schema version (reject unknown versions)
+ * - Validates sequence ID (monotonic, non-negative integer)
+ * - Validates ownership metadata (ownerId present)
+ * - Validates event type enum
+ * - Validates causal timestamp (non-negative)
+ * - Validates roomId and slideIndex
+ * - Strips unknown extra fields (strict mode via .strict())
+ */
+export const annotationEventIngressSchema = z
+  .object({
+    eventId: z.string().min(1, 'eventId is required'),
+    seq: z
+      .number()
+      .int('seq must be integer')
+      .nonnegative('seq must be non-negative'),
+    causalTs: z
+      .number()
+      .int('causalTs must be integer')
+      .nonnegative('causalTs must be non-negative'),
+    roomId: z.string().min(1, 'roomId is required'),
+    slideIndex: z
+      .number()
+      .int('slideIndex must be integer')
+      .nonnegative('slideIndex must be non-negative'),
+    userId: z.string().min(1, 'userId is required'),
+    schemaVersion: annotationSchemaVersionSchema,
+    type: annotationEventTypeSchema,
+    payload: z.record(z.any()),
+    ownership: annotationOwnershipSchema.optional(),
+    ts: z
+      .number()
+      .int('ts must be integer')
+      .nonnegative('ts must be non-negative'),
+  })
+  .strict();
+
+/**
+ * Structured validation error for rejected socket packets.
+ * Used for DEV-side diagnostics and metric counters.
+ */
+export const annotationValidationErrorSchema = z.object({
+  code: z.enum([
+    'SCHEMA_VERSION_MISMATCH',
+    'INVALID_SEQUENCE',
+    'MISSING_OWNERSHIP',
+    'UNKNOWN_EVENT_TYPE',
+    'MALFORMED_PAYLOAD',
+    'DUPLICATE_PACKET',
+    'UNAUTHORIZED_MUTATION',
+  ]),
+  path: z.array(z.string()).optional(),
+  message: z.string(),
+  eventId: z.string().optional(),
+  seq: z.number().optional(),
+});
+
+export type AnnotationEventIngress = z.infer<typeof annotationEventIngressSchema>;
+export type AnnotationOwnership = z.infer<typeof annotationOwnershipSchema>;
+export type AnnotationValidationError = z.infer<typeof annotationValidationErrorSchema>;
+export type AnnotationSchemaVersion = z.infer<typeof annotationSchemaVersionSchema>;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Exported inferred types
 // ─────────────────────────────────────────────────────────────────────────────
 

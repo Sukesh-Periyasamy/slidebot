@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AnnotationEvent as AnnotationEventSchema, ReplayRecord as ReplayRecordSchema } from './annotations';
 
 export const REALTIME_EVENTS = {
   SESSION_CREATE: 'session:create',
@@ -102,6 +103,7 @@ export const PresenterHandoffSchema = z.object({
 export const JoinDeckSchema = z.object({
   deckId: IdSchema,
   slideId: IdSchema.optional(),
+  clientRtt: z.number().optional(),
 });
 
 export const LeaveDeckSchema = z.object({
@@ -179,8 +181,10 @@ export const RealtimeSchemas = {
   annotationStart: AnnotationStartSchema,
   annotationDraw: AnnotationDrawSchema,
   annotationEnd: AnnotationEndSchema,
+  annotationEvent: AnnotationEventSchema,
   annotationDelete: AnnotationDeleteSchema,
   annotationClear: AnnotationClearSchema,
+  replayRecord: ReplayRecordSchema,
   appPing: AppPingSchema,
 } as const;
 
@@ -198,5 +202,6 @@ export type LaserEndPayload = z.infer<typeof LaserEndSchema>;
 export type AnnotationStartPayloadRealtime = z.infer<typeof AnnotationStartSchema>;
 export type AnnotationDrawPayloadRealtime = z.infer<typeof AnnotationDrawSchema>;
 export type AnnotationEndPayloadRealtime = z.infer<typeof AnnotationEndSchema>;
+export type AnnotationEventRealtime = z.infer<typeof AnnotationEventSchema>;
 export type AnnotationDeletePayloadRealtime = z.infer<typeof AnnotationDeleteSchema>;
 export type AnnotationClearPayloadRealtime = z.infer<typeof AnnotationClearSchema>;

@@ -1,5 +1,36 @@
 import type { Annotation, CursorPosition, DeckRole, SessionStatus, UserPresence } from '../models/index.js';
 
+/**
+ * Full AnnotationEvent envelope — used by the new unified annotation_event channel.
+ * Matches the Zod schema in @slidebot/shared-schemas/annotationEventIngressSchema.
+ * Defined inline to avoid a circular package dependency (shared-types → shared-schemas).
+ */
+export interface AnnotationEventIngress {
+  eventId: string;
+  seq: number;
+  causalTs: number;
+  roomId: string;
+  slideIndex: number;
+  userId: string;
+  schemaVersion: 'v1';
+  type:
+    | 'stroke:chunk'
+    | 'stroke:start'
+    | 'stroke:end'
+    | 'erase'
+    | 'undo'
+    | 'redo'
+    | 'lock'
+    | 'unlock'
+    | 'meta';
+  payload: Record<string, unknown>;
+  ownership?: {
+    ownerId: string;
+    isPresenterOverride: boolean;
+  };
+  ts: number;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Namespace definitions
 // ─────────────────────────────────────────────────────────────────────────────
@@ -40,6 +71,13 @@ export interface ClientToServerEvents {
   annotation_delete: (payload: { slideId: string; annotationId: string }) => void;
   /** Clear all annotations on a slide */
   annotation_clear: (payload: { slideId: string }) => void;
+
+  /**
+   * New unified annotation event channel.
+   * Uses the full AnnotationEvent envelope (validated on server ingress).
+   * Includes sequence ID, schema version, ownership metadata, and causal timestamp.
+   */
+  annotation_event: (payload: AnnotationEventIngress) => void;
 
   // ── Presentation Mode ──────────────────────────────────────────────────────
   /** Start or join a live presentation session */
@@ -88,6 +126,12 @@ export interface ServerToClientEvents {
   annotation_deleted: (payload: { slideId: string; annotationId: string }) => void;
   /** All annotations on a slide were cleared */
   annotation_cleared: (payload: { slideId: string }) => void;
+
+  /**
+   * Server broadcast of a validated annotation_event to all room members.
+   * Mirrors annotation_event from ClientToServerEvents (already validated).
+   */
+  annotation_event_broadcast: (payload: AnnotationEventIngress) => void;
 
   // ── Presentation Mode ──────────────────────────────────────────────────────
   /** Slide changed by presenter */
@@ -212,6 +256,7 @@ export interface SocketData {
   currentDeckId: string | null;
   currentSessionId: string | null;
   currentSlideId: string | null;
+  clientRtt?: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

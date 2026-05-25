@@ -59,10 +59,57 @@ export interface SaveAnnotationInput {
 // Service
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { persistenceQueue } from './persistence-worker';
+import { roomManager } from '../../socket/room-manager';
+
 export class AnnotationService {
+  // ── Async Queue ────────────────────────────────────────────────────────────
+
+  async enqueueSaveAnnotation(input: SaveAnnotationInput): Promise<void> {
+    if (input.isEphemeral) return;
+
+    try {
+      await persistenceQueue.add('persist', input);
+    } catch (err) {
+      logger.error({ err, annotationId: input.id }, 'Failed to enqueue annotation persistence');
+    }
+  }
+
+  // ── Permission checks ──────────────────────────────────────────────────────
+
+  async canClearAnnotations(deckId: string, userId: string): Promise<boolean> {
+    // 1. Is deck owner?
+    const deck = await prisma.deck.findUnique({
+      where: { id: deckId },
+      select: { ownerId: true }
+    });
+    if (deck?.ownerId === userId) return true;
+
+    // 2. Is editor?
+    const collab = await prisma.deckCollaborator.findUnique({
+      where: { deckId_userId: { deckId, userId } }
+    });
+    if (collab && (collab.role === 'owner' || collab.role === 'editor')) return true;
+
+    // 3. Is current presenter?
+    // We check if the user holds the active presenter lease for ANY session in this deck
+    // Actually, getting the active session ID from DB is better
+    const session = await prisma.presentationSession.findFirst({
+      where: { deckId, status: 'active' }
+    });
+    
+    if (session) {
+      if (session.presenterId === userId) return true;
+      const isPresenter = await roomManager.renewPresenterLease(session.id, userId);
+      if (isPresenter) return true;
+    }
+
+    return false;
+  }
+
   // ── Save (create or upsert) ────────────────────────────────────────────────
 
-  async saveAnnotation(input: SaveAnnotationInput): Promise<PersistedAnnotation | null> {
+  async saveAnnotationInternal(input: SaveAnnotationInput): Promise<PersistedAnnotation | null> {
     if (input.isEphemeral) return null; // Laser pointer etc — never persist
 
     try {

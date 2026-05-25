@@ -34,6 +34,9 @@ export function useSyncEngine({
   deckIdRef.current = deckId;
   userIdRef.current = user?.id ?? '';
 
+  // We intentionally depend on `session?.sessionId` rather than the whole `session` object
+  // to avoid unstable object identity triggering re-initialization.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (initializedRef.current) return;
     if (!userIdRef.current || !roomIdRef.current || !deckIdRef.current) return;
@@ -43,7 +46,7 @@ export function useSyncEngine({
       deckId: deckIdRef.current,
       userId: userIdRef.current,
     });
-  }, [session, user?.id, roomId, deckId, session?.sessionId]);
+  }, [user?.id, roomId, deckId, session?.sessionId]);
 
   useEffect(() => {
     if (totalSlides <= 0) {

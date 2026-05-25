@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import customParser from 'socket.io-msgpack-parser';
 
 export interface TestClientConfig {
   url: string;
@@ -20,6 +21,7 @@ export class TestClientPool {
       transports: ['websocket'],
       forceNew: true,
       reconnection: false, // tests should manually handle reconnects if needed
+      parser: customParser,
     });
 
     this.clients.push(socket);

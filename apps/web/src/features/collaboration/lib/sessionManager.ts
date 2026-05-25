@@ -16,6 +16,7 @@ import {
   persistReconnectState,
   recoverPresenterSession,
 } from '@/features/sync/hooks/useReconnectRecovery';
+import { replayManager } from './replayManager';
 
 const isDev = import.meta.env.DEV;
 
@@ -345,6 +346,8 @@ class SessionManager {
     clearReconnectState();
     presenceManager.reset();
     cursorManager.reset();
+    // Clear replay cache on intentional leave — not on transient disconnects
+    replayManager.clear();
     this.queueStoreUpdate(() => useSyncStore.getState().reset());
   }
 
@@ -363,6 +366,8 @@ class SessionManager {
     clearReconnectState();
     presenceManager.reset();
     cursorManager.reset();
+    // Clear replay cache on logout
+    replayManager.clear();
     this.queueStoreUpdate(() => useSyncStore.getState().reset());
   }
 
@@ -792,6 +797,14 @@ class SessionManager {
         this.queueStoreUpdate(() => {
           useSyncStore.getState().setConnectionStatus('error');
         });
+      } else {
+        // Replay queued events after successful session recovery
+        const presenterSocket = socketManager.getPresenterSocket();
+        if (presenterSocket) {
+          replayManager.replayAll(presenterSocket).catch((err) => {
+            logger.warn('[SessionManager] Replay failed after reconnect', err);
+          });
+        }
       }
       this.setSessionState('active', {
         roomId: this.activeContext?.roomId,

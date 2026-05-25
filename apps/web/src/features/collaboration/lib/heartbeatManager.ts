@@ -2,6 +2,7 @@ import type { Socket } from 'socket.io-client';
 
 import { logger } from '@/lib/logger';
 import { assertSingleSocketListener } from './socketDebug';
+import { useRealtimeDebugStore } from '@/features/debug/store/realtimeDebugStore';
 
 export interface HeartbeatHealth {
   latencyMs: number | null;
@@ -38,6 +39,10 @@ class HeartbeatManager {
     const onPing = (payload: { ts?: number }) => {
       const now = Date.now();
       const latencyMs = typeof payload?.ts === 'number' ? Math.max(0, now - payload.ts) : null;
+
+      if (latencyMs !== null && import.meta.env.DEV) {
+        useRealtimeDebugStore.getState().recordPing(latencyMs);
+      }
 
       socket.emit('app:pong');
       this.update({ latencyMs, lastPongAt: now, isHealthy: true });

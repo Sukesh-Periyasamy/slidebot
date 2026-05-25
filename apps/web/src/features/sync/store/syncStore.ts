@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools, subscribeWithSelector } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
+import { logger } from '@/lib/logger';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types

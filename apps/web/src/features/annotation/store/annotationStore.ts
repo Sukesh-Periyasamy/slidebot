@@ -11,6 +11,23 @@ import type {
   ToolConfig,
 } from '../types/annotation.types';
 import { DEFAULT_TOOL_CONFIG } from '../types/annotation.types';
+import { logger } from '@/lib/logger';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ownership types
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Ownership metadata attached to annotation mutations.
+ * Rules:
+ * - Only the ownerId OR a presenter-override may mutate an annotation.
+ * - isPresenterOverride bypasses ownerId check (for presenter erase/lock).
+ * - Locked annotations cannot be mutated unless isPresenterOverride=true.
+ */
+export interface AnnotationOwnershipContext {
+  currentUserId: string;
+  isPresenter: boolean;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // State shape
@@ -32,6 +49,16 @@ interface AnnotationState {
   isAnnotating: boolean;
   // Current slide context
   currentSlideId: string | null;
+  // Room pressure mode
+  degradationMode: 'normal' | 'degraded';
+
+  // ── Ownership model ──────────────────────────────────────────────────────
+  /** Set of annotation IDs that are locked (cannot be mutated by non-presenters) */
+  lockedAnnotationIds: Set<string>;
+  /** Undo stack: list of annotation IDs that can be undone (LIFO) */
+  undoStack: string[];
+  /** Redo stack: list of annotation IDs that can be redone (LIFO) */
+  redoStack: string[];
 
   // Actions
   setCurrentSlide: (slideId: string) => void;
@@ -40,10 +67,12 @@ interface AnnotationState {
   setStrokeWidth: (width: number) => void;
   setOpacity: (opacity: number) => void;
   setIsAnnotating: (active: boolean) => void;
+  setDegradationMode: (mode: 'normal' | 'degraded') => void;
 
   // Active stroke
   startStroke: (annotation: Annotation) => void;
   appendStrokePoints: (points: number[]) => void;
+  updateActiveStrokePoints: (points: number[]) => void;
   commitStroke: () => Annotation | null;
   cancelStroke: () => void;
 
@@ -67,6 +96,40 @@ interface AnnotationState {
   // Laser pointers
   updateLaser: (userId: string, laser: LaserPointerState) => void;
   removeLaser: (userId: string) => void;
+
+  // ── Ownership actions ────────────────────────────────────────────────────
+  /**
+   * Selective erase by annotation ID.
+   * Only succeeds if:
+   * - currentUserId === annotation.userId (owner), OR
+   * - isPresenter === true (presenter override)
+   * Returns true if annotation was removed, false if ownership check failed.
+   */
+  eraseAnnotation: (annotationId: string, ownership: AnnotationOwnershipContext) => boolean;
+
+  /**
+   * Lock an annotation (only presenter may lock).
+   * Locked annotations cannot be mutated by non-presenters.
+   */
+  lockAnnotation: (annotationId: string, ownership: AnnotationOwnershipContext) => boolean;
+
+  /**
+   * Unlock an annotation (only presenter may unlock).
+   */
+  unlockAnnotation: (annotationId: string, ownership: AnnotationOwnershipContext) => boolean;
+
+  /**
+   * Undo the last annotation added by the current user.
+   * Only removes from local store — server-side undo emits 'annotation_delete'.
+   * Returns the annotation ID that was undone, or null.
+   */
+  undoLastAnnotation: (ownership: AnnotationOwnershipContext) => string | null;
+
+  /**
+   * Redo the last undone annotation.
+   * Returns the annotation that was restored, or null.
+   */
+  redoLastAnnotation: (ownership: AnnotationOwnershipContext) => Annotation | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,14 +148,22 @@ export const useAnnotationStore = create<AnnotationState>()(
         toolConfig: DEFAULT_TOOL_CONFIG,
         isAnnotating: false,
         currentSlideId: null,
+        degradationMode: 'normal',
+        lockedAnnotationIds: new Set<string>(),
+        undoStack: [],
+        redoStack: [],
 
-        // ── Context ───────────────────────────────────────────────────────
+        // ── Context ────────────────────────────────────────────────────
         setCurrentSlide: (slideId) =>
           set((s) => {
             s.currentSlideId = slideId;
             s.annotations = {};
             s.activeStroke = null;
             s.liveStrokes = {};
+            // Reset ownership state on slide change
+            s.lockedAnnotationIds = new Set();
+            s.undoStack = [];
+            s.redoStack = [];
           }),
 
         // ── Tool config ───────────────────────────────────────────────────
@@ -122,6 +193,11 @@ export const useAnnotationStore = create<AnnotationState>()(
             s.isAnnotating = isAnnotating;
           }),
 
+        setDegradationMode: (mode) =>
+          set((s) => {
+            s.degradationMode = mode;
+          }),
+
         // ── Active stroke ─────────────────────────────────────────────────
         startStroke: (annotation) =>
           set((s) => {
@@ -136,12 +212,24 @@ export const useAnnotationStore = create<AnnotationState>()(
             }
           }),
 
+        updateActiveStrokePoints: (points) =>
+          set((s) => {
+            if (!s.activeStroke) return;
+            if (s.activeStroke.data.tool === 'freehand') {
+              (s.activeStroke.data as { points: number[] }).points = [...points];
+            }
+          }),
+
         commitStroke: () => {
           const { activeStroke } = get();
           if (!activeStroke) return null;
           set((s) => {
             s.annotations[activeStroke.id] = activeStroke;
             s.activeStroke = null;
+            // Track in undo stack (keyed by annotation ID)
+            s.undoStack.push(activeStroke.id);
+            // Committing clears redo stack
+            s.redoStack = [];
           });
           return activeStroke;
         },
@@ -178,6 +266,9 @@ export const useAnnotationStore = create<AnnotationState>()(
           set((s) => {
             s.annotations = {};
             s.activeStroke = null;
+            s.lockedAnnotationIds = new Set();
+            s.undoStack = [];
+            s.redoStack = [];
           }),
 
         // ── Live strokes ──────────────────────────────────────────────────
@@ -215,7 +306,7 @@ export const useAnnotationStore = create<AnnotationState>()(
             delete s.cursors[userId];
           }),
 
-        // ── Laser pointers ────────────────────────────────────────────────
+        // ── Laser pointers ─────────────────────────────────────────────────────
         updateLaser: (userId, laser) =>
           set((s) => {
             s.laserPointers[userId] = laser;
@@ -225,6 +316,123 @@ export const useAnnotationStore = create<AnnotationState>()(
           set((s) => {
             delete s.laserPointers[userId];
           }),
+
+        // ── Ownership actions ──────────────────────────────────────────────────
+
+        eraseAnnotation: (annotationId, ownership) => {
+          const { annotations, lockedAnnotationIds } = get();
+          const annotation = annotations[annotationId];
+
+          if (!annotation) {
+            return false;
+          }
+
+          // Ownership check: only owner or presenter may erase
+          const isOwner = annotation.userId === ownership.currentUserId;
+          const canMutate = isOwner || ownership.isPresenter;
+          if (!canMutate) {
+            logger.warn(
+              '[AnnotationStore] eraseAnnotation: ownership check failed',
+              { annotationId, currentUserId: ownership.currentUserId, ownerId: annotation.userId }
+            );
+            return false;
+          }
+
+          // Lock check: locked annotations require presenter override
+          if (lockedAnnotationIds.has(annotationId) && !ownership.isPresenter) {
+            logger.warn(
+              '[AnnotationStore] eraseAnnotation: annotation is locked',
+              { annotationId }
+            );
+            return false;
+          }
+
+          set((s) => {
+            delete s.annotations[annotationId];
+            s.lockedAnnotationIds.delete(annotationId);
+            // Remove from undo/redo stacks
+            s.undoStack = s.undoStack.filter((id) => id !== annotationId);
+            s.redoStack = s.redoStack.filter((id) => id !== annotationId);
+          });
+
+          return true;
+        },
+
+        lockAnnotation: (annotationId, ownership) => {
+          if (!ownership.isPresenter) {
+            logger.warn('[AnnotationStore] lockAnnotation: only presenter may lock');
+            return false;
+          }
+          const annotation = get().annotations[annotationId];
+          if (!annotation) return false;
+
+          set((s) => {
+            s.lockedAnnotationIds.add(annotationId);
+          });
+          return true;
+        },
+
+        unlockAnnotation: (annotationId, ownership) => {
+          if (!ownership.isPresenter) {
+            logger.warn('[AnnotationStore] unlockAnnotation: only presenter may unlock');
+            return false;
+          }
+
+          set((s) => {
+            s.lockedAnnotationIds.delete(annotationId);
+          });
+          return true;
+        },
+
+        undoLastAnnotation: (ownership) => {
+          const { undoStack, annotations } = get();
+
+          // Find the last annotation in the undo stack owned by the current user
+          let annotationId: string | undefined;
+          for (let i = undoStack.length - 1; i >= 0; i--) {
+            const id = undoStack[i]!;
+            const ann = annotations[id];
+            if (ann && ann.userId === ownership.currentUserId) {
+              annotationId = id;
+              break;
+            }
+          }
+
+          if (!annotationId) return null;
+
+          // Check lock
+          if (get().lockedAnnotationIds.has(annotationId) && !ownership.isPresenter) {
+            return null;
+          }
+
+          const annotation = annotations[annotationId];
+          if (!annotation) return null;
+
+          set((s) => {
+            delete s.annotations[annotationId!];
+            s.undoStack = s.undoStack.filter((id) => id !== annotationId);
+            s.redoStack.push(annotationId!);
+          });
+
+          return annotationId;
+        },
+
+        redoLastAnnotation: (ownership) => {
+          const { redoStack } = get();
+          const annotationId = redoStack[redoStack.length - 1];
+          if (!annotationId) return null;
+
+          // Note: re-adding requires the annotation to still be known.
+          // In practice, redo restores from the server (the caller emits
+          // the annotation back). Here we just manage the stack.
+          set((s) => {
+            s.redoStack = s.redoStack.filter((id) => id !== annotationId);
+            s.undoStack.push(annotationId);
+          });
+
+          // Return null — caller must re-fetch annotation from server or cache
+          return null;
+        },
       }))
     ),
     { name: 'AnnotationStore' }

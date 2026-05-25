@@ -70,6 +70,11 @@ export function attachHeartbeat(
     hb.pongTimer = null;
     hb.missedPongs = 0;
     hb.lastPongAt = Date.now();
+
+    // Renew presenter lease if applicable
+    if (opts.namespace === '/presenter' && socket.data.currentSessionId) {
+      roomManager.renewPresenterLease(socket.data.currentSessionId, opts.userId).catch(() => {});
+    }
   });
 
   // Start heartbeat loop

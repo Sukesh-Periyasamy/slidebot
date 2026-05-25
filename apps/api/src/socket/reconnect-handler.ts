@@ -15,6 +15,7 @@ import type { Namespace } from 'socket.io';
 import { logger } from '../config/logger';
 import { roomManager } from './room-manager';
 import { cancelPresenterGrace, startPresenterGrace } from './heartbeat';
+import { socketRateLimiter } from './rate-limiter';
 
 export interface ReconnectResult {
   restored: boolean;
@@ -48,6 +49,12 @@ export async function handleReconnect(
   color: string,
   sessionId: string
 ): Promise<ReconnectResult> {
+  // Reconnect backpressure / storm protection
+  if (!socketRateLimiter.consume(`reconnect:${userId}`, 1)) {
+    logger.warn({ userId, socketId }, 'Reconnect rate limit exceeded (backpressure applied)');
+    return { restored: false, wasPresenter: false, session: null, members: [] };
+  }
+
   const session = await roomManager.getSession(sessionId);
 
   if (!session || session.status === 'ended') {

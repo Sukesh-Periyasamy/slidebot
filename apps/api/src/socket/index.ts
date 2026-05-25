@@ -2,6 +2,7 @@ import type { Server as HttpServer } from 'http';
 
 import { createAdapter } from '@socket.io/redis-adapter';
 import { Server } from 'socket.io';
+import customParser from 'socket.io-msgpack-parser';
 
 import type {
   ClientToServerEvents,
@@ -40,6 +41,8 @@ export function initializeSocket(
     pingInterval: 10_000,
     // Limit payload size (protect against large Yjs updates)
     maxHttpBufferSize: 5 * 1024 * 1024, // 5MB
+    // Binary transport parser
+    parser: customParser,
   });
 
   // ── Redis adapter (required for multi-instance scaling) ───────────────────

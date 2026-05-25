@@ -11,3 +11,4 @@ export * from './realtime.js';
 
 // API request/response types
 export * from './api/index.js';
+export * from './annotations.js';

@@ -38,6 +38,7 @@ export function useDrawing({ slideId, slideWidth, slideHeight, sync }: UseDrawin
 
   const isDrawingRef = useRef(false);
   const activeAnnotationIdRef = useRef<string | null>(null);
+  const pointsRef = useRef<number[]>([]);
 
   // ── Pointer event handlers ────────────────────────────────────────────────
 
@@ -58,6 +59,7 @@ export function useDrawing({ slideId, slideWidth, slideHeight, sync }: UseDrawin
       const annotationId = nanoid();
       activeAnnotationIdRef.current = annotationId;
       isDrawingRef.current = true;
+      pointsRef.current = [normalised.x, normalised.y];
 
       // Build initial annotation
       const annotation: Annotation = {
@@ -93,7 +95,9 @@ export function useDrawing({ slideId, slideWidth, slideHeight, sync }: UseDrawin
 
       // Append points to active stroke (freehand)
       if (toolConfig.tool === 'freehand' || toolConfig.tool === 'highlight') {
-        store.appendStrokePoints([norm.x, norm.y]);
+        pointsRef.current.push(norm.x, norm.y);
+        // We do NOT write to Zustand here to avoid React render storms.
+        // Instead, the AnnotationCanvas component reads from pointsRef directly.
         sync.emitAnnotationPoints([norm.x, norm.y]);
       }
 
@@ -108,11 +112,17 @@ export function useDrawing({ slideId, slideWidth, slideHeight, sync }: UseDrawin
       if (!isDrawingRef.current) return;
       isDrawingRef.current = false;
 
+      // Commit final points back to the store before committing the stroke
+      if (toolConfig.tool === 'freehand' || toolConfig.tool === 'highlight') {
+        store.updateActiveStrokePoints(pointsRef.current);
+      }
+
       const committed = store.commitStroke();
       if (committed) {
         sync.emitAnnotationEnd(committed);
       }
       activeAnnotationIdRef.current = null;
+      pointsRef.current = [];
     },
     [store, sync]
   );
@@ -137,6 +147,7 @@ export function useDrawing({ slideId, slideWidth, slideHeight, sync }: UseDrawin
     handlePointerUp,
     handleMouseMove,
     isDrawing: isDrawingRef,
+    pointsRef,
   };
 }
 

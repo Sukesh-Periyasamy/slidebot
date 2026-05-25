@@ -1,6 +1,7 @@
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { create } from 'zustand';
 import { devtools, subscribeWithSelector } from 'zustand/middleware';
+import { logger } from '@/lib/logger';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types

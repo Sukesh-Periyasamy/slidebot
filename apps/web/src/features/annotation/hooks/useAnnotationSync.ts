@@ -6,6 +6,7 @@ import { assertSingleSocketListener } from '@/features/collaboration/lib/socketD
 import { presenceManager } from '@/features/presence/lib/presenceManager';
 import { logger } from '@/lib/logger';
 import { RealtimeSchemas } from '@slidebot/shared-types';
+import { getQueueForRoom, OfflineQueue } from '../lib/offlineQueue';
 import { useAnnotationStore } from '../store/annotationStore';
 import type {
   Annotation,
@@ -62,7 +63,34 @@ export function useAnnotationSync({
 }: UseAnnotationSyncOptions) {
   const user = useAuthStore((s) => s.user);
   const socketRef = useRef<ReturnType<typeof socketManager.getCollaborationSocket> | null>(null);
+  const queueRef = useRef<OfflineQueue | null>(null);
+  const flushTimerRef = useRef<number | null>(null);
+
+  const flushQueuedEvents = useCallback(() => {
+    const socket = socketRef.current;
+    const queue = queueRef.current;
+    if (!socket || !queue) return;
+
+    const attempt = () => {
+      const ev = queue.peek();
+      if (!ev) return;
+
+      try {
+        socket.emit(ev.type, ev.payload);
+        queue.shift();
+        flushTimerRef.current = window.setTimeout(attempt, 50);
+      } catch (err) {
+        ev.retries += 1;
+        ev.lastAttemptAt = Date.now();
+        const backoff = queue.nextBackoff(ev.retries);
+        flushTimerRef.current = window.setTimeout(attempt, backoff);
+      }
+    };
+
+    attempt();
+  }, []);
   const toolConfig = useAnnotationStore((s) => s.toolConfig);
+  const degradationMode = useAnnotationStore((s) => s.degradationMode);
 
   const noop = useCallback(() => {}, []);
   const noopAnnotationPoints = useCallback((_points: number[]) => {}, []);
@@ -109,12 +137,34 @@ export function useAnnotationSync({
         useAnnotationStore.getState().setLiveStroke(payload.userId, stroke);
       };
 
+      const pendingLiveStrokes = new Map<string, number[]>();
+      let flushRafId: number | null = null;
+
+      const flushLiveStrokes = () => {
+        if (pendingLiveStrokes.size === 0) {
+          flushRafId = null;
+          return;
+        }
+        const state = useAnnotationStore.getState();
+        for (const [userId, points] of pendingLiveStrokes.entries()) {
+          state.appendLiveStrokePoints(userId, points);
+        }
+        pendingLiveStrokes.clear();
+        flushRafId = null;
+      };
+
       const onAnnotationDraw = (payload: { userId: string; slideId: string; points: number[] }) => {
         if (payload.userId === user.id || payload.slideId !== slideId) {
           return;
         }
 
-        useAnnotationStore.getState().appendLiveStrokePoints(payload.userId, payload.points);
+        const existing = pendingLiveStrokes.get(payload.userId) || [];
+        existing.push(...payload.points);
+        pendingLiveStrokes.set(payload.userId, existing);
+
+        if (!flushRafId) {
+          flushRafId = requestAnimationFrame(flushLiveStrokes);
+        }
       };
 
       const onAnnotationEnd = (payload: {
@@ -169,6 +219,10 @@ export function useAnnotationSync({
         presenceManager.setParticipantReconnecting(payload.userId, false);
       };
 
+      const onRoomPressure = (payload: { mode: 'normal' | 'degraded'; count: number }) => {
+        useAnnotationStore.getState().setDegradationMode(payload.mode);
+      };
+
       socket.on('annotation_started', onAnnotationStart);
       socket.on('annotation_drew', onAnnotationDraw);
       socket.on('annotation_ended', onAnnotationEnd);
@@ -176,6 +230,7 @@ export function useAnnotationSync({
       socket.on('laser_update', onLaserUpdate);
       socket.on('laser_ended', onLaserEnd);
       socket.on('user_left', onUserLeft);
+      socket.on('room:pressure' as never, onRoomPressure as never);
 
       assertSingleSocketListener(socket, 'annotation_started', 'AnnotationSync');
       assertSingleSocketListener(socket, 'annotation_drew', 'AnnotationSync');
@@ -189,6 +244,8 @@ export function useAnnotationSync({
         socket.off('laser_update', onLaserUpdate);
         socket.off('laser_ended', onLaserEnd);
         socket.off('user_left', onUserLeft);
+        socket.off('room:pressure' as never, onRoomPressure as never);
+        if (flushRafId) cancelAnimationFrame(flushRafId);
       };
     };
 
@@ -199,6 +256,11 @@ export function useAnnotationSync({
       }
 
       socketRef.current = socket;
+      try {
+        queueRef.current = getQueueForRoom(`${deckId}:${slideId}`);
+      } catch (err) {
+        queueRef.current = null;
+      }
       const joinDeckPayload = { deckId, slideId };
       if (!RealtimeSchemas.joinDeck.safeParse(joinDeckPayload).success) {
         logger.warn('[AnnotationSync] Dropped invalid join_deck payload', joinDeckPayload);
@@ -226,6 +288,11 @@ export function useAnnotationSync({
       unbind?.();
       statusUnsub?.();
       socketRef.current = null;
+      queueRef.current = null;
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
     };
   }, [sessionId, deckId, slideId, user?.id, enabled]);
 
@@ -256,7 +323,7 @@ export function useAnnotationSync({
 
   const emitAnnotationStart = useCallback(
     (annotationId: string, tool: string, initialPoint: CursorPosition) => {
-      if (!enabled || !canAnnotate || !user || !socketRef.current) {
+      if (!enabled || !canAnnotate || !user) {
         return;
       }
 
@@ -274,7 +341,11 @@ export function useAnnotationSync({
         logger.warn('[AnnotationSync] Dropped invalid annotation_start payload', payload);
         return;
       }
-      socketRef.current.emit('annotation_start', payload);
+      if (socketRef.current) {
+        socketRef.current.emit('annotation_start', payload);
+      } else if (queueRef.current) {
+        queueRef.current.enqueue('annotation_start', payload);
+      }
     },
     [enabled, canAnnotate, user, sessionId, slideId, toolConfig]
   );
@@ -282,18 +353,22 @@ export function useAnnotationSync({
   const emitAnnotationPointsInner = useMemo(
     () =>
       throttle((points: number[]) => {
-        if (!enabled || !canAnnotate || !user || !socketRef.current) {
-          return;
-        }
+        if (!enabled || !canAnnotate || !user) {
+            return;
+          }
 
-        const payload = { sessionId, slideId, points };
-        if (!RealtimeSchemas.annotationDraw.safeParse(payload).success) {
-          logger.warn('[AnnotationSync] Dropped invalid annotation_draw payload', payload);
-          return;
-        }
-        socketRef.current.emit('annotation_draw', payload);
-      }, 33),
-    [enabled, canAnnotate, user, sessionId, slideId]
+          const payload = { sessionId, slideId, points };
+          if (!RealtimeSchemas.annotationDraw.safeParse(payload).success) {
+            logger.warn('[AnnotationSync] Dropped invalid annotation_draw payload', payload);
+            return;
+          }
+          if (socketRef.current) {
+            socketRef.current.emit('annotation_draw', payload);
+          } else if (queueRef.current) {
+            queueRef.current.enqueue('annotation_draw', payload);
+          }
+      }, degradationMode === 'degraded' ? 100 : 33),
+    [enabled, canAnnotate, user, sessionId, slideId, degradationMode]
   );
 
   const emitAnnotationPoints = useCallback(
@@ -305,7 +380,7 @@ export function useAnnotationSync({
 
   const emitAnnotationEnd = useCallback(
     (annotation: Annotation) => {
-      if (!enabled || !canAnnotate || !user || !socketRef.current) {
+      if (!enabled || !canAnnotate || !user) {
         return;
       }
 
@@ -314,14 +389,18 @@ export function useAnnotationSync({
         logger.warn('[AnnotationSync] Dropped invalid annotation_end payload', payload);
         return;
       }
-      socketRef.current.emit('annotation_end', payload);
+      if (socketRef.current) {
+        socketRef.current.emit('annotation_end', payload);
+      } else if (queueRef.current) {
+        queueRef.current.enqueue('annotation_end', payload);
+      }
     },
     [enabled, canAnnotate, user, sessionId, slideId]
   );
 
   const emitAnnotationDelete = useCallback(
     (annotationId: string) => {
-      if (!enabled || !canAnnotate || !user || !socketRef.current) {
+      if (!enabled || !canAnnotate || !user) {
         return;
       }
 
@@ -330,7 +409,11 @@ export function useAnnotationSync({
         logger.warn('[AnnotationSync] Dropped invalid annotation_delete payload', payload);
         return;
       }
-      socketRef.current.emit('annotation_delete', payload);
+      if (socketRef.current) {
+        socketRef.current.emit('annotation_delete', payload);
+      } else if (queueRef.current) {
+        queueRef.current.enqueue('annotation_delete', payload);
+      }
     },
     [enabled, canAnnotate, user, sessionId, slideId]
   );
@@ -348,8 +431,8 @@ export function useAnnotationSync({
           return;
         }
         socketRef.current.emit('cursor_move', payload);
-      }, 50),
-    [enabled, user, deckId, sessionId, slideId]
+      }, degradationMode === 'degraded' ? 150 : 50),
+    [enabled, user, deckId, sessionId, slideId, degradationMode]
   );
 
   const emitCursorMove = useCallback(
@@ -372,8 +455,8 @@ export function useAnnotationSync({
           return;
         }
         socketRef.current.emit('laser_move', payload);
-      }, 16),
-    [enabled, canAnnotate, user, sessionId, slideId]
+      }, degradationMode === 'degraded' ? 64 : 16),
+    [enabled, canAnnotate, user, sessionId, slideId, degradationMode]
   );
 
   const emitLaserMove = useCallback(

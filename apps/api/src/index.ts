@@ -6,8 +6,11 @@ import { createApp } from './app';
 import { env } from './config/env';
 import { logger } from './config/logger';
 import { initializeSocket } from './socket';
-import { connectRedis } from './config/redis';
+import { connectRedis, getRedisClient } from './config/redis';
 import { connectDatabase } from './config/database';
+import { instanceManager } from './socket/instance-manager';
+import { startPersistenceWorker, stopPersistenceWorker } from './modules/annotations/persistence-worker';
+import { startCompactionWorker, stopCompactionWorker } from './modules/annotations/compaction-worker';
 
 /**
  * SlideBot API Server entry point
@@ -25,6 +28,9 @@ async function bootstrap(): Promise<void> {
     await connectRedis();
     logger.info('✅ Redis connected');
 
+    // Start instance heartbeat
+    instanceManager.startHeartbeat();
+
     // 3. Create Express app
     const app = createApp();
 
@@ -35,7 +41,11 @@ async function bootstrap(): Promise<void> {
     initializeSocket(httpServer);
     logger.info('✅ Socket.IO initialized');
 
-    // 6. Start listening
+    // Start BullMQ persistence worker
+    startPersistenceWorker();
+    startCompactionWorker();
+
+    // 7. Start listening
     httpServer.listen(env.PORT, env.HOST, () => {
       logger.info(
         { port: env.PORT, host: env.HOST, nodeEnv: env.NODE_ENV },
@@ -46,6 +56,11 @@ async function bootstrap(): Promise<void> {
     // Graceful shutdown
     const shutdown = async (signal: string): Promise<void> => {
       logger.info({ signal }, 'Received shutdown signal, closing gracefully...');
+      
+      await stopPersistenceWorker();
+      await stopCompactionWorker();
+      instanceManager.stopHeartbeat();
+      
       httpServer.close(() => {
         logger.info('HTTP server closed');
         process.exit(0);

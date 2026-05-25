@@ -18,6 +18,8 @@
 
 import type { Socket } from 'socket.io';
 import { logger } from '../config/logger';
+import { metrics } from '../config/metrics';
+import { socketRateLimiter } from './rate-limiter';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Configuration
@@ -82,35 +84,29 @@ export function checkAnnotationRate(socketId: string, eventName: string): boolea
   const now = Date.now();
   let bucket = buckets.get(socketId);
 
-  if (!bucket || now - bucket.windowStart >= WINDOW_MS) {
-    // Start a new window
-    bucket = { count: 0, windowStart: now, droppedTotal: 0, warned: false };
+  if (!bucket || now - bucket.windowStart > WINDOW_MS) {
+    bucket = { count: 0, windowStart: now, droppedTotal: bucket?.droppedTotal || 0, warned: false };
     buckets.set(socketId, bucket);
   }
 
   bucket.count++;
 
-  // Soft limit warning
-  if (!bucket.warned && bucket.count >= MAX_EVENTS_PER_SECOND * SOFT_LIMIT_RATIO) {
-    bucket.warned = true;
-    logger.warn(
-      { socketId, eventName, count: bucket.count, limit: MAX_EVENTS_PER_SECOND },
-      'Annotation rate approaching limit (80%)'
-    );
-  }
-
-  // Hard limit — drop
   if (bucket.count > MAX_EVENTS_PER_SECOND) {
     bucket.droppedTotal++;
-
-    // Log every 10th drop to avoid log spam
-    if (bucket.droppedTotal % 10 === 1) {
+    
+    // Log occasionally
+    if (Math.random() < 0.05) {
       logger.warn(
-        { socketId, eventName, droppedTotal: bucket.droppedTotal },
+        { socketId, eventName },
         'Annotation rate exceeded — dropping event'
       );
     }
     return false;
+  }
+
+  if (bucket.count > MAX_EVENTS_PER_SECOND * SOFT_LIMIT_RATIO && !bucket.warned) {
+    bucket.warned = true;
+    logger.debug({ socketId, eventName }, 'Annotation rate approaching soft limit');
   }
 
   return true;
@@ -145,11 +141,27 @@ export function annotationRateLimiterMiddleware(socket: Socket) {
     'laser_move',
   ]);
 
-  return (event: Parameters<Parameters<Socket['use']>[0]>[0], next: Parameters<Parameters<Socket['use']>[0]>[1]) => {
+  return async (event: Parameters<Parameters<Socket['use']>[0]>[0], next: Parameters<Parameters<Socket['use']>[0]>[1]) => {
     const eventName = event[0];
 
     if (HIGH_FREQUENCY_EVENTS.has(eventName as string)) {
+      // 1. Strict byte length limit
+      const payloadSize = Buffer.byteLength(JSON.stringify(event));
+      if (payloadSize > 50 * 1024) { // 50KB max for annotation updates
+        logger.warn({ socketId: socket.id, size: payloadSize }, 'Payload size exceeded, dropping event');
+        metrics.inc('socket:payload_size_exceeded');
+        return; // Drop silently
+      }
+
+      // 2. Rate limit
       if (!checkAnnotationRate(socket.id, eventName as string)) {
+        // Check for severe abuse
+        const bucket = buckets.get(socket.id);
+        if (bucket && bucket.droppedTotal > 200) {
+          logger.error({ socketId: socket.id }, 'Auto-kicking socket for severe rate limit abuse');
+          metrics.inc('socket:abuse_kick');
+          socket.disconnect(true);
+        }
         // Drop silently — do not call next(), do not send error to client
         return;
       }

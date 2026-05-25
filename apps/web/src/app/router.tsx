@@ -7,6 +7,7 @@ import { RoomPage } from '@/features/room/pages/RoomPage';
 import { selectAuthStatus, selectIsInitialized, useAuthStore } from '@/features/auth/store/authStore';
 import { AppLayout } from '@/shared/layouts/AppLayout';
 import { DebugPage } from '@/features/debug/pages/DebugPage';
+import { RealtimeDebugPage } from '@/features/debug/pages/RealtimeDebugPage';
 
 function HomeRedirect() {
   const isInitialized = useAuthStore(selectIsInitialized);
@@ -109,6 +110,10 @@ const router = createBrowserRouter([
         {
           path: '/debug',
           element: <DebugPage />,
+        },
+        {
+          path: '/debug/realtime',
+          element: <RealtimeDebugPage />,
         },
       ]
     : []),

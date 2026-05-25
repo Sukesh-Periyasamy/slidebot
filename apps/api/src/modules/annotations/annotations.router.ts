@@ -65,7 +65,7 @@ router.post('/', authenticate, async (req: Request, res: Response, next: NextFun
       | 'select'
       | 'eraser';
 
-    const annotation = await annotationService.saveAnnotation({
+    const annotation = await annotationService.saveAnnotationInternal({
       id: body.id,
       slideId: body.slideId,
       sessionId: body.sessionId ?? null,

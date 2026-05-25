@@ -45,5 +45,7 @@ vi.mock('../../modules/annotations/annotations.service', () => ({
       createdAt: new Date(),
     })),
     deleteAnnotation: vi.fn().mockResolvedValue(true),
+    enqueueSaveAnnotation: vi.fn().mockResolvedValue(undefined),
+    canClearAnnotations: vi.fn().mockResolvedValue(true),
   }
 }));

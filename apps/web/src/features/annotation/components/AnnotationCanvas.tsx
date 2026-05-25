@@ -62,6 +62,7 @@ export const AnnotationCanvas = memo(function AnnotationCanvas({
 
   const drawing = useDrawing({ slideId, slideWidth: width, slideHeight: height, sync });
   const laser = useLaserPointer({ slideWidth: width, slideHeight: height, sync });
+  const activeLineRef = useRef<any>(null);
 
   // Denormalise helper: [0-1] → px
   const px = useCallback(
@@ -88,6 +89,26 @@ export const AnnotationCanvas = memo(function AnnotationCanvas({
         : toolConfig.tool === 'select'
           ? 'default'
           : 'crosshair';
+
+  // High-frequency render loop for active stroke
+  useEffect(() => {
+    let frameId: number;
+    const renderLoop = () => {
+      if (
+        drawing.isDrawing.current &&
+        activeLineRef.current &&
+        activeStroke?.data.tool === 'freehand'
+      ) {
+        const currentPoints = drawing.pointsRef.current;
+        if (currentPoints.length >= 2) {
+          activeLineRef.current.points(pxArr(currentPoints));
+        }
+      }
+      frameId = requestAnimationFrame(renderLoop);
+    };
+    frameId = requestAnimationFrame(renderLoop);
+    return () => cancelAnimationFrame(frameId);
+  }, [drawing.isDrawing, drawing.pointsRef, activeStroke, pxArr]);
 
   if (width === 0 || height === 0) return null;
 
@@ -138,6 +159,7 @@ export const AnnotationCanvas = memo(function AnnotationCanvas({
         <Layer listening={false}>
           {activeStroke && activeStroke.data.tool === 'freehand' && (
             <Line
+              ref={activeLineRef}
               points={pxArr((activeStroke.data as { points: number[] }).points)}
               stroke={activeStroke.color}
               strokeWidth={activeStroke.strokeWidth}

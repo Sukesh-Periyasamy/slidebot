@@ -32,6 +32,12 @@ import { annotationService } from '../../modules/annotations/annotations.service
 import type { AnnotationDataPayload } from '../../modules/annotations/annotations.types';
 import { annotationRateLimiterMiddleware } from '../annotation-throttle';
 import { assertSingleServerListener } from '../dev-listener-assert';
+import { roomManager } from '../room-manager';
+import {
+  createSocketDedupe,
+  validateAnnotationEvent,
+} from '../annotation-ingress-validator';
+import { metrics } from '../../config/metrics';
 
 type AnnotationTool =
   | 'freehand'
@@ -83,10 +89,40 @@ interface FullAnnotationEndPayload {
 // Handler registration
 // ─────────────────────────────────────────────────────────────────────────────
 
+const roomDegradationModes = new Map<string, boolean>();
+
+async function checkAndBroadcastRoomPressure(ns: Namespace, room: string) {
+  try {
+    const sockets = await ns.in(room).fetchSockets();
+    const count = sockets.length;
+    let totalRtt = 0;
+    let rttCount = 0;
+    for (const s of sockets) {
+      if (typeof s.data.clientRtt === 'number') {
+        totalRtt += s.data.clientRtt;
+        rttCount++;
+      }
+    }
+    const avgRtt = rttCount > 0 ? totalRtt / rttCount : 0;
+    
+    const isDegraded = count > 50 || avgRtt > 150;
+    const mode = isDegraded ? 'degraded' : 'normal';
+    
+    roomDegradationModes.set(room, isDegraded);
+    ns.to(room).emit('room:pressure', { mode, count });
+  } catch (err) {
+    logger.warn({ err, room }, 'Failed to check room pressure');
+  }
+}
+
 export function registerCollaborationHandlers(ns: CollabNamespace): void {
   ns.on('connection', (socket: CollabSocket) => {
     const { userId, displayName, avatarUrl, color } = socket.data;
     logger.info({ userId, socketId: socket.id }, 'User connected to /collaboration');
+    metrics.inc('collab:connections');
+
+    // Per-socket duplicate packet tracker (bounded sliding window)
+    const { isDuplicate } = createSocketDedupe();
 
     // Apply per-socket annotation rate limiting middleware
     // Drops excess cursor_move / annotation_draw / laser_move events silently
@@ -105,6 +141,7 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
 
         socket.data.currentDeckId = deckId;
         socket.data.currentSlideId = slideId ?? null;
+        socket.data.clientRtt = parsed.data.clientRtt ?? 50;
 
         // Notify existing participants
         socket.to(room).emit('user_joined', {
@@ -119,6 +156,9 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
             lastSeen: new Date().toISOString(),
           },
         });
+
+        // Check and broadcast room pressure (async)
+        checkAndBroadcastRoomPressure(ns, room);
 
         // ── Restore persisted annotations for the current slide ──────────────
         // Runs after join — uses snapshot cache so it's typically <5ms
@@ -154,6 +194,29 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
               'Restored annotations for reconnect'
             );
           }
+
+          const replayEvents = await roomManager.getReplayEvents(deckId, slideId);
+          if (replayEvents.length > 0) {
+            // Adaptive catch-up batch sizing based on client latency (P5.5)
+            const clientRtt = parsed.data.clientRtt ?? 50;
+            const isHighLatency = clientRtt > 150;
+            const batchSize = isHighLatency ? 20 : 100;
+
+            for (let i = 0; i < replayEvents.length; i += batchSize) {
+              const chunk = replayEvents.slice(i, i + batchSize);
+              for (const ev of chunk) {
+                socket.emit('annotation_event_broadcast', ev as any);
+              }
+              // Yield to event loop and network stack if high latency
+              if (isHighLatency && i + batchSize < replayEvents.length) {
+                await new Promise((resolve) => setTimeout(resolve, 50));
+              }
+            }
+            logger.debug(
+              { userId, slideId, count: replayEvents.length, clientRtt, batchSize },
+              'Replayed transient events for reconnect'
+            );
+          }
         }
 
         ack?.({ ok: true });
@@ -175,6 +238,7 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
       await socket.leave(room);
       socket.data.currentDeckId = null;
       socket.to(room).emit('user_left', { userId });
+      checkAndBroadcastRoomPressure(ns, room);
       logger.debug({ userId, deckId }, 'User left deck');
     });
 
@@ -207,34 +271,58 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
 
     // ── annotation_start ──────────────────────────────────────────────────────
     // Broadcast only — no DB write. Client sees live preview.
-    socket.on('annotation_start', (payload) => {
-      if (!RealtimeSchemas.annotationStart.safeParse(payload).success) {
+    // Validated via legacy RealtimeSchemas (annotation_start is not an AnnotationEvent envelope)
+    socket.on('annotation_start', (rawPayload) => {
+      const parsed = RealtimeSchemas.annotationStart.safeParse(rawPayload);
+      if (!parsed.success) {
+        logger.debug(
+          { userId, issues: parsed.error.issues },
+          '[collab] Rejected invalid annotation_start payload'
+        );
         return;
       }
       const room = ROOMS.deck(socket.data.currentDeckId ?? '');
       socket.to(room).emit('annotation_started', {
-        ...payload,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...(parsed.data as any),
         userId,
       });
     });
 
     // ── annotation_draw ───────────────────────────────────────────────────────
     // Broadcast only — no DB write. Streaming incremental points.
-    socket.on('annotation_draw', (payload) => {
-      if (!RealtimeSchemas.annotationDraw.safeParse(payload).success) {
+    // Validated via legacy RealtimeSchemas (not a full AnnotationEvent envelope)
+    socket.on('annotation_draw', (rawPayload) => {
+      const parsed = RealtimeSchemas.annotationDraw.safeParse(rawPayload);
+      if (!parsed.success) {
+        logger.debug(
+          { userId, issues: parsed.error.issues },
+          '[collab] Rejected invalid annotation_draw payload'
+        );
         return;
       }
       const room = ROOMS.deck(socket.data.currentDeckId ?? '');
       socket.to(room).emit('annotation_drew', {
-        ...payload,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...(parsed.data as any),
         userId,
       });
     });
 
     // ── annotation_end ────────────────────────────────────────────────────────
     // Persist non-ephemeral annotations. Broadcast annotation_saved to room.
+    //
+    // annotation_end payloads are validated with the legacy RealtimeSchemas
+    // envelope. Full AnnotationEvent envelope validation is done on
+    // 'annotation_event' (new unified event channel). Both paths use
+    // validateAnnotationEvent() for the structured AnnotationEvent schema.
     socket.on('annotation_end', async (rawPayload) => {
-      if (!RealtimeSchemas.annotationEnd.safeParse(rawPayload).success) {
+      const legacyParsed = RealtimeSchemas.annotationEnd.safeParse(rawPayload);
+      if (!legacyParsed.success) {
+        logger.debug(
+          { userId, issues: legacyParsed.error.issues },
+          '[collab] Rejected invalid annotation_end payload'
+        );
         return;
       }
       // The shared type has a minimal shape; cast to our richer internal type
@@ -260,8 +348,8 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
         return;
       }
 
-      // Persist to DB (non-blocking — let socket respond fast)
-      const savedAnnotation = await annotationService.saveAnnotation({
+      // Enqueue to BullMQ for async persistence (non-blocking)
+      await annotationService.enqueueSaveAnnotation({
         id: payload.annotationId,
         slideId: payload.slideId,
         sessionId: payload.sessionId ?? null,
@@ -275,47 +363,21 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
         isEphemeral: false,
       });
 
-      if (savedAnnotation) {
-        // Broadcast confirmed-saved annotation to ALL (including sender)
-        ns.to(room).emit('annotation_saved', {
-          slideId: payload.slideId,
-          annotation: {
-            deckId: socket.data.currentDeckId ?? '',
-            id: savedAnnotation.id,
-            slideId: savedAnnotation.slideId,
-            userId: savedAnnotation.userId,
-            displayName: savedAnnotation.displayName,
-            color: savedAnnotation.color,
-            strokeWidth: savedAnnotation.strokeWidth,
-            opacity: savedAnnotation.opacity,
-            data: savedAnnotation.data as never,
-            isEphemeral: savedAnnotation.isEphemeral,
-            status: 'committed' as const,
-            tool: payload.tool as BroadcastAnnotationTool,
-            createdAt: savedAnnotation.createdAt.toISOString(),
-          },
-        });
+      // Optimistically broadcast confirmed-saved annotation to ALL (including sender)
+      ns.to(room).emit('annotation_saved', {
+        slideId: payload.slideId,
+        annotation: buildAnnotationForBroadcast(
+          payload,
+          socket.data.currentDeckId ?? '',
+          userId,
+          displayName
+        ),
+      });
 
-        logger.debug(
-          { userId, annotationId: payload.annotationId },
-          'Annotation persisted and broadcast'
-        );
-      } else {
-        // DB save failed — still broadcast so real-time isn't broken
-        socket.to(room).emit('annotation_saved', {
-          slideId: payload.slideId,
-          annotation: buildAnnotationForBroadcast(
-            payload,
-            socket.data.currentDeckId ?? '',
-            userId,
-            displayName
-          ),
-        });
-        logger.warn(
-          { userId, annotationId: payload.annotationId },
-          'Annotation DB save failed — broadcast without persist'
-        );
-      }
+      logger.debug(
+        { userId, annotationId: payload.annotationId },
+        'Annotation enqueued for persistence and broadcast'
+      );
     });
 
     // ── annotation_delete ─────────────────────────────────────────────────────
@@ -350,9 +412,21 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
         return;
       }
       const { slideId } = parsed.data;
-      const room = ROOMS.deck(socket.data.currentDeckId ?? '');
+      const deckId = socket.data.currentDeckId;
+      if (!deckId) return;
 
-      // Note: we soft-delete all (any user can clear — presenter only in future)
+      const isAllowed = await annotationService.canClearAnnotations(deckId, userId);
+      if (!isAllowed) {
+        logger.warn({ userId, deckId, slideId }, 'Unauthorized attempt to clear annotations');
+        socket.emit('error', { code: 'FORBIDDEN', message: 'You do not have permission to clear annotations.' });
+        return;
+      }
+
+      const room = ROOMS.deck(deckId);
+
+      // Audit log
+      logger.info({ event: 'audit', action: 'annotation_clear', userId, deckId, slideId }, 'Annotations cleared');
+
       // For MVP: clear all annotations on the slide for this session context
       // Broadcast immediately for fast UX
       ns.to(room).emit('annotation_cleared', { slideId });
@@ -363,6 +437,7 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
     // ── disconnect ────────────────────────────────────────────────────────────
     socket.on('disconnect', (reason) => {
       logger.info({ userId, reason }, 'User disconnected from /collaboration');
+      metrics.inc('collab:disconnections');
 
       // Note: In Socket.IO, socket.rooms is usually empty on disconnect
       // but we saved the currentDeckId in socket.data when they joined.
@@ -373,6 +448,44 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
 
       for (const room of rooms) {
         socket.to(room).emit('user_left', { userId });
+        checkAndBroadcastRoomPressure(ns, room);
+      }
+    });
+
+    // ── annotation_event ──────────────────────────────────────────────────────
+    // New unified annotation event channel using the full AnnotationEvent
+    // envelope. Validated with strict schema including sequence, ownership,
+    // schema version, and duplicate detection.
+    socket.on('annotation_event', (rawPayload) => {
+      const result = validateAnnotationEvent(
+        rawPayload,
+        userId,
+        isDuplicate,
+        '/collaboration'
+      );
+
+      if (!result.ok) {
+        metrics.inc('collab:validation_error');
+        // Validation errors are tracked by counters in the validator.
+        // In DEV mode, the validator already logs the rejection.
+        return;
+      }
+
+      metrics.inc('collab:annotation_event_rx');
+
+      // Broadcast validated event to all others in the deck room
+      const room = ROOMS.deck(socket.data.currentDeckId ?? '');
+      // The Zod-inferred type is structurally compatible with AnnotationEventIngress
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      socket.to(room).emit('annotation_event_broadcast', result.event as any);
+
+      // Enqueue to room manager replay queue
+      if (socket.data.currentDeckId) {
+        const room = ROOMS.deck(socket.data.currentDeckId);
+        const isDegraded = roomDegradationModes.get(room) ?? false;
+        roomManager.enqueueReplayEvent(socket.data.currentDeckId, result.event.slideIndex.toString(), result.event, isDegraded).catch(err => {
+          logger.warn({ err }, 'Failed to enqueue replay event');
+        });
       }
     });
 
