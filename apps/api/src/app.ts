@@ -15,6 +15,7 @@ import { slidesRouter } from './modules/slides/slides.router';
 import { collaboratorsRouter } from './modules/collaborators/collaborators.router';
 import { annotationsRouter } from './modules/annotations/annotations.router';
 import { opsRouter } from './modules/ops/ops.router';
+import { usersRouter } from './modules/users/users.router';
 
 /**
  * Create and configure the Express application.
@@ -106,6 +107,7 @@ export function createApp(): Application {
   app.use('/api/v1/decks/:deckId/slides', slidesRouter);
   app.use('/api/v1/decks/:deckId/collaborators', collaboratorsRouter);
   app.use('/api/v1/annotations', annotationsRouter);
+  app.use('/api/v1/users', usersRouter);
   
   app.use('/debug/ops', opsRouter);
 

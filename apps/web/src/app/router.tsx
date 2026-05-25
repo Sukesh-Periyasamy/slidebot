@@ -8,6 +8,7 @@ import { selectAuthStatus, selectIsInitialized, useAuthStore } from '@/features/
 import { AppLayout } from '@/shared/layouts/AppLayout';
 import { DebugPage } from '@/features/debug/pages/DebugPage';
 import { RealtimeDebugPage } from '@/features/debug/pages/RealtimeDebugPage';
+import { SettingsPage } from '@/features/settings/pages/SettingsPage';
 
 function HomeRedirect() {
   const isInitialized = useAuthStore(selectIsInitialized);
@@ -28,14 +29,7 @@ function HomeRedirect() {
   );
 }
 
-function SettingsPage() {
-  return (
-    <div className="mx-auto w-full max-w-5xl p-6 text-surface-100">
-      <h1 className="text-2xl font-semibold">Settings</h1>
-      <p className="mt-2 text-sm text-surface-400">Manage your account and workspace preferences.</p>
-    </div>
-  );
-}
+
 
 function NotFoundPage() {
   return (
