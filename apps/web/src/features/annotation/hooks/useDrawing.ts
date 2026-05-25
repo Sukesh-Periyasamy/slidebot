@@ -94,7 +94,7 @@ export function useDrawing({ slideId, slideWidth, slideHeight, sync }: UseDrawin
       // Append points to active stroke (freehand)
       if (toolConfig.tool === 'freehand' || toolConfig.tool === 'highlight') {
         store.appendStrokePoints([norm.x, norm.y]);
-        sync.emitAnnotationPoints([{ x: norm.x, y: norm.y }]);
+        sync.emitAnnotationPoints([norm.x, norm.y]);
       }
 
       // Emit cursor position regardless of tool

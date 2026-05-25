@@ -64,17 +64,21 @@ export function useAnnotationSync({
   const toolConfig = useAnnotationStore((s) => s.toolConfig);
 
   const noop = useCallback(() => {}, []);
-  const noopPoints = useCallback((_points: number[] | CursorPosition[] | Annotation) => {}, []);
+  const noopAnnotationPoints = useCallback((_points: number[]) => {}, []);
+  const noopAnnotationEnd = useCallback((_annotation: Annotation) => {}, []);
   const noopStart = useCallback((_id: string, _tool: string, _point: CursorPosition) => {}, []);
+  const noopDelete = useCallback((_annotationId: string) => {}, []);
+  const noopCursorMove = useCallback((_position: CursorPosition) => {}, []);
+  const noopLaserMove = useCallback((_trail: CursorPosition[]) => {}, []);
 
   if (!enabled) {
     return {
       emitAnnotationStart: noopStart,
-      emitAnnotationPoints: noopPoints,
-      emitAnnotationEnd: noopPoints,
-      emitAnnotationDelete: noopPoints,
-      emitCursorMove: noopPoints,
-      emitLaserMove: noopPoints,
+      emitAnnotationPoints: noopAnnotationPoints,
+      emitAnnotationEnd: noopAnnotationEnd,
+      emitAnnotationDelete: noopDelete,
+      emitCursorMove: noopCursorMove,
+      emitLaserMove: noopLaserMove,
       emitLaserEnd: noop,
     };
   }
