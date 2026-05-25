@@ -10,21 +10,12 @@ import { SlideThumbnail } from './SlideThumbnail';
 // ThumbnailSidebar
 
 export function ThumbnailSidebar() {
-  const {
-    pdfDoc,
-    currentPage,
-    totalPages,
-    isThumbnailStripOpen,
-    setCurrentPage,
-    toggleThumbnailStrip,
-  } = useViewerStore((s) => ({
-    pdfDoc: s.pdfDoc,
-    currentPage: s.currentPage,
-    totalPages: s.totalPages,
-    isThumbnailStripOpen: s.isThumbnailStripOpen,
-    setCurrentPage: s.setCurrentPage,
-    toggleThumbnailStrip: s.toggleThumbnailStrip,
-  }));
+  const pdfDoc = useViewerStore((s) => s.pdfDoc);
+  const currentPage = useViewerStore((s) => s.currentPage);
+  const totalPages = useViewerStore((s) => s.totalPages);
+  const isThumbnailStripOpen = useViewerStore((s) => s.isThumbnailStripOpen);
+  const setCurrentPage = useViewerStore((s) => s.setCurrentPage);
+  const toggleThumbnailStrip = useViewerStore((s) => s.toggleThumbnailStrip);
 
   const session = useSyncStore((s) => s.session);
   const isPresenter = useSyncStore((s) => s.isPresenter);

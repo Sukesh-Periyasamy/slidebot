@@ -1,5 +1,6 @@
 import { useRef, useCallback, useEffect, memo } from 'react';
 import { Stage, Layer, Line, Circle, Text, Arrow, Rect } from 'react-konva';
+import { useShallow } from 'zustand/react/shallow';
 
 import {
   useAnnotationStore,
@@ -55,11 +56,11 @@ export const AnnotationCanvas = memo(function AnnotationCanvas({
   }
 
   const toolConfig = useAnnotationStore((s) => s.toolConfig);
-  const annotations = useAnnotationStore(selectAnnotationList);
+  const annotations = useAnnotationStore(useShallow(selectAnnotationList));
   const activeStroke = useAnnotationStore(selectActiveStroke);
-  const liveStrokes = useAnnotationStore(selectLiveStrokeList);
-  const cursors = useAnnotationStore(selectCursorList);
-  const lasers = useAnnotationStore(selectLaserList);
+  const liveStrokes = useAnnotationStore(useShallow(selectLiveStrokeList));
+  const cursors = useAnnotationStore(useShallow(selectCursorList));
+  const lasers = useAnnotationStore(useShallow(selectLaserList));
 
   const drawing = useDrawing({ slideId, slideWidth: width, slideHeight: height, sync });
   const laser = useLaserPointer({ slideWidth: width, slideHeight: height, sync });

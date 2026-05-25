@@ -26,6 +26,7 @@ export function usePdfRenderer({ canvasRef, pageNumber, fixedScale }: UsePdfRend
   // Track active render task for cancellation
   const renderTaskRef = useRef<RenderTask | null>(null);
   const isMountedRef = useRef(true);
+  const renderInFlightRef = useRef(false);
   const zoomRef = useRef(useViewerStore.getState().zoom);
 
   useEffect(() => {
@@ -38,9 +39,20 @@ export function usePdfRenderer({ canvasRef, pageNumber, fixedScale }: UsePdfRend
   const renderPage = useCallback(async () => {
     if (!pdfDoc || !canvasRef.current) return;
 
+    if (renderInFlightRef.current) {
+      return;
+    }
+
+    renderInFlightRef.current = true;
+
     // Cancel any in-progress render
     if (renderTaskRef.current) {
       renderTaskRef.current.cancel();
+      try {
+        await renderTaskRef.current.promise;
+      } catch {
+        // Ignore cancelled renders while we wait for the prior task to settle.
+      }
       renderTaskRef.current = null;
     }
 
@@ -121,6 +133,7 @@ export function usePdfRenderer({ canvasRef, pageNumber, fixedScale }: UsePdfRend
         useViewerStore.getState().setIsRendering(false);
       }
       renderTaskRef.current = null;
+      renderInFlightRef.current = false;
       page.cleanup();
     }
   }, [pdfDoc, pageNumber, fixedScale, canvasRef]);

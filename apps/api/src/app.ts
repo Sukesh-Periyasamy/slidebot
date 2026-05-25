@@ -22,11 +22,9 @@ import { annotationsRouter } from './modules/annotations/annotations.router';
 export function createApp(): Application {
   const app = express();
   app.set('trust proxy', 1);
-  const allowedOrigins = [
-    'https://slidebot-web.vercel.app',
-    'http://localhost:5173',
-    /^https:\/\/slidebot-.*\.vercel\.app$/,
-  ];
+  const allowedOrigins = env.CORS_ORIGINS.map((origin) =>
+    origin.includes('*') ? new RegExp(`^${origin.replaceAll('.', '\\.').replaceAll('*', '.*')}$`) : origin
+  );
 
   // ── Security middleware ────────────────────────────────────────────────────
   app.use(
