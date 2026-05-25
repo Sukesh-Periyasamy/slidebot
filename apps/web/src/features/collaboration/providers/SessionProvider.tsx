@@ -11,6 +11,10 @@ interface SessionProviderProps {
 export function SessionProvider({ children }: SessionProviderProps) {
   const authStatus = useAuthStore(selectAuthStatus);
 
+  if (import.meta.env.DEV) {
+    console.count('SESSION_PROVIDER_RENDER');
+  }
+
   useEffect(() => {
     sessionManager.start();
   }, []);

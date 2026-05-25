@@ -243,3 +243,19 @@ export const selectCursorList = (s: AnnotationState) => Object.values(s.cursors)
 export const selectLaserList = (s: AnnotationState) => Object.values(s.laserPointers);
 export const selectToolConfig = (s: AnnotationState) => s.toolConfig;
 export const selectActiveStroke = (s: AnnotationState) => s.activeStroke;
+
+if (import.meta.env.DEV) {
+  let prevState = useAnnotationStore.getState();
+  useAnnotationStore.subscribe((nextState) => {
+    const changedKeys = Object.keys(nextState).filter(
+      (key) => (nextState as Record<string, unknown>)[key] !== (prevState as Record<string, unknown>)[key]
+    );
+    if (changedKeys.length > 0) {
+      console.debug('[store:update]', {
+        store: 'annotationStore',
+        changedKeys,
+      });
+    }
+    prevState = nextState;
+  });
+}

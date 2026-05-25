@@ -19,6 +19,10 @@ interface ConnectionHealthProps {
 export const ConnectionHealth = memo(function ConnectionHealth({
   showLatency = true,
 }: ConnectionHealthProps) {
+  if (import.meta.env.DEV) {
+    console.count('CONNECTION_HEALTH_RENDER');
+  }
+
   const connectionStatus = useSyncStore((s) => s.connectionStatus);
   const { latencyMs } = useHeartbeatState();
 

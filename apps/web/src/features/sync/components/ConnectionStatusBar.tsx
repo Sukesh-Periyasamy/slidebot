@@ -56,6 +56,10 @@ const STATUS_CONFIG: Record<
 };
 
 export function ConnectionStatusBar() {
+  if (import.meta.env.DEV) {
+    console.count('CONNECTION_STATUS_BAR_RENDER');
+  }
+
   const status = useSyncStore(selectConnectionStatus);
   const reconnectAttempts = useSyncStore((s) => s.reconnectAttempts);
   const config = STATUS_CONFIG[status];

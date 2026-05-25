@@ -84,6 +84,15 @@ export async function recoverPresenterSession(
   context: ReconnectContext,
   explicitSessionId: string | null
 ): Promise<boolean> {
+  const queueStoreUpdate = (action: () => void) => {
+    if (typeof queueMicrotask === 'function') {
+      queueMicrotask(action);
+      return;
+    }
+
+    setTimeout(action, 0);
+  };
+
   const persisted = loadReconnectState();
   const targetSessionId = explicitSessionId ?? persisted.sessionId ?? context.roomId;
 
@@ -91,7 +100,9 @@ export async function recoverPresenterSession(
     return false;
   }
 
-  useSyncStore.getState().setConnectionStatus('reconnecting');
+  queueStoreUpdate(() => {
+    useSyncStore.getState().setConnectionStatus('reconnecting');
+  });
 
   const result = await new Promise<SessionJoinAck>((resolve) => {
     const payload = {
@@ -111,7 +122,9 @@ export async function recoverPresenterSession(
 
   if (!result.ok || !result.session) {
     logger.warn('[ReconnectRecovery] session:join failed during recovery', result.error);
-    useSyncStore.getState().setConnectionStatus('error');
+    queueStoreUpdate(() => {
+      useSyncStore.getState().setConnectionStatus('error');
+    });
     return false;
   }
 
@@ -119,23 +132,29 @@ export async function recoverPresenterSession(
   const members = (result.members ?? []).map(normaliseMember);
   const isPresenter = result.isPresenter ?? false;
 
-  useSyncStore.getState().initSession(restoredSession, members, isPresenter);
-  useSyncStore.getState().setConnectionStatus('connected');
+  queueStoreUpdate(() => {
+    useSyncStore.getState().initSession(restoredSession, members, isPresenter);
+    useSyncStore.getState().setConnectionStatus('connected');
+  });
 
-  if (!isPresenter && persisted.isExploring && persisted.localSlide > 0) {
-    useSyncStore.getState().setIsExploring(true);
-    context.onSlideRestored?.(persisted.localSlide);
-  } else {
-    useSyncStore.getState().setIsExploring(false);
-    context.onSlideRestored?.(restoredSession.currentSlide + 1);
-  }
+  queueStoreUpdate(() => {
+    if (!isPresenter && persisted.isExploring && persisted.localSlide > 0) {
+      useSyncStore.getState().setIsExploring(true);
+      context.onSlideRestored?.(persisted.localSlide);
+    } else {
+      useSyncStore.getState().setIsExploring(false);
+      context.onSlideRestored?.(restoredSession.currentSlide + 1);
+    }
+  });
 
-  persistReconnectState({
-    sessionId: restoredSession.sessionId,
-    isExploring: useSyncStore.getState().isExploring,
-    localSlide: useSyncStore.getState().isExploring
-      ? persisted.localSlide
-      : restoredSession.currentSlide + 1,
+  queueStoreUpdate(() => {
+    persistReconnectState({
+      sessionId: restoredSession.sessionId,
+      isExploring: useSyncStore.getState().isExploring,
+      localSlide: useSyncStore.getState().isExploring
+        ? persisted.localSlide
+        : restoredSession.currentSlide + 1,
+    });
   });
 
   return true;

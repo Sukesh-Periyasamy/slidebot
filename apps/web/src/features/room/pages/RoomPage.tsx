@@ -23,6 +23,12 @@ import { getRoomById } from '@/features/decks/api/roomsApi';
 import { sessionManager } from '@/features/collaboration/lib/sessionManager';
 
 export function RoomPage() {
+  if (import.meta.env.DEV) {
+    console.count('ROOM_PAGE_RENDER');
+  }
+
+  const disableAnnotationSync = true;
+
   const navigate = useNavigate();
   const { roomId } = useParams<{ roomId: string }>();
   const session = useSyncStore((s) => s.session);
@@ -56,6 +62,7 @@ export function RoomPage() {
     sessionId: session?.sessionId ?? '',
     deckId: resolvedDeckId ?? '',
     slideId: `${resolvedDeckId ?? 'deck'}-${currentPage}`,
+    enabled: !disableAnnotationSync,
   });
 
   const resetViewer = useViewerStore((s) => s.reset);

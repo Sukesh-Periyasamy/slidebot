@@ -263,3 +263,19 @@ export const selectConnectionStatus = (s: SyncState) => s.connectionStatus;
 export const selectHandoffStatus = (s: SyncState) => s.handoffStatus;
 export const selectPresenterDisconnected = (s: SyncState) => s.presenterDisconnected;
 export const selectCurrentSlide = (s: SyncState) => s.session?.currentSlide ?? 0;
+
+if (import.meta.env.DEV) {
+  let prevState = useSyncStore.getState();
+  useSyncStore.subscribe((nextState) => {
+    const changedKeys = Object.keys(nextState).filter(
+      (key) => (nextState as Record<string, unknown>)[key] !== (prevState as Record<string, unknown>)[key]
+    );
+    if (changedKeys.length > 0) {
+      console.debug('[store:update]', {
+        store: 'syncStore',
+        changedKeys,
+      });
+    }
+    prevState = nextState;
+  });
+}

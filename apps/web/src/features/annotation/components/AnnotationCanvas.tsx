@@ -50,6 +50,10 @@ export const AnnotationCanvas = memo(function AnnotationCanvas({
   sync,
   canAnnotate = true,
 }: AnnotationCanvasProps) {
+  if (import.meta.env.DEV) {
+    console.count('ANNOTATION_CANVAS_RENDER');
+  }
+
   const toolConfig = useAnnotationStore((s) => s.toolConfig);
   const annotations = useAnnotationStore(selectAnnotationList);
   const activeStroke = useAnnotationStore(selectActiveStroke);

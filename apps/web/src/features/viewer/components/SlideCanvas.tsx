@@ -14,6 +14,10 @@ interface SlideCanvasProps {
 }
 
 export const SlideCanvas = memo(function SlideCanvas({ onDimensionsChange }: SlideCanvasProps) {
+  if (import.meta.env.DEV) {
+    console.count('SLIDE_CANVAS_RENDER');
+  }
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const currentPage = useViewerStore((s) => s.currentPage);
   const isLoading = useViewerStore((s) => s.isLoading);

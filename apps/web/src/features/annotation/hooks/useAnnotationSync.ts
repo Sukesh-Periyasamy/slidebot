@@ -49,6 +49,7 @@ interface UseAnnotationSyncOptions {
   deckId: string;
   slideId: string;
   canAnnotate?: boolean;
+  enabled?: boolean;
 }
 
 export function useAnnotationSync({
@@ -56,13 +57,29 @@ export function useAnnotationSync({
   deckId,
   slideId,
   canAnnotate = true,
+  enabled = true,
 }: UseAnnotationSyncOptions) {
   const user = useAuthStore((s) => s.user);
-  const store = useAnnotationStore();
   const socketRef = useRef<ReturnType<typeof socketManager.getCollaborationSocket> | null>(null);
 
+  const noop = useCallback(() => {}, []);
+  const noopPoints = useCallback((_points: number[] | CursorPosition[] | Annotation) => {}, []);
+  const noopStart = useCallback((_id: string, _tool: string, _point: CursorPosition) => {}, []);
+
+  if (!enabled) {
+    return {
+      emitAnnotationStart: noopStart,
+      emitAnnotationPoints: noopPoints,
+      emitAnnotationEnd: noopPoints,
+      emitAnnotationDelete: noopPoints,
+      emitCursorMove: noopPoints,
+      emitLaserMove: noopPoints,
+      emitLaserEnd: noop,
+    };
+  }
+
   useEffect(() => {
-    if (!user?.id || !deckId || !slideId || !sessionId) {
+    if (!user?.id || !deckId || !slideId || !sessionId || !enabled) {
       return;
     }
 
@@ -241,6 +258,9 @@ export function useAnnotationSync({
   }, [sessionId, deckId, slideId, user?.id]);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
     const interval = setInterval(() => {
       const now = Date.now();
       const staleMs = 5000;
@@ -260,11 +280,11 @@ export function useAnnotationSync({
     }, 2000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [enabled]);
 
   const emitAnnotationStart = useCallback(
     (annotationId: string, tool: string, initialPoint: CursorPosition) => {
-      if (!canAnnotate || !user || !socketRef.current) {
+      if (!enabled || !canAnnotate || !user || !socketRef.current) {
         return;
       }
 
@@ -284,13 +304,13 @@ export function useAnnotationSync({
       }
       socketRef.current.emit('annotation_start', payload);
     },
-    [canAnnotate, user, sessionId, slideId, store.toolConfig]
+    [enabled, canAnnotate, user, sessionId, slideId, store.toolConfig]
   );
 
   const emitAnnotationPointsInner = useMemo(
     () =>
       throttle((points: number[]) => {
-        if (!canAnnotate || !user || !socketRef.current) {
+        if (!enabled || !canAnnotate || !user || !socketRef.current) {
           return;
         }
 
@@ -301,7 +321,7 @@ export function useAnnotationSync({
         }
         socketRef.current.emit('annotation_draw', payload);
       }, 33),
-    [canAnnotate, user, sessionId, slideId]
+    [enabled, canAnnotate, user, sessionId, slideId]
   );
 
   const emitAnnotationPoints = useCallback(
@@ -313,7 +333,7 @@ export function useAnnotationSync({
 
   const emitAnnotationEnd = useCallback(
     (annotation: Annotation) => {
-      if (!canAnnotate || !user || !socketRef.current) {
+      if (!enabled || !canAnnotate || !user || !socketRef.current) {
         return;
       }
 
@@ -324,12 +344,12 @@ export function useAnnotationSync({
       }
       socketRef.current.emit('annotation_end', payload);
     },
-    [canAnnotate, user, sessionId, slideId]
+    [enabled, canAnnotate, user, sessionId, slideId]
   );
 
   const emitAnnotationDelete = useCallback(
     (annotationId: string) => {
-      if (!canAnnotate || !user || !socketRef.current) {
+      if (!enabled || !canAnnotate || !user || !socketRef.current) {
         return;
       }
 
@@ -340,13 +360,13 @@ export function useAnnotationSync({
       }
       socketRef.current.emit('annotation_delete', payload);
     },
-    [canAnnotate, user, sessionId, slideId]
+    [enabled, canAnnotate, user, sessionId, slideId]
   );
 
   const emitCursorMoveInner = useMemo(
     () =>
       throttle((position: CursorPosition) => {
-        if (!user || !socketRef.current) {
+        if (!enabled || !user || !socketRef.current) {
           return;
         }
 
@@ -357,7 +377,7 @@ export function useAnnotationSync({
         }
         socketRef.current.emit('cursor_move', payload);
       }, 33),
-    [user, deckId, sessionId, slideId]
+    [enabled, user, deckId, sessionId, slideId]
   );
 
   const emitCursorMove = useCallback(
@@ -370,7 +390,7 @@ export function useAnnotationSync({
   const emitLaserMoveInner = useMemo(
     () =>
       throttle((trail: CursorPosition[]) => {
-        if (!canAnnotate || !user || !socketRef.current) {
+        if (!enabled || !canAnnotate || !user || !socketRef.current) {
           return;
         }
 
@@ -381,7 +401,7 @@ export function useAnnotationSync({
         }
         socketRef.current.emit('laser_move', payload);
       }, 16),
-    [canAnnotate, user, sessionId, slideId]
+    [enabled, canAnnotate, user, sessionId, slideId]
   );
 
   const emitLaserMove = useCallback(
@@ -392,7 +412,7 @@ export function useAnnotationSync({
   useEffect(() => () => emitLaserMoveInner.cancel(), [emitLaserMoveInner]);
 
   const emitLaserEnd = useCallback(() => {
-    if (!socketRef.current) {
+    if (!enabled || !socketRef.current) {
       return;
     }
 
@@ -402,7 +422,7 @@ export function useAnnotationSync({
       return;
     }
     socketRef.current.emit('laser_end', payload);
-  }, [sessionId, slideId]);
+  }, [enabled, sessionId, slideId]);
 
   return {
     emitAnnotationStart,

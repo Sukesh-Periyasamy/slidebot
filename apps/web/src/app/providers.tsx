@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
@@ -31,7 +31,11 @@ const queryClient = new QueryClient({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function AuthProvider({ children }: { children: ReactNode }) {
-  const { setSession, setLoading, setError, setInitialized } = useAuthStore();
+  const setSession = useAuthStore((s) => s.setSession);
+  const setLoading = useAuthStore((s) => s.setLoading);
+  const setError = useAuthStore((s) => s.setError);
+  const setInitialized = useAuthStore((s) => s.setInitialized);
+  const lastSessionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -50,6 +54,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         setSession(data.session, data.session?.user ?? null);
+        lastSessionIdRef.current = data.session?.user?.id ?? null;
       } catch (error) {
         if (!isMounted) return;
         const message = error instanceof Error ? error.message : 'Failed to restore session';
@@ -69,8 +74,12 @@ function AuthProvider({ children }: { children: ReactNode }) {
       if (!isMounted) return;
       setSession(session, session?.user ?? null);
 
-      // Invalidate all queries on auth change
-      void queryClient.invalidateQueries();
+      const nextSessionId = session?.user?.id ?? null;
+      if (nextSessionId !== lastSessionIdRef.current) {
+        lastSessionIdRef.current = nextSessionId;
+        // Invalidate all queries on auth change
+        void queryClient.invalidateQueries();
+      }
     });
 
     return () => {
@@ -92,6 +101,10 @@ interface AppProvidersProps {
 
 export function AppProviders({ children }: AppProvidersProps) {
   const isInitialized = useAuthStore(selectIsInitialized);
+
+  if (import.meta.env.DEV) {
+    console.count('APP_RENDER');
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
