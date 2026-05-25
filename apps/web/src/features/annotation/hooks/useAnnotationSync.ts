@@ -61,6 +61,7 @@ export function useAnnotationSync({
 }: UseAnnotationSyncOptions) {
   const user = useAuthStore((s) => s.user);
   const socketRef = useRef<ReturnType<typeof socketManager.getCollaborationSocket> | null>(null);
+  const toolConfig = useAnnotationStore((s) => s.toolConfig);
 
   const noop = useCallback(() => {}, []);
   const noopPoints = useCallback((_points: number[] | CursorPosition[] | Annotation) => {}, []);
@@ -293,9 +294,9 @@ export function useAnnotationSync({
         slideId,
         annotationId,
         tool,
-        color: store.toolConfig.color,
-        strokeWidth: store.toolConfig.strokeWidth,
-        opacity: store.toolConfig.opacity,
+        color: toolConfig.color,
+        strokeWidth: toolConfig.strokeWidth,
+        opacity: toolConfig.opacity,
         initialPoint,
       };
       if (!RealtimeSchemas.annotationStart.safeParse(payload).success) {
@@ -304,7 +305,7 @@ export function useAnnotationSync({
       }
       socketRef.current.emit('annotation_start', payload);
     },
-    [enabled, canAnnotate, user, sessionId, slideId, store.toolConfig]
+    [enabled, canAnnotate, user, sessionId, slideId, toolConfig]
   );
 
   const emitAnnotationPointsInner = useMemo(

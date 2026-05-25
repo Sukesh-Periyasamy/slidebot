@@ -247,8 +247,8 @@ export const selectActiveStroke = (s: AnnotationState) => s.activeStroke;
 if (import.meta.env.DEV) {
   let prevState = useAnnotationStore.getState();
   useAnnotationStore.subscribe((nextState) => {
-    const changedKeys = Object.keys(nextState).filter(
-      (key) => (nextState as Record<string, unknown>)[key] !== (prevState as Record<string, unknown>)[key]
+    const changedKeys = Object.keys(nextState as object).filter(
+      (key) => (nextState as unknown as Record<string, unknown>)[key] !== (prevState as unknown as Record<string, unknown>)[key]
     );
     if (changedKeys.length > 0) {
       console.debug('[store:update]', {
