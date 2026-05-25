@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Circle, Compass } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 
 import { selectMembers, useSyncStore } from '../store/syncStore';
 import { useAuthStore } from '@/features/auth/store/authStore';

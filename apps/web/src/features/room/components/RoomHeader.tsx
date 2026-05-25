@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Share2, Check, Copy } from 'lucide-react';
 import { useState } from 'react';

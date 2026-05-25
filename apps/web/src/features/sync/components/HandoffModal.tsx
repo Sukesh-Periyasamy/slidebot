@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Users, Crown, Circle } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { selectMembers, useSyncStore } from '../store/syncStore';
