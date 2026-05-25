@@ -45,8 +45,8 @@ export function DashboardPage() {
 
     try {
       const { roomId } = await upload(file);
-      setLastRoomId(roomId);
       navigate(`/room/${roomId}`);
+      setLastRoomId(roomId);
     } catch {
       // Surface via state message.
     }

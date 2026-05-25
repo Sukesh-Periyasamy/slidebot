@@ -50,13 +50,13 @@ export function useDeckUpload() {
           createdAt: Date.now(),
         });
 
+        setIsUploading(false);
         return { deckId: payload.deckId, roomId: payload.roomId };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to upload presentation.';
         setError(message);
-        throw err;
-      } finally {
         setIsUploading(false);
+        throw err;
       }
     },
     [upsertDeck, validatePdf]
