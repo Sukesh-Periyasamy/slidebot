@@ -104,7 +104,7 @@ export function useDrawing({ slideId, slideWidth, slideHeight, sync }: UseDrawin
       // Emit cursor position regardless of tool
       sync.emitCursorMove(norm);
     },
-    [toolConfig.tool, slideWidth, slideHeight, store, sync]
+    [toolConfig.tool, slideWidth, slideHeight, sync]
   );
 
   const handlePointerUp = useCallback(
@@ -124,7 +124,7 @@ export function useDrawing({ slideId, slideWidth, slideHeight, sync }: UseDrawin
       activeAnnotationIdRef.current = null;
       pointsRef.current = [];
     },
-    [store, sync]
+    [store, sync, toolConfig.tool]
   );
 
   // Track cursor even when not drawing

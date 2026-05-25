@@ -5,20 +5,50 @@ import { LayoutDashboard, Settings, LogOut, Presentation, ChevronRight } from 'l
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useWorkspaceStore } from '@/features/workspaces/store/workspaceStore';
 import { listWorkspaces } from '@/features/workspaces/api/workspaceApi';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { NotificationCenter } from '@/shared/components/NotificationCenter';
+import { KeyboardShortcutsModal } from '@/shared/components/KeyboardShortcutsModal';
+import { Menu, X } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AppLayout — sidebar + main content area for protected pages
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function AppLayout() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === '/') {
+        e.preventDefault();
+        setShowShortcuts(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-surface-950">
-      <Sidebar />
+      {/* Mobile Menu Button */}
+      <div className="md:hidden absolute top-4 left-4 z-50">
+        <button 
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="p-2 bg-surface-900 border border-surface-800 rounded-lg text-surface-200 shadow-sm"
+          aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+        >
+          {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
+      </div>
+
+      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+      
       <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
+
+      <KeyboardShortcutsModal isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />
     </div>
   );
 }
@@ -33,41 +63,30 @@ const navItems = [
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
-function Sidebar() {
-  const { user, signOut } = useAuth();
+function Sidebar({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: (open: boolean) => void }) {
+  const { signOut, user } = useAuth();
   const navigate = useNavigate();
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/login', { replace: true });
-  };
-
-  const { workspaces, activeWorkspaceId, setWorkspaces, setActiveWorkspace, setLoading } = useWorkspaceStore();
+  const { workspaces, activeWorkspaceId, setActiveWorkspace, setWorkspaces } = useWorkspaceStore();
 
   useEffect(() => {
-    let cancelled = false;
-    async function loadWorkspaces() {
-      try {
-        const data = await listWorkspaces();
-        if (!cancelled) {
-          setWorkspaces(data);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error('Failed to load workspaces:', err);
-      }
-    }
-    loadWorkspaces();
-    return () => { cancelled = true; };
-  }, [setWorkspaces, setLoading]);
+    listWorkspaces().then(setWorkspaces).catch(console.error);
+  }, [setWorkspaces]);
 
   return (
-    <motion.aside
-      initial={{ x: -20, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="flex h-full w-[220px] flex-col border-r border-surface-800 bg-surface-900/50 backdrop-blur-sm"
-    >
+    <>
+      {/* Mobile Backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-30 md:hidden backdrop-blur-sm"
+          onClick={() => setIsOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <motion.aside
+        initial={false}
+        animate={{ x: isOpen ? 0 : -280 }}
+        className={`fixed md:relative z-40 flex h-full w-64 flex-col border-r border-surface-800/50 bg-surface-900/50 backdrop-blur-xl transition-transform duration-300 md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-5 py-5 border-b border-surface-800/50">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 flex-shrink-0">
@@ -100,12 +119,13 @@ function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-3 space-y-0.5">
-        {navItems.map(({ to, icon: Icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
+        <nav className="flex-1 space-y-1 p-3">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              onClick={() => setIsOpen(false)}
+              className={({ isActive }) =>
               `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-all ${
                 isActive
                   ? 'bg-brand-500/15 text-brand-300 font-medium'
@@ -115,8 +135,8 @@ function Sidebar() {
           >
             {({ isActive }) => (
               <>
-                <Icon size={16} strokeWidth={isActive ? 2 : 1.5} />
-                {label}
+                <item.icon size={16} strokeWidth={isActive ? 2 : 1.5} />
+                {item.label}
                 {isActive && <ChevronRight size={14} className="ml-auto text-brand-400" />}
               </>
             )}
@@ -140,15 +160,20 @@ function Sidebar() {
             <p className="text-[10px] text-surface-500 truncate">{user?.email}</p>
           </div>
           <button
-            onClick={handleSignOut}
-            className="opacity-0 group-hover:opacity-100 transition-opacity text-surface-500 hover:text-red-400"
+            onClick={() => {
+              signOut();
+              navigate('/login');
+            }}
+            className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 ml-auto flex h-7 w-7 items-center justify-center rounded-md text-surface-500 hover:bg-surface-700 hover:text-surface-200 transition-all focus-visible:ring-2 focus-visible:ring-brand-500"
             title="Sign out"
+            aria-label="Sign out"
           >
-            <LogOut size={14} />
+            <LogOut size={14} aria-hidden="true" />
           </button>
         </div>
       </div>
     </motion.aside>
+    </>
   );
 }
 

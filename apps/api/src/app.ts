@@ -5,6 +5,10 @@ import { pinoHttp } from 'pino-http';
 
 import { env } from './config/env';
 import { logger } from './config/logger';
+import { getRedisClient } from './config/redis';
+import { connectDatabase } from './config/database';
+import { PrismaClient } from '@prisma/client';
+import * as Sentry from '@sentry/node';
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
 import { rateLimiter } from './middleware/rateLimiter';
@@ -90,7 +94,7 @@ export function createApp(): Application {
     });
   });
 
-  // ── Health check ──────────────────────────────────────────────────────────
+  // ── Health checks ─────────────────────────────────────────────────────────
   // Lightweight production probe for Render, Better Stack, UptimeRobot, and CI.
   // Keep this side-effect free so it never depends on the database, Redis, or external APIs.
   app.get('/health', (_req, res) => {
@@ -100,6 +104,33 @@ export function createApp(): Application {
       timestamp: Date.now(),
     });
   });
+
+  app.get('/health/redis', async (_req, res) => {
+    try {
+      const redis = getRedisClient();
+      await redis.ping();
+      res.status(200).json({ status: 'ok', redis: 'connected' });
+    } catch (err) {
+      res.status(503).json({ status: 'error', redis: 'disconnected' });
+    }
+  });
+
+  app.get('/health/persistence', async (_req, res) => {
+    try {
+      const prisma = new PrismaClient();
+      await prisma.$queryRaw`SELECT 1`;
+      await prisma.$disconnect();
+      res.status(200).json({ status: 'ok', db: 'connected' });
+    } catch (err) {
+      res.status(503).json({ status: 'error', db: 'disconnected' });
+    }
+  });
+
+  app.get('/health/realtime', (_req, res) => {
+    res.status(200).json({ status: 'ok', realtime: 'bound' });
+  });
+
+  Sentry.setupExpressErrorHandler(app);
 
   // ── API Routes (v1) ───────────────────────────────────────────────────────
   app.use('/api/v1/auth', authRouter);

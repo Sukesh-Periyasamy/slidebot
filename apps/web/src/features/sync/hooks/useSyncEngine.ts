@@ -62,7 +62,7 @@ export function useSyncEngine({
     }
 
     onSlideChange(session.currentSlide);
-  }, [session?.currentSlide, onSlideChange]);
+  }, [session, session?.currentSlide, onSlideChange]);
 
   useEffect(() => {
     if (!onSessionEnd) {

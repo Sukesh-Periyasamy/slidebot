@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.21.0",
+    "@sentry/node": "^10.53.1",
     "@slidebot/shared-schemas": "workspace:*",
     "@slidebot/shared-types": "workspace:*",
     "@slidebot/shared-utils": "workspace:*",

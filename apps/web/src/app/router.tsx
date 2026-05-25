@@ -8,6 +8,8 @@ import { selectAuthStatus, selectIsInitialized, useAuthStore } from '@/features/
 import { AppLayout } from '@/shared/layouts/AppLayout';
 import { DebugPage } from '@/features/debug/pages/DebugPage';
 import { RealtimeDebugPage } from '@/features/debug/pages/RealtimeDebugPage';
+import { RenderDebugPage } from '@/features/debug/pages/RenderDebugPage';
+import { ReplayDebugPage } from '@/features/debug/pages/ReplayDebugPage';
 import { SettingsPage } from '@/features/settings/pages/SettingsPage';
 import { AccountPage } from '@/features/account/pages/AccountPage';
 
@@ -113,6 +115,14 @@ const router = createBrowserRouter([
         {
           path: '/debug/realtime',
           element: <RealtimeDebugPage />,
+        },
+        {
+          path: '/debug/render',
+          element: <RenderDebugPage />,
+        },
+        {
+          path: '/debug/replay',
+          element: <ReplayDebugPage />,
         },
       ]
     : []),

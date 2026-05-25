@@ -11,6 +11,14 @@ import { connectDatabase } from './config/database';
 import { instanceManager } from './socket/instance-manager';
 import { startPersistenceWorker, stopPersistenceWorker } from './modules/annotations/persistence-worker';
 import { startCompactionWorker, stopCompactionWorker } from './modules/annotations/compaction-worker';
+import * as Sentry from '@sentry/node';
+
+if (env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: env.SENTRY_DSN,
+    tracesSampleRate: 1.0,
+  });
+}
 
 /**
  * SlideBot API Server entry point

@@ -1,12 +1,11 @@
-import { Router, type Response } from 'express';
-import { requireAuth } from '../../middleware/auth';
-import type { AuthRequest } from '../../middleware/auth';
-import { prisma } from '../../config/prisma';
+import { Router } from 'express';
+import { authenticate as requireAuth } from '../../middleware/authenticate';
+import { prisma } from '../../config/database';
 
-export const usersRouter = Router();
+export const usersRouter: Router = Router();
 
 // Get settings
-usersRouter.get('/me/settings', requireAuth, async (req: AuthRequest, res: Response) => {
+usersRouter.get('/me/settings', requireAuth, async (req, res) => {
   try {
     const settings = await prisma.userSettings.findUnique({
       where: { userId: req.user!.id }
@@ -18,7 +17,7 @@ usersRouter.get('/me/settings', requireAuth, async (req: AuthRequest, res: Respo
 });
 
 // Update settings
-usersRouter.put('/me/settings', requireAuth, async (req: AuthRequest, res: Response) => {
+usersRouter.put('/me/settings', requireAuth, async (req, res) => {
   try {
     const { payload } = req.body;
     

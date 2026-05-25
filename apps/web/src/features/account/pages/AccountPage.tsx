@@ -57,8 +57,9 @@ export function AccountPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-surface-300 mb-2">Display Name</label>
+                <label htmlFor="displayName" className="block text-sm font-medium text-surface-300 mb-2">Display Name</label>
                 <input 
+                  id="displayName"
                   type="text" 
                   defaultValue={user?.displayName || ''} 
                   className="w-full max-w-md bg-surface-950 border border-surface-700 rounded-lg px-4 py-2 text-surface-100 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
@@ -66,8 +67,9 @@ export function AccountPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-surface-300 mb-2">Email Address</label>
+                <label htmlFor="emailAddress" className="block text-sm font-medium text-surface-300 mb-2">Email Address</label>
                 <input 
+                  id="emailAddress"
                   type="email" 
                   defaultValue={user?.email || ''} 
                   disabled

@@ -87,9 +87,9 @@ export function PresenterControls({
   const handleNext = isPresenter ? presenterNext : navigateNext;
 
   return (
-    <div className="relative flex items-center justify-between px-4 py-2 border-t border-surface-800 bg-surface-900/80 backdrop-blur-sm">
-      {/* ── Left: Annotation toolbar ───────────────────────────────────── */}
-      <div className="flex items-center gap-1">
+    <div className="relative flex items-center justify-between px-2 md:px-4 py-2 border-t border-surface-800 bg-surface-900/80 backdrop-blur-sm gap-2">
+      {/* ── Left: Annotation toolbar (hidden on mobile, moved to floating or scrolling) ───────────────────────────────────── */}
+      <div className="hidden md:flex items-center gap-1">
         {ANNOTATION_TOOLS.map(({ tool, Icon, label }) => (
           <button
             key={tool}
@@ -122,7 +122,7 @@ export function PresenterControls({
       </div>
 
       {/* ── Center: Slide navigation ───────────────────────────────────── */}
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+      <div className="flex flex-1 md:flex-none md:absolute md:left-1/2 md:-translate-x-1/2 items-center justify-center gap-2">
         {/* Explore mode badge */}
         <AnimatePresence>
           {isExploring && !isPresenter && (
@@ -197,7 +197,7 @@ export function PresenterControls({
       </div>
 
       {/* ── Right: Zoom + Presenter actions ───────────────────────────── */}
-      <div className="flex items-center gap-2">
+      <div className="hidden md:flex items-center gap-2">
         {/* Zoom selector */}
         <div className="flex items-center gap-0.5 rounded-lg border border-surface-800 p-0.5">
           {ZOOM_PRESETS.map(({ label, value }) => (
@@ -237,6 +237,16 @@ export function PresenterControls({
             </button>
           </>
         )}
+      </div>
+
+      {/* Mobile-only tools toggle (placeholder for touch-friendly annotations) */}
+      <div className="flex md:hidden items-center">
+        <button 
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-surface-400 hover:bg-surface-800"
+          aria-label="Annotation Tools"
+        >
+          <Pencil size={18} />
+        </button>
       </div>
     </div>
   );

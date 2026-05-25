@@ -43,9 +43,9 @@ export function useToast() {
   
   return {
     toast: (props: Omit<AppNotification, 'id'>) => addNotification(props),
-    success: (title: string, message?: string) => addNotification({ type: 'success', title, message }),
-    error: (title: string, message?: string) => addNotification({ type: 'error', title, message }),
-    info: (title: string, message?: string) => addNotification({ type: 'info', title, message }),
-    warning: (title: string, message?: string) => addNotification({ type: 'warning', title, message }),
+    success: (title: string, message?: string) => addNotification(message ? { type: 'success', title, message } : { type: 'success', title }),
+    error: (title: string, message?: string) => addNotification(message ? { type: 'error', title, message } : { type: 'error', title }),
+    info: (title: string, message?: string) => addNotification(message ? { type: 'info', title, message } : { type: 'info', title }),
+    warning: (title: string, message?: string) => addNotification(message ? { type: 'warning', title, message } : { type: 'warning', title }),
   };
 }

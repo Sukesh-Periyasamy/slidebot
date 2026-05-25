@@ -1,4 +1,5 @@
-import { io, type Socket } from 'socket.io-client';
+import { io, type Socket, type ManagerOptions, type SocketOptions } from 'socket.io-client';
+import * as Sentry from '@sentry/react';
 import type { Subscription } from '@supabase/supabase-js';
 import customParser from 'socket.io-msgpack-parser';
 
@@ -173,10 +174,21 @@ class SocketManager {
         `[SocketManager] /presenter ${wasReconnect ? 're' : ''}connected`,
         presenterSocket.id
       );
+      Sentry.addBreadcrumb({
+        category: 'socket',
+        message: `Presenter connected (reconnect: ${wasReconnect})`,
+        level: 'info',
+        data: { id: presenterSocket.id },
+      });
     });
 
     presenterSocket.on('disconnect', (reason) => {
       logger.warn('[SocketManager] /presenter disconnected:', reason);
+      Sentry.addBreadcrumb({
+        category: 'socket',
+        message: `Presenter disconnected: ${reason}`,
+        level: 'warning',
+      });
       if (reason === 'io client disconnect') {
         this.emitStatus('disconnected');
         return;
@@ -203,6 +215,7 @@ class SocketManager {
 
     presenterSocket.on('connect_error', (err) => {
       logger.error('[SocketManager] /presenter connect error:', err.message);
+      Sentry.captureException(err, { tags: { section: 'socket_connect' } });
       if (!this.hasConnectedOnce) {
         this.emitStatus('error');
       }

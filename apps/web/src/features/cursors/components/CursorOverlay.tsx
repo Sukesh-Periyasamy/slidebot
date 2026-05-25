@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef } from 'react';
 import { useCursorStore } from '../store/cursorStore';
+import { useSettingsStore } from '@/features/settings/store/settingsStore';
 
 interface CursorOverlayProps {
   slideId: string;
@@ -12,6 +13,7 @@ function toPixel(value: number, size: number): number {
 }
 
 export const CursorOverlay = memo(function CursorOverlay({ slideId, width, height }: CursorOverlayProps) {
+  const showRemoteCursors = useSettingsStore((s) => s.settings.showCursors);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const nodesRef = useRef<Record<string, { root: HTMLDivElement; label: HTMLSpanElement; dot: HTMLSpanElement }>>({});
   const rafRef = useRef<number | null>(null);
@@ -123,7 +125,7 @@ export const CursorOverlay = memo(function CursorOverlay({ slideId, width, heigh
     };
   }, [slideId, width, height]);
 
-  if (width === 0 || height === 0) return null;
+  if (width === 0 || height === 0 || showRemoteCursors === false) return null;
 
   return <div ref={containerRef} className="pointer-events-none absolute inset-0" />;
 });

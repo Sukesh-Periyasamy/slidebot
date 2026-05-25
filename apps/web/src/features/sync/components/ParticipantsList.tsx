@@ -32,14 +32,17 @@ export function ParticipantsList({ isOpen }: ParticipantsListProps) {
         >
           {/* Header */}
           <div className="flex items-center gap-2 px-4 py-3 border-b border-surface-800">
-            <span className="text-xs font-semibold text-surface-300">Participants</span>
-            <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-500/20 text-[10px] font-medium text-brand-300 px-1.5">
+            <h2 id="participants-title" className="text-xs font-semibold text-surface-300">Participants</h2>
+            <span 
+              className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-500/20 text-[10px] font-medium text-brand-300 px-1.5"
+              aria-label={`${participants.length} participants`}
+            >
               {participants.length}
             </span>
           </div>
 
           {/* Member list */}
-          <ul className="flex-1 overflow-y-auto p-2 space-y-0.5">
+          <ul className="flex-1 overflow-y-auto p-2 space-y-0.5" aria-labelledby="participants-title">
             <AnimatePresence initial={false}>
               {participants.map((member) => (
                 <motion.li
@@ -64,15 +67,16 @@ export function ParticipantsList({ isOpen }: ParticipantsListProps) {
                         className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface-900 ${
                           member.isOnline ? 'bg-emerald-400' : member.isReconnecting ? 'bg-amber-400 animate-pulse' : 'bg-surface-600'
                         }`}
+                        aria-hidden="true"
                       />
                     </div>
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-surface-200 truncate leading-none">
+                      <p className="text-xs font-medium text-surface-200 truncate leading-none" aria-label={member.displayName}>
                         {member.displayName}
                         {member.userId === user?.id && (
-                          <span className="ml-1 text-[10px] text-surface-500">(you)</span>
+                          <span className="ml-1 text-[10px] text-surface-500" aria-hidden="true">(you)</span>
                         )}
                       </p>
                       <p className="text-[10px] text-surface-500 mt-0.5 flex items-center gap-1 leading-none">
@@ -113,17 +117,24 @@ export function ParticipantsList({ isOpen }: ParticipantsListProps) {
                       <div className="relative">
                         <button 
                           onClick={() => setMenuOpenId(menuOpenId === member.userId ? null : member.userId)}
-                          className="p-1 rounded-md text-surface-500 hover:text-surface-200 hover:bg-surface-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="p-1 rounded-md text-surface-500 hover:text-surface-200 hover:bg-surface-700 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-brand-500 transition-opacity"
+                          aria-haspopup="true"
+                          aria-expanded={menuOpenId === member.userId}
+                          aria-label={`Options for ${member.displayName}`}
                         >
-                          <MoreVertical size={14} />
+                          <MoreVertical size={14} aria-hidden="true" />
                         </button>
                         {menuOpenId === member.userId && (
-                          <div className="absolute right-0 top-full mt-1 w-32 bg-surface-800 border border-surface-700 rounded-md shadow-lg z-50 overflow-hidden py-1">
-                            <button className="w-full text-left px-3 py-1.5 text-xs text-surface-200 hover:bg-surface-700 flex items-center gap-2">
-                              <Star size={12} /> Spotlight
+                          <div 
+                            className="absolute right-0 top-full mt-1 w-32 bg-surface-800 border border-surface-700 rounded-md shadow-lg z-50 overflow-hidden py-1"
+                            role="menu"
+                            aria-label={`Options for ${member.displayName}`}
+                          >
+                            <button className="w-full text-left px-3 py-1.5 text-xs text-surface-200 hover:bg-surface-700 flex items-center gap-2 focus-visible:bg-surface-700 focus-visible:outline-none" role="menuitem">
+                              <Star size={12} aria-hidden="true" /> Spotlight
                             </button>
-                            <button className="w-full text-left px-3 py-1.5 text-xs text-surface-200 hover:bg-surface-700 flex items-center gap-2">
-                              <MicOff size={12} /> Mute
+                            <button className="w-full text-left px-3 py-1.5 text-xs text-surface-200 hover:bg-surface-700 flex items-center gap-2 focus-visible:bg-surface-700 focus-visible:outline-none" role="menuitem">
+                              <MicOff size={12} aria-hidden="true" /> Mute
                             </button>
                           </div>
                         )}
@@ -135,7 +146,7 @@ export function ParticipantsList({ isOpen }: ParticipantsListProps) {
             </AnimatePresence>
 
             {participants.length === 0 && (
-              <li className="flex items-center justify-center py-6 text-xs text-surface-600">
+              <li className="flex items-center justify-center py-6 text-xs text-surface-600" aria-live="polite">
                 No participants yet
               </li>
             )}
