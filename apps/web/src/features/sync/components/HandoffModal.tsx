@@ -16,7 +16,7 @@ interface HandoffModalProps {
 
 export function HandoffModal({ isOpen, onClose, onHandoff }: HandoffModalProps) {
   const user = useAuthStore((s) => s.user);
-  const members = useSyncStore(selectMembers);
+  const members = useSyncStore(useShallow(selectMembers));
 
   // Only show connected non-self members
   const eligibleMembers = members.filter((m) => m.userId !== user?.id && m.isConnected);

@@ -29,21 +29,12 @@ export function ThumbnailSidebar() {
   }));
 
   const session = useSyncStore((s) => s.session);
-  const isPresenter = useSyncStore((s) => s.isPresenter);
-  const isExploring = useSyncStore((s) => s.isExploring);
-  const setIsExploring = useSyncStore((s) => s.setIsExploring);
-
-  const presenterSlide = session?.currentSlide ?? 1;
-  const lastAutoScrollRef = useRef<{ sessionId: string | null; slide: number } | null>(null);
-
-  const parentRef = useRef<HTMLDivElement>(null);
-
-  // ── Virtualization ───────────────────────────────────────────────────────
-  const virtualizer = useVirtualizer({
-    count: totalPages,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 140, // Height of 16:9 thumbnail + margins
-    overscan: 4, // Pre-render a few off-screen
+    const pdfDoc = useViewerStore((s) => s.pdfDoc);
+    const currentPage = useViewerStore((s) => s.currentPage);
+    const totalPages = useViewerStore((s) => s.totalPages);
+    const isThumbnailStripOpen = useViewerStore((s) => s.isThumbnailStripOpen);
+    const setCurrentPage = useViewerStore((s) => s.setCurrentPage);
+    const toggleThumbnailStrip = useViewerStore((s) => s.toggleThumbnailStrip);
   });
 
   // ── Auto-scroll ──────────────────────────────────────────────────────────

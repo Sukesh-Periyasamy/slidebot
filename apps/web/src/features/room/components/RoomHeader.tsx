@@ -141,7 +141,8 @@ export const RoomHeader = memo(function RoomHeader({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ParticipantDots({ count }: { count: number }) {
-  const members = useSyncStore((s: any) => Object.values(s.members).slice(0, 3));
+  const membersMap = useSyncStore((s: any) => s.members);
+  const members = useMemo(() => Object.values(membersMap).slice(0, 3), [membersMap]);
 
   return (
     <div className="flex -space-x-1">

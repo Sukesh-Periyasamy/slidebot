@@ -29,7 +29,7 @@ import type { useSyncEngine } from './useSyncEngine';
  */
 export function usePresenterHandoff(engine: ReturnType<typeof useSyncEngine>) {
   const user = useAuthStore((s) => s.user);
-  const members = useSyncStore(selectMembers);
+  const members = useSyncStore(useShallow(selectMembers));
   const isPresenter = useSyncStore(selectIsPresenter);
   const handoffStatus = useSyncStore(selectHandoffStatus);
   const handoffTargetUserId = useSyncStore((s) => s.handoffTargetUserId);

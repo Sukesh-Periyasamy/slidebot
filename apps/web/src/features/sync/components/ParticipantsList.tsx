@@ -14,7 +14,7 @@ interface ParticipantsListProps {
 
 export function ParticipantsList({ isOpen }: ParticipantsListProps) {
   const user = useAuthStore((s) => s.user);
-  const members = useSyncStore(selectMembers);
+  const members = useSyncStore(useShallow(selectMembers));
 
   return (
     <AnimatePresence>
