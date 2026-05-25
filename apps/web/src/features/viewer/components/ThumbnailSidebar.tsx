@@ -7,9 +7,7 @@ import { useViewerStore } from '../../viewer/store/viewerStore';
 import { useSyncStore } from '../../sync/store/syncStore';
 import { SlideThumbnail } from './SlideThumbnail';
 
-// ─────────────────────────────────────────────────────────────────────────────
 // ThumbnailSidebar
-// ─────────────────────────────────────────────────────────────────────────────
 
 export function ThumbnailSidebar() {
   const {
@@ -29,16 +27,21 @@ export function ThumbnailSidebar() {
   }));
 
   const session = useSyncStore((s) => s.session);
-    const pdfDoc = useViewerStore((s) => s.pdfDoc);
-    const currentPage = useViewerStore((s) => s.currentPage);
-    const totalPages = useViewerStore((s) => s.totalPages);
-    const isThumbnailStripOpen = useViewerStore((s) => s.isThumbnailStripOpen);
-    const setCurrentPage = useViewerStore((s) => s.setCurrentPage);
-    const toggleThumbnailStrip = useViewerStore((s) => s.toggleThumbnailStrip);
+  const isPresenter = useSyncStore((s) => s.isPresenter);
+  const isExploring = useSyncStore((s) => s.isExploring);
+  const setIsExploring = useSyncStore((s) => s.setIsExploring);
+
+  const presenterSlide = session?.currentSlide ?? 1;
+  const lastAutoScrollRef = useRef<{ sessionId: string | null; slide: number } | null>(null);
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: totalPages,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 140,
+    overscan: 4,
   });
 
-  // ── Auto-scroll ──────────────────────────────────────────────────────────
-  // If following the presenter, snap the sidebar to the presenter's active slide.
   useEffect(() => {
     if (!isThumbnailStripOpen || totalPages === 0 || !session?.sessionId) return;
     if (!isExploring && !isPresenter) {
@@ -52,7 +55,6 @@ export function ThumbnailSidebar() {
     }
   }, [presenterSlide, isExploring, isPresenter, isThumbnailStripOpen, virtualizer, totalPages, session?.sessionId]);
 
-  // ── Handlers ─────────────────────────────────────────────────────────────
   const handleThumbnailClick = useCallback(
     (pageNumber: number) => {
       setCurrentPage(pageNumber);
@@ -71,10 +73,9 @@ export function ThumbnailSidebar() {
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: 220, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }} // smooth easeOut
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
             className="relative h-full flex flex-col border-r border-surface-800 bg-surface-900/50 backdrop-blur-sm z-10 flex-shrink-0"
           >
-            {/* Header */}
             <div className="px-4 py-3 border-b border-surface-800/50 flex items-center justify-between flex-shrink-0">
               <div>
                 <h2 className="text-sm font-semibold text-surface-200">Slides</h2>
@@ -89,12 +90,7 @@ export function ThumbnailSidebar() {
               </button>
             </div>
 
-            {/* Virtualized List */}
-            <div
-              ref={parentRef}
-              className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar"
-              style={{ contain: 'strict' }}
-            >
+            <div ref={parentRef} className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar" style={{ contain: 'strict' }}>
               <div
                 style={{
                   height: `${virtualizer.getTotalSize()}px`,
@@ -104,6 +100,7 @@ export function ThumbnailSidebar() {
               >
                 {virtualizer.getVirtualItems().map((virtualItem) => {
                   const pageNumber = virtualItem.index + 1;
+
                   return (
                     <div
                       key={virtualItem.key}
@@ -136,7 +133,6 @@ export function ThumbnailSidebar() {
         )}
       </AnimatePresence>
 
-      {/* Floating Toggle Button (visible when sidebar is closed) */}
       <AnimatePresence>
         {!isThumbnailStripOpen && (
           <motion.button
