@@ -70,15 +70,18 @@ function AuthProvider({ children }: { children: ReactNode }) {
     // 2. Subscribe to auth state changes (login, logout, token refresh)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
       setSession(session, session?.user ?? null);
+
+      if (event === 'TOKEN_REFRESHED') {
+        return;
+      }
 
       const nextSessionId = session?.user?.id ?? null;
       if (nextSessionId !== lastSessionIdRef.current) {
         lastSessionIdRef.current = nextSessionId;
-        // Invalidate all queries on auth change
-        void queryClient.invalidateQueries();
+        void queryClient.invalidateQueries({ queryKey: ['rooms'] });
       }
     });
 
@@ -100,16 +103,18 @@ interface AppProvidersProps {
 }
 
 export function AppProviders({ children }: AppProvidersProps) {
-  const isInitialized = useAuthStore(selectIsInitialized);
-
   if (import.meta.env.DEV) {
     console.count('APP_RENDER');
+    (window as typeof window & { __REACT_QUERY_CLIENT__?: QueryClient }).__REACT_QUERY_CLIENT__ =
+      queryClient;
   }
 
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <SessionProvider>{isInitialized ? children : <AuthBootstrapSplash />}</SessionProvider>
+        <SessionProvider>
+          <AuthGate>{children}</AuthGate>
+        </SessionProvider>
       </AuthProvider>
       {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
@@ -117,6 +122,12 @@ export function AppProviders({ children }: AppProvidersProps) {
 }
 
 export { queryClient };
+
+function AuthGate({ children }: { children: ReactNode }) {
+  const isInitialized = useAuthStore(selectIsInitialized);
+
+  return isInitialized ? <>{children}</> : <AuthBootstrapSplash />;
+}
 
 function AuthBootstrapSplash() {
   return (

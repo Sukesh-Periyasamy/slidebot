@@ -19,6 +19,21 @@ export const apiClient: AxiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+if (import.meta.env.DEV) {
+  let roomsFetchCount = 0;
+
+  apiClient.interceptors.request.use((config) => {
+    const url = String(config.url ?? '');
+    if (url.includes('/rooms')) {
+      roomsFetchCount += 1;
+      console.log(`=== rooms request #${roomsFetchCount} ===`, `${config.method?.toUpperCase() ?? 'GET'} ${url}`);
+      console.trace('[apiClient] rooms request stack');
+    }
+
+    return config;
+  });
+}
+
 // ── Request interceptor: attach Bearer token ──────────────────────────────────
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {

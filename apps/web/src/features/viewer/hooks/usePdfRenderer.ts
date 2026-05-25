@@ -23,7 +23,6 @@ interface UsePdfRendererOptions {
 export function usePdfRenderer({ canvasRef, pageNumber, fixedScale }: UsePdfRendererOptions) {
   const pdfDoc = useViewerStore((s) => s.pdfDoc);
   const zoom = useViewerStore((s) => s.zoom);
-  const containerScale = useViewerStore((s) => s.computedScale);
   const setIsRendering = useViewerStore((s) => s.setIsRendering);
   const setComputedScale = useViewerStore((s) => s.setComputedScale);
 
@@ -78,7 +77,11 @@ export function usePdfRenderer({ canvasRef, pageNumber, fixedScale }: UsePdfRend
       const scaleX = containerWidth / viewport.width;
       const scaleY = containerHeight / viewport.height;
       scale = Math.min(scaleX, scaleY) * 0.95; // 5% padding
-      setComputedScale(scale);
+
+      const currentComputedScale = useViewerStore.getState().computedScale;
+      if (Math.abs(currentComputedScale - scale) > 0.001) {
+        setComputedScale(scale);
+      }
     } else {
       scale = zoom as number;
     }
