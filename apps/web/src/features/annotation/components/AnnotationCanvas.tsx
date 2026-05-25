@@ -1,4 +1,5 @@
 import { useRef, useCallback, useEffect, memo } from 'react';
+import { recordRenderCount } from '@/features/debug/lib/renderInspector';
 import { Stage, Layer, Line, Circle, Text, Arrow, Rect } from 'react-konva';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -7,12 +8,10 @@ import {
   selectAnnotationList,
   selectActiveStroke,
   selectLiveStrokeList,
-  selectCursorList,
   selectLaserList,
 } from '../store/annotationStore';
 import type {
   Annotation,
-  LiveCursor,
   LaserPointerState,
   LiveStroke,
 } from '../types/annotation.types';
@@ -42,7 +41,7 @@ interface AnnotationCanvasProps {
  * 1. annotations   — committed, persistent annotations
  * 2. liveStrokes   — remote users' in-progress strokes (no interaction)
  * 3. activeStroke  — current user's in-progress stroke (no interaction)
- * 4. cursors       — remote cursors + laser pointers (no interaction)
+ * 4. lasers        — remote laser pointers (no interaction)
  */
 export const AnnotationCanvas = memo(function AnnotationCanvas({
   slideId,
@@ -52,14 +51,13 @@ export const AnnotationCanvas = memo(function AnnotationCanvas({
   canAnnotate = true,
 }: AnnotationCanvasProps) {
   if (import.meta.env.DEV) {
-    console.count('ANNOTATION_CANVAS_RENDER');
+    recordRenderCount('ANNOTATION_CANVAS_RENDER');
   }
 
   const toolConfig = useAnnotationStore((s) => s.toolConfig);
   const annotations = useAnnotationStore(useShallow(selectAnnotationList));
   const activeStroke = useAnnotationStore(selectActiveStroke);
   const liveStrokes = useAnnotationStore(useShallow(selectLiveStrokeList));
-  const cursors = useAnnotationStore(useShallow(selectCursorList));
   const lasers = useAnnotationStore(useShallow(selectLaserList));
 
   const drawing = useDrawing({ slideId, slideWidth: width, slideHeight: height, sync });
@@ -152,11 +150,8 @@ export const AnnotationCanvas = memo(function AnnotationCanvas({
           )}
         </Layer>
 
-        {/* Layer 4: Cursors + Laser pointers */}
+        {/* Layer 4: Laser pointers */}
         <Layer listening={false}>
-          {cursors.map((cursor) => (
-            <RemoteCursor key={cursor.userId} cursor={cursor} px={px} />
-          ))}
           {lasers.map((laser) => (
             <LaserTrail key={laser.userId} laser={laser} px={px} />
           ))}
@@ -273,37 +268,6 @@ const LiveStrokeShape = memo(function LiveStrokeShape({
     />
   );
 });
-
-// ─────────────────────────────────────────────────────────────────────────────
-// RemoteCursor — shows another user's cursor position
-// ─────────────────────────────────────────────────────────────────────────────
-
-function RemoteCursor({
-  cursor,
-  px,
-}: {
-  cursor: LiveCursor;
-  px: (n: number, axis: 'x' | 'y') => number;
-}) {
-  const x = px(cursor.position.x, 'x');
-  const y = px(cursor.position.y, 'y');
-
-  return (
-    <>
-      <Circle x={x} y={y} radius={5} fill={cursor.color} opacity={0.9} />
-      <Text
-        x={x + 8}
-        y={y - 8}
-        text={cursor.displayName}
-        fontSize={11}
-        fill={cursor.color}
-        fontStyle="600"
-        fontFamily="Inter, system-ui, sans-serif"
-        opacity={0.9}
-      />
-    </>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LaserTrail — fading laser pointer trail

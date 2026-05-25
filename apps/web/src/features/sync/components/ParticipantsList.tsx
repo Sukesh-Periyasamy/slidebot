@@ -1,9 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Circle, Compass } from 'lucide-react';
-import { useShallow } from 'zustand/react/shallow';
+import { Circle, Compass, Loader2, Sparkles } from 'lucide-react';
 
-import { selectMembers, useSyncStore } from '../store/syncStore';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { usePresence } from '@/features/presence/hooks/usePresence';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ParticipantsList — live presence panel showing all room members
@@ -15,7 +14,7 @@ interface ParticipantsListProps {
 
 export function ParticipantsList({ isOpen }: ParticipantsListProps) {
   const user = useAuthStore((s) => s.user);
-  const members = useSyncStore(useShallow(selectMembers));
+  const { participants } = usePresence();
 
   return (
     <AnimatePresence>
@@ -31,14 +30,14 @@ export function ParticipantsList({ isOpen }: ParticipantsListProps) {
           <div className="flex items-center gap-2 px-4 py-3 border-b border-surface-800">
             <span className="text-xs font-semibold text-surface-300">Participants</span>
             <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-500/20 text-[10px] font-medium text-brand-300 px-1.5">
-              {members.length}
+              {participants.length}
             </span>
           </div>
 
           {/* Member list */}
           <ul className="flex-1 overflow-y-auto p-2 space-y-0.5">
             <AnimatePresence initial={false}>
-              {members.map((member) => (
+              {participants.map((member) => (
                 <motion.li
                   key={member.userId}
                   initial={{ opacity: 0, height: 0 }}
@@ -58,7 +57,7 @@ export function ParticipantsList({ isOpen }: ParticipantsListProps) {
                       {/* Connection dot */}
                       <span
                         className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface-900 ${
-                          member.isConnected ? 'bg-emerald-400' : 'bg-surface-600'
+                          member.isOnline ? 'bg-emerald-400' : member.isReconnecting ? 'bg-amber-400 animate-pulse' : 'bg-surface-600'
                         }`}
                       />
                     </div>
@@ -74,20 +73,33 @@ export function ParticipantsList({ isOpen }: ParticipantsListProps) {
                       <p className="text-[10px] text-surface-500 mt-0.5 flex items-center gap-1 leading-none">
                         {member.role === 'presenter' ? (
                           <>
-                            <span className="h-1.5 w-1.5 rounded-full bg-brand-400" />
-                            <span className="text-brand-400 font-medium">Presenting</span>
+                            <Sparkles size={9} className="text-brand-400" />
+                            <span className="text-brand-400 font-medium">Presenter Active</span>
                           </>
-                        ) : member.isExploring ? (
+                        ) : member.isReconnecting ? (
                           <>
-                            <Compass size={9} className="text-amber-400" />
-                            <span className="text-amber-400">Exploring</span>
+                            <Loader2 size={9} className="animate-spin text-amber-400" />
+                            <span className="text-amber-400">Reconnecting</span>
+                          </>
+                        ) : member.isIdle ? (
+                          <>
+                            <Compass size={9} className="text-surface-500" />
+                            <span className="text-surface-500">Idle</span>
+                          </>
+                        ) : member.isSpeaking ? (
+                          <>
+                            <Circle size={8} className="text-cyan-400 fill-cyan-400" />
+                            <span className="text-cyan-400">Active</span>
                           </>
                         ) : (
                           <>
-                            <Circle size={8} className="text-emerald-400 fill-emerald-400" />
-                            <span className="text-emerald-400">Following</span>
+                            <Compass size={9} className="text-emerald-400" />
+                            <span className="text-emerald-400">Online</span>
                           </>
                         )}
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-surface-600">
+                        Last seen {new Date(member.lastSeenAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
                   </div>
@@ -95,7 +107,7 @@ export function ParticipantsList({ isOpen }: ParticipantsListProps) {
               ))}
             </AnimatePresence>
 
-            {members.length === 0 && (
+            {participants.length === 0 && (
               <li className="flex items-center justify-center py-6 text-xs text-surface-600">
                 No participants yet
               </li>

@@ -143,7 +143,7 @@ if (import.meta.env.DEV) {
       (key) => (nextState as unknown as Record<string, unknown>)[key] !== (prevState as unknown as Record<string, unknown>)[key]
     );
     if (changedKeys.length > 0) {
-      console.debug('[store:update]', {
+      logger.debug?.('[store:update]', {
         store: 'viewerStore',
         changedKeys,
       });

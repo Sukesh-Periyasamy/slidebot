@@ -34,7 +34,7 @@ if (!mathWithSumPrecise.sumPrecise) {
 		writable: true,
 		value: (...values: unknown[]) => {
 			const items =
-				values.length === 1 && values[0] != null && typeof (values[0] as object)[Symbol.iterator as keyof object] === 'function'
+				values.length === 1 && values[0] !== null && values[0] !== undefined && typeof (values[0] as object)[Symbol.iterator as keyof object] === 'function'
 					? Array.from(values[0] as Iterable<unknown>)
 					: values;
 

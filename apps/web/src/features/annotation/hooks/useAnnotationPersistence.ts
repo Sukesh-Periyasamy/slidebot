@@ -105,9 +105,11 @@ export function useAnnotationPersistence({
 
     flushingRef.current = false;
 
-    // Schedule another flush if retries remain
+    // Schedule another flush if retries remain (back-off)
     if (queue.size > 0) {
-      scheduleFlush(2000); // Back-off to 2s for retries
+      if (typeof window !== 'undefined') {
+        window.setTimeout(() => void flush(), 2000);
+      }
     }
   }, [sessionId, maxRetries]);
 
@@ -156,10 +158,11 @@ export function useAnnotationPersistence({
   // ── Flush on unmount (don't lose pending saves) ───────────────────────────
 
   useEffect(() => {
+    const currentQueue = saveQueueRef.current;
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
       // Best-effort flush on unmount (fire-and-forget)
-      if (saveQueueRef.current.size > 0) {
+      if (currentQueue.size > 0) {
         void flush();
       }
     };

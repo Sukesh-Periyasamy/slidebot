@@ -10,6 +10,7 @@ import axios, {
 } from 'axios';
 
 import { supabase } from './supabase';
+import { logger } from './logger';
 
 const BASE_URL = (import.meta.env['VITE_API_URL'] as string) ?? 'http://localhost:4000';
 
@@ -26,8 +27,7 @@ if (import.meta.env.DEV) {
     const url = String(config.url ?? '');
     if (url.includes('/rooms')) {
       roomsFetchCount += 1;
-      console.log(`=== rooms request #${roomsFetchCount} ===`, `${config.method?.toUpperCase() ?? 'GET'} ${url}`);
-      console.trace('[apiClient] rooms request stack');
+      logger.debug(`rooms request #${roomsFetchCount}`, `${config.method?.toUpperCase() ?? 'GET'} ${url}`);
     }
 
     return config;

@@ -43,7 +43,7 @@ export function useSyncEngine({
       deckId: deckIdRef.current,
       userId: userIdRef.current,
     });
-  }, []);
+  }, [session, user?.id, roomId, deckId, session?.sessionId]);
 
   useEffect(() => {
     if (totalSlides <= 0) {

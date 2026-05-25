@@ -6,6 +6,7 @@ import { DashboardPage } from '@/features/decks/components/DashboardPage';
 import { RoomPage } from '@/features/room/pages/RoomPage';
 import { selectAuthStatus, selectIsInitialized, useAuthStore } from '@/features/auth/store/authStore';
 import { AppLayout } from '@/shared/layouts/AppLayout';
+import { DebugPage } from '@/features/debug/pages/DebugPage';
 
 function HomeRedirect() {
   const isInitialized = useAuthStore(selectIsInitialized);
@@ -103,6 +104,14 @@ const router = createBrowserRouter([
     path: '/404',
     element: <NotFoundPage />,
   },
+  ...(import.meta.env.DEV
+    ? [
+        {
+          path: '/debug',
+          element: <DebugPage />,
+        },
+      ]
+    : []),
   {
     path: '*',
     element: <Navigate to="/404" replace />,

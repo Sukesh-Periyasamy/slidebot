@@ -5,6 +5,8 @@ import { useViewerStore } from '@/features/viewer/store/viewerStore';
 import { useSyncStore } from '@/features/sync/store/syncStore';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { joinRoom, leaveRoom } from '@/features/decks/api/roomsApi';
+import { presenceManager } from '@/features/presence/lib/presenceManager';
+import { cursorManager } from '@/features/cursors/lib/cursorManager';
 import { heartbeatManager } from './heartbeatManager';
 import { socketManager } from './socketManager';
 import { assertSingleSocketListener } from './socketDebug';
@@ -98,7 +100,7 @@ class SessionManager {
 
   private trace(action: string, details: Record<string, unknown> = {}): void {
     if (!isDev) return;
-    console.debug('[session]', {
+      logger.debug?.('[session]', {
       action,
       state: this.sessionState,
       ...details,
@@ -129,6 +131,8 @@ class SessionManager {
     }
 
     this.started = true;
+    presenceManager.start();
+    cursorManager.start();
 
     this.unsubscribers.push(
       socketManager.onStatusChange((status) => {
@@ -339,6 +343,8 @@ class SessionManager {
     this.shouldRecoverOnConnect = false;
     this.setSessionState('idle');
     clearReconnectState();
+    presenceManager.reset();
+    cursorManager.reset();
     this.queueStoreUpdate(() => useSyncStore.getState().reset());
   }
 
@@ -355,6 +361,8 @@ class SessionManager {
     this.unbindPresenterListeners = null;
     this.boundPresenterSocket = null;
     clearReconnectState();
+    presenceManager.reset();
+    cursorManager.reset();
     this.queueStoreUpdate(() => useSyncStore.getState().reset());
   }
 
@@ -484,7 +492,7 @@ class SessionManager {
     const joinPromise = (async () => {
       await joinRoom(roomId);
       this.joinedRooms.add(roomId);
-      logger.debug('[SessionManager] Room membership ensured', roomId);
+        logger.debug('[SessionManager] Room membership ensured', { roomId });
     })()
       .catch((error) => {
         logger.error('[SessionManager] joinRoom failed', error);
@@ -651,6 +659,7 @@ class SessionManager {
 
     const onParticipantLeft = (payload: { userId: string }) => {
       this.queueStoreUpdate(() => {
+        cursorManager.removeCursor(payload.userId);
         useSyncStore.getState().removeMember(payload.userId);
       });
     };

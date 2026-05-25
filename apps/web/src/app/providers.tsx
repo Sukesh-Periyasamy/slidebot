@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
 import { supabase } from '@/lib/supabase';
+import { recordRenderCount } from '@/features/debug/lib/renderInspector';
 import { selectIsInitialized, useAuthStore } from '@/features/auth/store/authStore';
 import { SessionProvider } from '@/features/collaboration/providers/SessionProvider';
 
@@ -104,7 +105,7 @@ interface AppProvidersProps {
 
 export function AppProviders({ children }: AppProvidersProps) {
   if (import.meta.env.DEV) {
-    console.count('APP_RENDER');
+    recordRenderCount('APP_RENDER');
     (window as typeof window & { __REACT_QUERY_CLIENT__?: QueryClient }).__REACT_QUERY_CLIENT__ =
       queryClient;
   }

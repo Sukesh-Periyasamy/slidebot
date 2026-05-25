@@ -8,6 +8,7 @@
  */
 
 import { memo } from 'react';
+import { recordRenderCount } from '@/features/debug/lib/renderInspector';
 import { useHeartbeatState } from '../hooks/useHeartbeatState';
 import { useSyncStore } from '../store/syncStore';
 
@@ -20,7 +21,7 @@ export const ConnectionHealth = memo(function ConnectionHealth({
   showLatency = true,
 }: ConnectionHealthProps) {
   if (import.meta.env.DEV) {
-    console.count('CONNECTION_HEALTH_RENDER');
+    recordRenderCount('CONNECTION_HEALTH_RENDER');
   }
 
   const connectionStatus = useSyncStore((s) => s.connectionStatus);

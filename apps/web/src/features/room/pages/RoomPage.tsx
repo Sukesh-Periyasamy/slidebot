@@ -21,10 +21,13 @@ import { usePdfLoader } from '@/features/viewer/hooks/usePdfLoader';
 import { useDeckStore } from '@/features/decks/store/deckStore';
 import { getRoomById } from '@/features/decks/api/roomsApi';
 import { sessionManager } from '@/features/collaboration/lib/sessionManager';
+import { CursorOverlay } from '@/features/cursors/components/CursorOverlay';
+import { recordRenderCount } from '@/features/debug/lib/renderInspector';
+import { PresencePills } from '@/features/presence/components/PresencePills';
 
 export function RoomPage() {
   if (import.meta.env.DEV) {
-    console.count('ROOM_PAGE_RENDER');
+    recordRenderCount('ROOM_RENDER');
   }
 
   const disableAnnotationSync = true;
@@ -158,10 +161,19 @@ export function RoomPage() {
         <ThumbnailSidebar />
 
         <main className="flex-1 relative flex flex-col items-center justify-center bg-surface-900 overflow-hidden">
+          <div className="pointer-events-none absolute left-4 top-4 z-20 hidden max-w-[70%] lg:block">
+            <PresencePills />
+          </div>
+
           <SlideCanvas onDimensionsChange={handleDimensionsChange} />
 
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div style={{ width: canvasDims.w, height: canvasDims.h, position: 'relative' }}>
+              <CursorOverlay
+                slideId={`${resolvedDeckId ?? 'deck'}-${currentPage}`}
+                width={canvasDims.w}
+                height={canvasDims.h}
+              />
               <AnnotationCanvas
                 slideId={`${resolvedDeckId ?? 'deck'}-${currentPage}`}
                 width={canvasDims.w}

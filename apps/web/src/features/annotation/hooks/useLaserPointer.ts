@@ -34,10 +34,10 @@ export function useLaserPointer({ slideWidth, slideHeight, sync }: UseLaserPoint
   const isLaserActive = toolConfig.tool === 'laser';
 
   // Normalise pixel → [0-1]
-  const normalise = (x: number, y: number): CursorPosition => ({
+  const normalise = useCallback((x: number, y: number): CursorPosition => ({
     x: x / slideWidth,
     y: y / slideHeight,
-  });
+  }), [slideWidth, slideHeight]);
 
   const startLaser = useCallback(
     (e: KonvaEventObject<PointerEvent>) => {
@@ -62,7 +62,7 @@ export function useLaserPointer({ slideWidth, slideHeight, sync }: UseLaserPoint
         lastSeen: Date.now(),
       });
     },
-    [isLaserActive, user, store, toolConfig.color, slideWidth, slideHeight]
+    [isLaserActive, user, store, toolConfig.color, normalise]
   );
 
   const moveLaser = useCallback(
@@ -90,7 +90,7 @@ export function useLaserPointer({ slideWidth, slideHeight, sync }: UseLaserPoint
       store.updateLaser(user.id, laser);
       sync.emitLaserMove(trailRef.current);
     },
-    [isLaserActive, user, store, toolConfig.color, sync, slideWidth, slideHeight]
+    [isLaserActive, user, store, toolConfig.color, sync, normalise]
   );
 
   const endLaser = useCallback(() => {

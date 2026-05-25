@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
+import { recordRenderCount } from '@/features/debug/lib/renderInspector';
 import { Wifi, WifiOff, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 import { selectConnectionStatus, useSyncStore } from '../store/syncStore';
@@ -57,7 +58,7 @@ const STATUS_CONFIG: Record<
 
 export function ConnectionStatusBar() {
   if (import.meta.env.DEV) {
-    console.count('CONNECTION_STATUS_BAR_RENDER');
+    recordRenderCount('CONNECTION_STATUS_BAR_RENDER');
   }
 
   const status = useSyncStore(selectConnectionStatus);

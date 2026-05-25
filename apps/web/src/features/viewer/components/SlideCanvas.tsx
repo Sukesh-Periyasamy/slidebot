@@ -3,6 +3,7 @@ import { Loader2, AlertTriangle, FileX } from 'lucide-react';
 
 import { usePdfRenderer } from '../hooks/usePdfRenderer';
 import { useViewerStore } from '../store/viewerStore';
+import { recordRenderCount } from '@/features/debug/lib/renderInspector';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SlideCanvas — renders the current PDF page onto a <canvas>
@@ -15,7 +16,7 @@ interface SlideCanvasProps {
 
 export const SlideCanvas = memo(function SlideCanvas({ onDimensionsChange }: SlideCanvasProps) {
   if (import.meta.env.DEV) {
-    console.count('SLIDE_CANVAS_RENDER');
+    recordRenderCount('SLIDE_CANVAS_RENDER');
   }
 
   const canvasRef = useRef<HTMLCanvasElement>(null);

@@ -3,6 +3,7 @@ import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { socketManager } from '@/features/collaboration/lib/socketManager';
 import { assertSingleSocketListener } from '@/features/collaboration/lib/socketDebug';
+import { presenceManager } from '@/features/presence/lib/presenceManager';
 import { logger } from '@/lib/logger';
 import { RealtimeSchemas } from '@slidebot/shared-types';
 import { useAnnotationStore } from '../store/annotationStore';
@@ -71,18 +72,6 @@ export function useAnnotationSync({
   const noopCursorMove = useCallback((_position: CursorPosition) => {}, []);
   const noopLaserMove = useCallback((_trail: CursorPosition[]) => {}, []);
 
-  if (!enabled) {
-    return {
-      emitAnnotationStart: noopStart,
-      emitAnnotationPoints: noopAnnotationPoints,
-      emitAnnotationEnd: noopAnnotationEnd,
-      emitAnnotationDelete: noopDelete,
-      emitCursorMove: noopCursorMove,
-      emitLaserMove: noopLaserMove,
-      emitLaserEnd: noop,
-    };
-  }
-
   useEffect(() => {
     if (!user?.id || !deckId || !slideId || !sessionId || !enabled) {
       return;
@@ -148,26 +137,6 @@ export function useAnnotationSync({
         useAnnotationStore.getState().removeAnnotation(payload.annotationId);
       };
 
-      const onCursorUpdate = (payload: {
-        userId: string;
-        displayName: string;
-        color: string;
-        slideId: string;
-        position: CursorPosition;
-      }) => {
-        if (payload.userId === user.id || payload.slideId !== slideId) {
-          return;
-        }
-
-        useAnnotationStore.getState().updateCursor(payload.userId, {
-          userId: payload.userId,
-          displayName: payload.displayName,
-          color: payload.color,
-          position: payload.position,
-          lastSeen: Date.now(),
-        });
-      };
-
       const onLaserUpdate = (payload: {
         userId: string;
         displayName: string;
@@ -197,13 +166,13 @@ export function useAnnotationSync({
         current.removeCursor(payload.userId);
         current.removeLaser(payload.userId);
         current.removeLiveStroke(payload.userId);
+        presenceManager.setParticipantReconnecting(payload.userId, false);
       };
 
       socket.on('annotation_started', onAnnotationStart);
       socket.on('annotation_drew', onAnnotationDraw);
       socket.on('annotation_ended', onAnnotationEnd);
       socket.on('annotation_deleted', onAnnotationDelete);
-      socket.on('cursor_update', onCursorUpdate);
       socket.on('laser_update', onLaserUpdate);
       socket.on('laser_ended', onLaserEnd);
       socket.on('user_left', onUserLeft);
@@ -211,14 +180,12 @@ export function useAnnotationSync({
       assertSingleSocketListener(socket, 'annotation_started', 'AnnotationSync');
       assertSingleSocketListener(socket, 'annotation_drew', 'AnnotationSync');
       assertSingleSocketListener(socket, 'annotation_ended', 'AnnotationSync');
-      assertSingleSocketListener(socket, 'cursor_update', 'AnnotationSync');
 
       return () => {
         socket.off('annotation_started', onAnnotationStart);
         socket.off('annotation_drew', onAnnotationDraw);
         socket.off('annotation_ended', onAnnotationEnd);
         socket.off('annotation_deleted', onAnnotationDelete);
-        socket.off('cursor_update', onCursorUpdate);
         socket.off('laser_update', onLaserUpdate);
         socket.off('laser_ended', onLaserEnd);
         socket.off('user_left', onUserLeft);
@@ -260,7 +227,7 @@ export function useAnnotationSync({
       statusUnsub?.();
       socketRef.current = null;
     };
-  }, [sessionId, deckId, slideId, user?.id]);
+  }, [sessionId, deckId, slideId, user?.id, enabled]);
 
   useEffect(() => {
     if (!enabled) {
@@ -381,7 +348,7 @@ export function useAnnotationSync({
           return;
         }
         socketRef.current.emit('cursor_move', payload);
-      }, 33),
+      }, 50),
     [enabled, user, deckId, sessionId, slideId]
   );
 
@@ -428,6 +395,18 @@ export function useAnnotationSync({
     }
     socketRef.current.emit('laser_end', payload);
   }, [enabled, sessionId, slideId]);
+
+  if (!enabled) {
+    return {
+      emitAnnotationStart: noopStart,
+      emitAnnotationPoints: noopAnnotationPoints,
+      emitAnnotationEnd: noopAnnotationEnd,
+      emitAnnotationDelete: noopDelete,
+      emitCursorMove: noopCursorMove,
+      emitLaserMove: noopLaserMove,
+      emitLaserEnd: noop,
+    };
+  }
 
   return {
     emitAnnotationStart,
