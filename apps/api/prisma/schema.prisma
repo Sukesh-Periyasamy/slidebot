@@ -64,6 +64,12 @@ model User {
   sessions       PresentationSession[] @relation("SessionPresenter")
   presentedRooms Room[]               @relation("RoomPresenter")
   roomParticipants  RoomParticipant[]
+  
+  ownedWorkspaces   Workspace[]       @relation("WorkspaceOwner")
+  workspaceMembers  WorkspaceMember[]
+  profile           UserProfile?
+  settings          UserSettings?
+  notifications     Notification[]
 
   @@map("users")
 }
@@ -71,6 +77,7 @@ model User {
 model Deck {
   id          String   @id @default(cuid())
   ownerId     String
+  workspaceId String?
   name        String
   storagePath String   @default("")
   slides      Int      @default(1)
@@ -80,12 +87,14 @@ model Deck {
 
   // Relations
   owner         User                  @relation(fields: [ownerId], references: [id])
+  workspace     Workspace?            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   rooms         Room[]
   slideEntities Slide[]
   collaborators DeckCollaborator[]
   sessions      PresentationSession[]
 
   @@index([ownerId])
+  @@index([workspaceId])
   @@map("decks")
 }
 
@@ -220,4 +229,73 @@ model PresentationSession {
 
   @@index([deckId])
   @@map("presentation_sessions")
+}
+
+model Workspace {
+  id          String   @id @default(uuid())
+  name        String
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner       User              @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  members     WorkspaceMember[]
+  decks       Deck[]
+
+  @@index([ownerId])
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  workspaceId String
+  userId      String
+  role        String   @default("member")
+  joinedAt    DateTime @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, userId])
+  @@index([userId])
+  @@map("workspace_members")
+}
+
+model UserProfile {
+  userId      String   @id
+  bio         String?
+  avatarUrl   String?  @map("avatar_url")
+  statusText  String?  @map("status_text")
+  statusIcon  String?  @map("status_icon")
+  isOnline    Boolean  @default(false) @map("is_online")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model UserSettings {
+  userId      String   @id
+  payload     Json     @default("{}")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  type        String
+  title       String
+  body        String?
+  actionUrl   String?  @map("action_url")
+  isRead      Boolean  @default(false) @map("is_read")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@map("notifications")
 }
