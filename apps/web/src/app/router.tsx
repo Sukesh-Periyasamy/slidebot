@@ -4,6 +4,8 @@ import { AuthGuard } from '@/features/auth/components/AuthGuard';
 import { LoginPage, AuthCallbackPage } from '@/features/auth/components/LoginPage';
 import { DashboardPage } from '@/features/decks/components/DashboardPage';
 import { RoomPage } from '@/features/room/pages/RoomPage';
+import { ExportPage } from '@/features/room/pages/ExportPage';
+import { PlaybackPage } from '@/features/room/pages/PlaybackPage';
 import { selectAuthStatus, selectIsInitialized, useAuthStore } from '@/features/auth/store/authStore';
 import { AppLayout } from '@/shared/layouts/AppLayout';
 import { DebugPage } from '@/features/debug/pages/DebugPage';
@@ -100,8 +102,23 @@ const router = createBrowserRouter([
       </AuthGuard>
     ),
   },
-
-  // ── Catch-all ───────────────────────────────────────────────────────────
+  {
+    path: '/room/:roomId/export',
+    element: (
+      <AuthGuard>
+        <ExportPage />
+      </AuthGuard>
+    ),
+  },
+  {
+    path: '/playback',
+    element: (
+      <AuthGuard>
+        <PlaybackPage />
+      </AuthGuard>
+    ),
+  },
+  // ── Debug / Dev Routes ───────────────────────────────────────────────────────────
   {
     path: '/404',
     element: <NotFoundPage />,

@@ -1,9 +1,11 @@
 import { memo, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Share2, Check, Copy } from 'lucide-react';
-import { useState } from 'react';
+import { X, Share2, Check, Copy, Download, FileText, Database, Video } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
 
 import { useSyncStore } from '@/features/sync/store/syncStore';
+import { useAuthStore } from '@/features/auth/store/authStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RoomHeader — slim top bar: room name, session ID, share button
@@ -27,6 +29,19 @@ export const RoomHeader = memo(function RoomHeader({
   const session = useSyncStore((s) => s.session);
   const status = useSyncStore((s) => s.connectionStatus);
   const [copied, setCopied] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const exportRef = useRef<HTMLDivElement>(null);
+  const { roomId } = useParams<{ roomId: string }>();
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportRef.current && !exportRef.current.contains(event.target as Node)) {
+        setExportOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleCopyLink = async () => {
     try {
@@ -65,6 +80,65 @@ export const RoomHeader = memo(function RoomHeader({
 
       {/* Right — actions */}
       <div className="flex items-center gap-1.5">
+        
+        {/* Export Menu */}
+        <div className="relative" ref={exportRef}>
+          <button
+            onClick={() => setExportOpen(!exportOpen)}
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-surface-400 hover:bg-surface-800 hover:text-surface-200 transition-all"
+            title="Export session"
+          >
+            <Download size={14} />
+            <span className="hidden sm:inline">Export</span>
+          </button>
+          
+          <AnimatePresence>
+            {exportOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+                className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-surface-700 bg-surface-900 p-1 shadow-xl z-50"
+              >
+                <Link
+                  to={`/room/${roomId}/export`}
+                  target="_blank"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-xs font-medium text-surface-200 hover:bg-surface-800 hover:text-white"
+                  onClick={() => setExportOpen(false)}
+                >
+                  <FileText size={14} className="text-surface-400" />
+                  PDF / Print
+                </Link>
+                <button
+                  onClick={async () => {
+                    setExportOpen(false);
+                    const token = useAuthStore.getState().session?.access_token;
+                    const url = `${import.meta.env.VITE_API_URL}/rooms/${roomId}/snapshot?token=${token}`;
+                    window.open(url, '_blank');
+                  }}
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-xs font-medium text-surface-200 hover:bg-surface-800 hover:text-white"
+                >
+                  <Database size={14} className="text-surface-400" />
+                  Room Snapshot
+                </button>
+                <button
+                  onClick={async () => {
+                    setExportOpen(false);
+                    const token = useAuthStore.getState().session?.access_token;
+                    const url = `${import.meta.env.VITE_API_URL}/rooms/${roomId}/replay?token=${token}`;
+                    window.open(url, '_blank');
+                  }}
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-xs font-medium text-surface-200 hover:bg-surface-800 hover:text-white"
+                >
+                  <Video size={14} className="text-surface-400" />
+                  Replay Data
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
         {/* Share button */}
         <button
           onClick={handleCopyLink}

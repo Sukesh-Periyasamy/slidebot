@@ -4,6 +4,7 @@ import { prisma } from '../../config/database';
 import { env } from '../../config/env';
 import { supabaseAdmin } from '../../config/supabase';
 import { authenticate } from '../../middleware/authenticate';
+import { roomManager } from '../../socket/room-manager';
 
 const router: ExpressRouter = Router();
 
@@ -266,6 +267,104 @@ router.post('/:id/leave', authenticate, async (req, res) => {
   });
 
   res.json({ data: { ok: true } });
+});
+
+router.get('/:id/snapshot', authenticate, async (req, res) => {
+  const roomId = readParam(req.params['id']);
+  const userId = req.user?.id;
+  if (!roomId || !userId) {
+    res.status(400).json({ error: 'Invalid snapshot request' });
+    return;
+  }
+
+  const room = await prisma.room.findUnique({
+    where: { id: roomId },
+    include: {
+      deck: {
+        include: {
+          slideEntities: {
+            include: {
+              annotations: {
+                where: { deletedAt: null, isEphemeral: false },
+              }
+            }
+          }
+        }
+      },
+      participants: true
+    }
+  });
+
+  if (!room) {
+    res.status(404).json({ error: 'Room not found' });
+    return;
+  }
+
+  const isParticipant = room.participants.some((p) => p.userId === userId);
+  const isDeckOwner = room.deck.ownerId === userId;
+  if (!isParticipant && !isDeckOwner) {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="room-${roomId}-snapshot.json"`);
+  res.send(JSON.stringify(room, null, 2));
+});
+
+router.get('/:id/replay', authenticate, async (req, res) => {
+  const roomId = readParam(req.params['id']);
+  const userId = req.user?.id;
+  if (!roomId || !userId) {
+    res.status(400).json({ error: 'Invalid replay request' });
+    return;
+  }
+
+  const room = await prisma.room.findUnique({
+    where: { id: roomId },
+    include: {
+      deck: {
+        include: { slideEntities: true }
+      },
+      participants: true
+    }
+  });
+
+  if (!room) {
+    res.status(404).json({ error: 'Room not found' });
+    return;
+  }
+
+  const isParticipant = room.participants.some((p) => p.userId === userId);
+  const isDeckOwner = room.deck.ownerId === userId;
+  if (!isParticipant && !isDeckOwner) {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+
+  const allEvents: any[] = [];
+  
+  for (const slide of room.deck.slideEntities) {
+    const slideReplay = await roomManager.getReplayEvents(room.deckId, slide.id);
+    if (slideReplay.length > 0) {
+      allEvents.push({
+        slideId: slide.id,
+        events: slideReplay
+      });
+    }
+  }
+
+  const replayExport = {
+    version: 1,
+    roomId,
+    deckId: room.deckId,
+    exportedAt: new Date().toISOString(),
+    slides: allEvents
+  };
+
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="room-${roomId}.slidereplay"`);
+  res.send(JSON.stringify(replayExport, null, 2));
 });
 
 export { router as roomsRouter };
