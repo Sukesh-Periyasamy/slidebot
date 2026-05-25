@@ -35,10 +35,6 @@ export function useSyncEngine({
   userIdRef.current = user?.id ?? '';
 
   useEffect(() => {
-    sessionManager.start();
-  }, []);
-
-  useEffect(() => {
     if (initializedRef.current) return;
     if (!userIdRef.current || !roomIdRef.current || !deckIdRef.current) return;
     initializedRef.current = true;
@@ -63,7 +59,7 @@ export function useSyncEngine({
     }
 
     onSlideChange(session.currentSlide);
-  }, [session, session?.currentSlide, onSlideChange]);
+  }, [session?.currentSlide, onSlideChange]);
 
   useEffect(() => {
     if (!onSessionEnd) {
