@@ -9,6 +9,7 @@ import { AppLayout } from '@/shared/layouts/AppLayout';
 import { DebugPage } from '@/features/debug/pages/DebugPage';
 import { RealtimeDebugPage } from '@/features/debug/pages/RealtimeDebugPage';
 import { SettingsPage } from '@/features/settings/pages/SettingsPage';
+import { AccountPage } from '@/features/account/pages/AccountPage';
 
 function HomeRedirect() {
   const isInitialized = useAuthStore(selectIsInitialized);
@@ -76,6 +77,10 @@ const router = createBrowserRouter([
       {
         path: '/dashboard',
         element: <DashboardPage />,
+      },
+      {
+        path: '/account',
+        element: <AccountPage />,
       },
       {
         path: '/settings',

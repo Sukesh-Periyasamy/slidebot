@@ -5,6 +5,7 @@ import { FileUp, PlusCircle, Loader2, AlertCircle, ArrowRight } from 'lucide-rea
 import { useDeckUpload } from '../hooks/useDeckUpload';
 import { listRecentRooms } from '../api/roomsApi';
 import type { RoomListItem } from '../types/room';
+import { Button } from '@/shared/components/Button';
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -106,14 +107,15 @@ export function DashboardPage() {
           <ul className="mt-3 space-y-2">
             {rooms.map((room) => (
               <li key={room.roomId}>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/room/${room.roomId}`)}
-                  className="flex w-full items-center justify-between rounded-lg border border-surface-800 bg-surface-950/40 px-3 py-2 text-left text-xs hover:border-brand-500/40"
-                >
-                  <span className="truncate text-surface-200">{room.deck.name}</span>
-                  <span className="ml-4 text-surface-500">{room.status}</span>
-                </button>
+                  <div className="flex w-full items-center justify-between rounded-lg border border-surface-800 bg-surface-950/40 px-3 py-2 text-left text-sm hover:border-brand-500/40 transition-colors">
+                    <span className="truncate font-medium text-surface-200">{room.deck.name}</span>
+                    <div className="flex items-center gap-4">
+                      <span className="text-xs text-surface-500 capitalize">{room.status}</span>
+                      <Button size="sm" variant="secondary" onClick={() => navigate(`/room/${room.roomId}`)}>
+                        Join
+                      </Button>
+                    </div>
+                  </div>
               </li>
             ))}
           </ul>

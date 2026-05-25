@@ -4,7 +4,7 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 let timeoutId: number | null = null;
 
 async function syncSettingsToServer(settings: SlideBotSettings) {
-  const token = useAuthStore.getState().token;
+  const token = useAuthStore.getState().session?.access_token;
   if (!token) return;
 
   try {

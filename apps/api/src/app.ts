@@ -16,6 +16,7 @@ import { collaboratorsRouter } from './modules/collaborators/collaborators.route
 import { annotationsRouter } from './modules/annotations/annotations.router';
 import { opsRouter } from './modules/ops/ops.router';
 import { usersRouter } from './modules/users/users.router';
+import { workspacesRouter } from './modules/workspaces/workspaces.router';
 
 /**
  * Create and configure the Express application.
@@ -108,6 +109,7 @@ export function createApp(): Application {
   app.use('/api/v1/decks/:deckId/collaborators', collaboratorsRouter);
   app.use('/api/v1/annotations', annotationsRouter);
   app.use('/api/v1/users', usersRouter);
+  app.use('/api/v1/workspaces', workspacesRouter);
   
   app.use('/debug/ops', opsRouter);
 

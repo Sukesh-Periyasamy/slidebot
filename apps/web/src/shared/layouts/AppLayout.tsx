@@ -3,6 +3,9 @@ import { motion } from 'framer-motion';
 import { LayoutDashboard, Settings, LogOut, Presentation, ChevronRight } from 'lucide-react';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useWorkspaceStore } from '@/features/workspaces/store/workspaceStore';
+import { listWorkspaces } from '@/features/workspaces/api/workspaceApi';
+import { useEffect } from 'react';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AppLayout — sidebar + main content area for protected pages
@@ -25,6 +28,7 @@ export function AppLayout() {
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/account', icon: Settings, label: 'Account' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
@@ -36,6 +40,25 @@ function Sidebar() {
     await signOut();
     navigate('/login', { replace: true });
   };
+
+  const { workspaces, activeWorkspaceId, setWorkspaces, setActiveWorkspace, setLoading } = useWorkspaceStore();
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadWorkspaces() {
+      try {
+        const data = await listWorkspaces();
+        if (!cancelled) {
+          setWorkspaces(data);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Failed to load workspaces:', err);
+      }
+    }
+    loadWorkspaces();
+    return () => { cancelled = true; };
+  }, [setWorkspaces, setLoading]);
 
   return (
     <motion.aside
@@ -53,6 +76,26 @@ function Sidebar() {
         <span className="ml-auto text-[10px] font-medium bg-brand-500/20 text-brand-300 px-1.5 py-0.5 rounded-full">
           Beta
         </span>
+      </div>
+
+      {/* Workspace Switcher */}
+      <div className="px-3 pt-3 pb-2 border-b border-surface-800/50">
+        <div className="relative">
+          <select 
+            value={activeWorkspaceId || ''}
+            onChange={(e) => setActiveWorkspace(e.target.value)}
+            className="w-full bg-surface-800 border border-surface-700 text-surface-200 text-sm rounded-lg px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-brand-500"
+          >
+            {workspaces.map(ws => (
+              <option key={ws.id} value={ws.id}>{ws.name}</option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-surface-400">
+            <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
+              <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+            </svg>
+          </div>
+        </div>
       </div>
 
       {/* Navigation */}
