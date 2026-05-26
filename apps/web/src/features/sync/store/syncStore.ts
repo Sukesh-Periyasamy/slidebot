@@ -133,6 +133,7 @@ export const useSyncStore = create<SyncState>()(
         // ── Connection ────────────────────────────────────────────────────
         setConnectionStatus: (connectionStatus) =>
           set((s) => {
+            if (s.connectionStatus === connectionStatus) return;
             s.connectionStatus = connectionStatus;
             if (connectionStatus === 'connected') {
               s.lastConnectedAt = Date.now();
@@ -142,6 +143,7 @@ export const useSyncStore = create<SyncState>()(
 
         setReconnectAttempts: (reconnectAttempts) =>
           set((s) => {
+            if (s.reconnectAttempts === reconnectAttempts) return;
             s.reconnectAttempts = reconnectAttempts;
           }),
 
@@ -209,11 +211,13 @@ export const useSyncStore = create<SyncState>()(
         // ── Own state ─────────────────────────────────────────────────────
         setIsPresenter: (isPresenter) =>
           set((s) => {
+            if (s.isPresenter === isPresenter) return;
             s.isPresenter = isPresenter;
           }),
 
         setIsExploring: (isExploring) =>
           set((s) => {
+            if (s.isExploring === isExploring) return;
             s.isExploring = isExploring;
           }),
 
@@ -247,6 +251,7 @@ export const useSyncStore = create<SyncState>()(
 
         setPresenterDisconnected: (presenterDisconnected) =>
           set((s) => {
+            if (s.presenterDisconnected === presenterDisconnected) return;
             s.presenterDisconnected = presenterDisconnected;
             s.presenterDisconnectedAt = presenterDisconnected ? Date.now() : null;
           }),

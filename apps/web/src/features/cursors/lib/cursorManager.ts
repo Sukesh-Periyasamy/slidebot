@@ -113,6 +113,20 @@ class CursorManager {
       presenceManager.setParticipantReconnecting(payload.userId, false);
     };
 
+    // Ensure no duplicate listeners are present (can happen during dev hot-reloads
+    // or React strict-mode double mounts). Clear existing listeners for these
+    // events before attaching to guarantee a single listener.
+    // Attempt targeted removal of listeners owned by this module before
+    // attaching. This avoids removing listeners owned by other systems
+    // while ensuring we don't attach duplicates during hot-reloads.
+    try {
+      socket.off('cursor_update', onCursorUpdate);
+      socket.off('participant:left', onParticipantLeft);
+      socket.off('participant:reconnected', onParticipantReconnected);
+    } catch (err) {
+      // Ignore non-fatal errors from socket implementations.
+    }
+
     socket.on('cursor_update', onCursorUpdate);
     socket.on('participant:left', onParticipantLeft);
     socket.on('participant:reconnected', onParticipantReconnected);
