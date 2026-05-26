@@ -24,7 +24,8 @@ interface UseLaserPointerOptions {
  */
 export function useLaserPointer({ slideWidth, slideHeight, sync }: UseLaserPointerOptions) {
   const user = useAuthStore((s) => s.user);
-  const store = useAnnotationStore();
+  const updateLaser = useAnnotationStore((s) => s.updateLaser);
+  const removeLaser = useAnnotationStore((s) => s.removeLaser);
   const toolConfig = useAnnotationStore((s) => s.toolConfig);
 
   const trailRef = useRef<CursorPosition[]>([]);
@@ -54,7 +55,7 @@ export function useLaserPointer({ slideWidth, slideHeight, sync }: UseLaserPoint
       trailRef.current = [norm];
 
       // Update local store (for self-preview)
-      store.updateLaser(user.id, {
+      updateLaser(user.id, {
         userId: user.id,
         displayName: user.displayName,
         color: toolConfig.color,
@@ -62,7 +63,7 @@ export function useLaserPointer({ slideWidth, slideHeight, sync }: UseLaserPoint
         lastSeen: Date.now(),
       });
     },
-    [isLaserActive, user, store, toolConfig.color, normalise]
+    [isLaserActive, user, updateLaser, toolConfig.color, normalise]
   );
 
   const moveLaser = useCallback(
@@ -87,10 +88,10 @@ export function useLaserPointer({ slideWidth, slideHeight, sync }: UseLaserPoint
         lastSeen: Date.now(),
       };
 
-      store.updateLaser(user.id, laser);
+      updateLaser(user.id, laser);
       sync.emitLaserMove(trailRef.current);
     },
-    [isLaserActive, user, store, toolConfig.color, sync, normalise]
+    [isLaserActive, user, updateLaser, toolConfig.color, sync, normalise]
   );
 
   const endLaser = useCallback(() => {
@@ -100,11 +101,11 @@ export function useLaserPointer({ slideWidth, slideHeight, sync }: UseLaserPoint
     // Fade trail out
     if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
     fadeTimerRef.current = setTimeout(() => {
-      store.removeLaser(user.id);
+      removeLaser(user.id);
       trailRef.current = [];
       sync.emitLaserEnd();
     }, LASER_FADE_MS);
-  }, [user, store, sync]);
+  }, [user, removeLaser, sync]);
 
   // Cleanup fade timer on unmount
   useEffect(() => {
