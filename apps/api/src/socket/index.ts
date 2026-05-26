@@ -48,8 +48,29 @@ export function initializeSocket(
   // ── Redis adapter (required for multi-instance scaling) ───────────────────
   const pubClient = getRedisClient();
   const subClient = pubClient.duplicate();
-  io.adapter(createAdapter(pubClient, subClient));
-  logger.info('Socket.IO Redis adapter configured');
+  
+  // Redis outage fallback mode
+  let isRedisHealthy = true;
+  const setRedisAdapter = () => io.adapter(createAdapter(pubClient, subClient));
+  
+  pubClient.on('error', (err) => {
+    if (isRedisHealthy) {
+      logger.error({ err }, 'Redis pub client error, falling back to memory adapter');
+      isRedisHealthy = false;
+      io.adapter(); // Reverts to the default memory adapter
+    }
+  });
+
+  pubClient.on('ready', () => {
+    if (!isRedisHealthy) {
+      logger.info('Redis recovered, restoring Redis adapter');
+      isRedisHealthy = true;
+      setRedisAdapter();
+    }
+  });
+
+  setRedisAdapter();
+  logger.info('Socket.IO Redis adapter configured with fallback');
 
   // ── Global middleware ─────────────────────────────────────────────────────
   io.use(socketAuthMiddleware);

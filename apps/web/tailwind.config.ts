@@ -91,6 +91,19 @@ export default {
       borderRadius: {
         DEFAULT: '0.5rem',
       },
+      spacing: {
+        'density-base': 'var(--spacing-base)',
+        'density-card': 'var(--card-padding)',
+      },
+      height: {
+        'toolbar': 'var(--toolbar-height)',
+      },
+      width: {
+        'toolbar': 'var(--toolbar-height)',
+      },
+      fontSize: {
+        'density-base': 'var(--font-size-base)',
+      }
     },
   },
   plugins: [],

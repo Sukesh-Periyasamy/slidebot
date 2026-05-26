@@ -72,6 +72,12 @@ export interface ClientToServerEvents {
   /** Clear all annotations on a slide */
   annotation_clear: (payload: { slideId: string }) => void;
 
+  /** Check replay sequence integrity */
+  replay_integrity_check: (
+    payload: { deckId: string; slideId: string; localEventCount: number; checksum?: string },
+    ack?: (response: { ok: boolean; match?: boolean; serverEventCount?: number; error?: string }) => void
+  ) => void;
+
   /**
    * New unified annotation event channel.
    * Uses the full AnnotationEvent envelope (validated on server ingress).
@@ -92,6 +98,12 @@ export interface ClientToServerEvents {
   presenter_end: (payload: { sessionId: string }) => void;
   /** Send a live reaction */
   reaction_send: (payload: ReactionPayload) => void;
+  /** Raise hand */
+  hand_raise: (payload: { sessionId: string }) => void;
+  /** Lower hand */
+  hand_lower: (payload: { sessionId: string; targetUserId?: string }) => void;
+  /** Create a comment */
+  comment_create: (payload: CommentCreatePayload) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -139,7 +151,13 @@ export interface ServerToClientEvents {
   /** Session ended */
   presenter_ended: (payload: { sessionId: string }) => void;
   /** Reaction received */
-  reaction_received: (payload: ReactionPayload & { userId: string; timestamp: string }) => void;
+  reaction_received: (payload: ReactionPayload & { userId: string; displayName: string; timestamp: string }) => void;
+  /** A user raised their hand */
+  hand_raised: (payload: { userId: string; timestamp: string }) => void;
+  /** A user's hand was lowered */
+  hand_lowered: (payload: { userId: string }) => void;
+  /** A comment was created */
+  comment_created: (payload: CommentCreatedPayload) => void;
 
   // ── System ─────────────────────────────────────────────────────────────────
   /** Typed error from server */
@@ -215,6 +233,26 @@ export interface PresenterJoinPayload {
 export interface ReactionPayload {
   sessionId: string;
   emoji: string;
+}
+
+export interface CommentCreatePayload {
+  sessionId: string;
+  slideId: string;
+  text: string;
+  positionX?: number;
+  positionY?: number;
+}
+
+export interface CommentCreatedPayload {
+  id: string;
+  sessionId: string;
+  slideId: string;
+  userId: string;
+  displayName: string;
+  text: string;
+  positionX?: number | null;
+  positionY?: number | null;
+  createdAt: string;
 }
 
 export interface SocketError {

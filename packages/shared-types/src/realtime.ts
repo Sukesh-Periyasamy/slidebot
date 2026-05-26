@@ -53,6 +53,17 @@ export const REALTIME_EVENTS = {
   USER_LEFT: 'user_left',
   USER_JOINED: 'user_joined',
 
+  REACTION_SEND: 'reaction:send',
+  REACTION_RECEIVED: 'reaction:received',
+
+  HAND_RAISE: 'hand:raise',
+  HAND_LOWER: 'hand:lower',
+  HAND_RAISED: 'hand:raised',
+  HAND_LOWERED: 'hand:lowered',
+
+  COMMENT_CREATE: 'comment:create',
+  COMMENT_CREATED: 'comment:created',
+
   APP_PING: 'app:ping',
   APP_PONG: 'app:pong',
 } as const;
@@ -162,6 +173,54 @@ export const AnnotationClearSchema = z.object({
   slideId: IdSchema,
 });
 
+export const UserJoinedSchema = z.object({
+  user: z.any(), // Assuming SessionMemberSchema exists elsewhere or placeholder
+});
+
+export const ReactionSendSchema = z.object({
+  roomId: IdSchema,
+  emoji: z.string().min(1).max(10),
+});
+
+export const ReactionReceivedSchema = z.object({
+  userId: IdSchema,
+  displayName: z.string(),
+  emoji: z.string(),
+});
+
+export const HandRaiseSchema = z.object({
+  roomId: IdSchema,
+});
+
+export const HandLowerSchema = z.object({
+  roomId: IdSchema,
+  targetUserId: IdSchema.optional(),
+});
+
+export const HandEventSchema = z.object({
+  userId: IdSchema,
+});
+
+export const CommentCreateSchema = z.object({
+  roomId: IdSchema,
+  slideId: IdSchema,
+  text: z.string().min(1).max(500),
+  positionX: z.number().finite().optional(),
+  positionY: z.number().finite().optional(),
+});
+
+export const CommentCreatedSchema = z.object({
+  id: IdSchema,
+  roomId: IdSchema,
+  slideId: IdSchema,
+  userId: IdSchema,
+  displayName: z.string(),
+  text: z.string(),
+  positionX: z.number().nullable().optional(),
+  positionY: z.number().nullable().optional(),
+  createdAt: z.string(),
+});
+
 export const AppPingSchema = z.object({
   ts: z.number().int().positive(),
 });
@@ -184,6 +243,10 @@ export const RealtimeSchemas = {
   annotationEvent: AnnotationEventSchema,
   annotationDelete: AnnotationDeleteSchema,
   annotationClear: AnnotationClearSchema,
+  reactionSend: ReactionSendSchema,
+  handRaise: HandRaiseSchema,
+  handLower: HandLowerSchema,
+  commentCreate: CommentCreateSchema,
   replayRecord: ReplayRecordSchema,
   appPing: AppPingSchema,
 } as const;

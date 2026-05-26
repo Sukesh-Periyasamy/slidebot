@@ -1,6 +1,6 @@
-import { useRef, useCallback, useEffect, memo } from 'react';
+import { useRef, useCallback, useEffect, memo, useState } from 'react';
 import { recordRenderCount } from '@/features/debug/lib/renderInspector';
-import { Stage, Layer, Line, Circle, Text, Arrow, Rect } from 'react-konva';
+import { Stage, Layer, Line, Circle, Text, Arrow, Rect, Group } from 'react-konva';
 import { useShallow } from 'zustand/react/shallow';
 
 import {
@@ -10,6 +10,7 @@ import {
   selectLiveStrokeList,
   selectLaserList,
 } from '../store/annotationStore';
+import { useSettingsStore } from '@/features/settings/store/settingsStore';
 import type {
   Annotation,
   LaserPointerState,
@@ -59,6 +60,11 @@ export const AnnotationCanvas = memo(function AnnotationCanvas({
   const activeStroke = useAnnotationStore(selectActiveStroke);
   const liveStrokes = useAnnotationStore(useShallow(selectLiveStrokeList));
   const lasers = useAnnotationStore(useShallow(selectLaserList));
+  const [hoveredAnnotation, setHoveredAnnotation] = useState<{ id: string, userId: string, displayName?: string, x: number, y: number } | null>(null);
+
+  const { showCursors, showParticipantActivity, annotationSmoothing, cursorAnimation } = useSettingsStore(
+    (s) => s.settings
+  );
 
   const drawing = useDrawing({ slideId, slideWidth: width, slideHeight: height, sync });
   const laser = useLaserPointer({ slideWidth: width, slideHeight: height, sync });
@@ -144,16 +150,25 @@ export const AnnotationCanvas = memo(function AnnotationCanvas({
         {/* Layer 1: Committed annotations */}
         <Layer>
           {annotations.map((ann) => (
-            <AnnotationShape key={ann.id} annotation={ann} pxArr={pxArr} px={px} />
+            <AnnotationShape 
+              key={ann.id} 
+              annotation={ann} 
+              pxArr={pxArr} 
+              px={px} 
+              onHover={(x, y) => setHoveredAnnotation({ id: ann.id, userId: ann.userId, displayName: ann.displayName, x, y })}
+              onUnhover={() => setHoveredAnnotation(null)}
+            />
           ))}
         </Layer>
 
         {/* Layer 2: Remote live strokes */}
-        <Layer listening={false}>
-          {liveStrokes.map((stroke) => (
-            <LiveStrokeShape key={stroke.userId} stroke={stroke} pxArr={pxArr} />
-          ))}
-        </Layer>
+        {showParticipantActivity && (
+          <Layer listening={false}>
+            {liveStrokes.map((stroke) => (
+              <LiveStrokeShape key={stroke.userId} stroke={stroke} pxArr={pxArr} smoothing={annotationSmoothing} />
+            ))}
+          </Layer>
+        )}
 
         {/* Layer 3: Local active stroke */}
         <Layer listening={false}>
@@ -164,7 +179,7 @@ export const AnnotationCanvas = memo(function AnnotationCanvas({
               stroke={activeStroke.color}
               strokeWidth={activeStroke.strokeWidth}
               opacity={activeStroke.opacity}
-              tension={0.4}
+              tension={annotationSmoothing ? 0.4 : 0}
               lineCap="round"
               lineJoin="round"
               perfectDrawEnabled={false}
@@ -174,9 +189,30 @@ export const AnnotationCanvas = memo(function AnnotationCanvas({
 
         {/* Layer 4: Laser pointers */}
         <Layer listening={false}>
-          {lasers.map((laser) => (
-            <LaserTrail key={laser.userId} laser={laser} px={px} />
+          {showCursors && lasers.map((laser) => (
+            <LaserTrail key={laser.userId} laser={laser} px={px} animated={cursorAnimation} />
           ))}
+          {/* Tooltip for annotation hover */}
+          {hoveredAnnotation && (
+            <Group x={hoveredAnnotation.x + 10} y={hoveredAnnotation.y + 10}>
+              <Rect
+                x={0}
+                y={0}
+                width={80} // Approx, could be dynamic
+                height={24}
+                fill="#1f2937"
+                cornerRadius={4}
+                opacity={0.85}
+              />
+              <Text
+                x={8}
+                y={6}
+                text={hoveredAnnotation.displayName || hoveredAnnotation.userId.substring(0, 8)}
+                fontSize={12}
+                fill="#f9fafb"
+              />
+            </Group>
+          )}
         </Layer>
       </Stage>
     </div>
@@ -191,12 +227,23 @@ const AnnotationShape = memo(function AnnotationShape({
   annotation: ann,
   pxArr,
   px,
+  onHover,
+  onUnhover,
 }: {
   annotation: Annotation;
   pxArr: (pts: number[]) => number[];
   px: (n: number, axis: 'x' | 'y') => number;
+  onHover: (x: number, y: number) => void;
+  onUnhover: () => void;
+  smoothing?: boolean;
 }) {
   const { data, color, strokeWidth, opacity } = ann;
+  const smoothing = useSettingsStore((s) => s.settings.annotationSmoothing);
+
+  const handleMouseEnter = (e: any) => {
+    const pos = e.target.getStage()?.getPointerPosition();
+    if (pos) onHover(pos.x, pos.y);
+  };
 
   switch (data.tool) {
     case 'freehand':
@@ -204,13 +251,16 @@ const AnnotationShape = memo(function AnnotationShape({
         <Line
           points={pxArr(data.points)}
           stroke={color}
-          strokeWidth={strokeWidth}
+          strokeWidth={Math.max(strokeWidth, 8)} // Thicker hit area
           opacity={opacity}
-          tension={0.4}
+          tension={smoothing ? 0.4 : 0}
           lineCap="round"
           lineJoin="round"
           perfectDrawEnabled={false}
           shadowEnabled={false}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={onUnhover}
+          hitStrokeWidth={12} // Generous hit area
         />
       );
 
@@ -224,6 +274,8 @@ const AnnotationShape = memo(function AnnotationShape({
           fill={color}
           opacity={0.3}
           shadowEnabled={false}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={onUnhover}
         />
       );
 
@@ -238,11 +290,14 @@ const AnnotationShape = memo(function AnnotationShape({
           ]}
           stroke={color}
           fill={color}
-          strokeWidth={strokeWidth}
+          strokeWidth={Math.max(strokeWidth, 8)}
           opacity={opacity}
           pointerLength={10}
           pointerWidth={8}
           shadowEnabled={false}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={onUnhover}
+          hitStrokeWidth={12}
         />
       );
 
@@ -252,9 +307,12 @@ const AnnotationShape = memo(function AnnotationShape({
           x={px(data.x, 'x')}
           y={px(data.y, 'y')}
           text={data.content}
-          fontSize={px(data.fontSize, 'y')}
           fill={color}
+          fontSize={px(data.fontSize, 'y')}
           opacity={opacity}
+          shadowEnabled={false}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={onUnhover}
           fontFamily="Inter, system-ui, sans-serif"
         />
       );
@@ -271,9 +329,11 @@ const AnnotationShape = memo(function AnnotationShape({
 const LiveStrokeShape = memo(function LiveStrokeShape({
   stroke,
   pxArr,
+  smoothing,
 }: {
   stroke: LiveStroke;
   pxArr: (pts: number[]) => number[];
+  smoothing: boolean;
 }) {
   if (stroke.tool !== 'freehand' || stroke.points.length < 2) return null;
   return (
@@ -282,7 +342,7 @@ const LiveStrokeShape = memo(function LiveStrokeShape({
       stroke={stroke.color}
       strokeWidth={stroke.strokeWidth}
       opacity={stroke.opacity * 0.8}
-      tension={0.4}
+      tension={smoothing ? 0.4 : 0}
       lineCap="round"
       lineJoin="round"
       perfectDrawEnabled={false}
@@ -298,9 +358,11 @@ const LiveStrokeShape = memo(function LiveStrokeShape({
 function LaserTrail({
   laser,
   px,
+  animated,
 }: {
   laser: LaserPointerState;
   px: (n: number, axis: 'x' | 'y') => number;
+  animated: boolean;
 }) {
   if (laser.trail.length === 0) return null;
 
@@ -322,15 +384,17 @@ function LaserTrail({
   return (
     <>
       {/* Trail line fading to transparent */}
-      <Line
-        points={[px(head.x, 'x'), px(head.y, 'y'), ...trailPoints]}
-        stroke={laser.color}
-        strokeWidth={3}
-        opacity={0.5}
-        tension={0.5}
-        lineCap="round"
-        shadowEnabled={false}
-      />
+      {animated && (
+        <Line
+          points={[px(head.x, 'x'), px(head.y, 'y'), ...trailPoints]}
+          stroke={laser.color}
+          strokeWidth={3}
+          opacity={0.5}
+          tension={0.5}
+          lineCap="round"
+          shadowEnabled={false}
+        />
+      )}
       {/* Bright head dot */}
       <Circle
         x={px(head.x, 'x')}

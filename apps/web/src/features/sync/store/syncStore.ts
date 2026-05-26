@@ -66,6 +66,9 @@ interface SyncState {
   presenterDisconnected: boolean;
   presenterDisconnectedAt: number | null;
 
+  // UX Features
+  raisedHands: string[];
+
   // Actions — connection
   setConnectionStatus: (status: ConnectionStatus) => void;
   setReconnectAttempts: (n: number) => void;
@@ -93,6 +96,10 @@ interface SyncState {
   cancelHandoff: () => void;
   setPresenterDisconnected: (disconnected: boolean) => void;
 
+  // Actions — UX
+  setHandRaised: (userId: string, isRaised: boolean) => void;
+  clearRaisedHands: () => void;
+
   reset: () => void;
 }
 
@@ -114,6 +121,7 @@ const initialState = {
   handoffTargetName: null,
   presenterDisconnected: false,
   presenterDisconnectedAt: null,
+  raisedHands: [],
 };
 
 export const useSyncStore = create<SyncState>()(
@@ -243,6 +251,23 @@ export const useSyncStore = create<SyncState>()(
             s.presenterDisconnectedAt = presenterDisconnected ? Date.now() : null;
           }),
 
+        // ── UX Features ───────────────────────────────────────────────────
+        setHandRaised: (userId, isRaised) =>
+          set((s) => {
+            if (isRaised) {
+              if (!s.raisedHands.includes(userId)) {
+                s.raisedHands.push(userId);
+              }
+            } else {
+              s.raisedHands = s.raisedHands.filter((id) => id !== userId);
+            }
+          }),
+
+        clearRaisedHands: () =>
+          set((s) => {
+            s.raisedHands = [];
+          }),
+
         reset: () => set(() => ({ ...initialState })),
       }))
     ),
@@ -264,6 +289,7 @@ export const selectConnectionStatus = (s: SyncState) => s.connectionStatus;
 export const selectHandoffStatus = (s: SyncState) => s.handoffStatus;
 export const selectPresenterDisconnected = (s: SyncState) => s.presenterDisconnected;
 export const selectCurrentSlide = (s: SyncState) => s.session?.currentSlide ?? 0;
+export const selectRaisedHands = (s: SyncState) => s.raisedHands;
 
 if (import.meta.env.DEV) {
   let prevState = useSyncStore.getState();

@@ -70,6 +70,7 @@ model User {
   profile           UserProfile?
   settings          UserSettings?
   notifications     Notification[]
+  comments          Comment[]
 
   @@map("users")
 }
@@ -145,9 +146,28 @@ model Slide {
   deck                Deck                  @relation(fields: [deckId], references: [id], onDelete: Cascade)
   annotations         Annotation[]
   annotationSnapshot  AnnotationSnapshot?
+  comments            Comment[]
 
   @@index([deckId, position])
   @@map("slides")
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  sessionId String
+  slideId   String
+  userId    String
+  text      String
+  positionX Float?
+  positionY Float?
+  createdAt DateTime @default(now())
+
+  session PresentationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  slide   Slide               @relation(fields: [slideId], references: [id], onDelete: Cascade)
+  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, slideId])
+  @@map("comments")
 }
 
 model DeckCollaborator {
@@ -226,6 +246,11 @@ model PresentationSession {
   presenter           User                  @relation("SessionPresenter", fields: [presenterId], references: [id])
   annotations         Annotation[]
   annotationSnapshots AnnotationSnapshot[]
+  // Activity (lightweight events during the session)
+  // E.g., reactions, slide advances. Kept small or aggregated.
+  // Not heavily modeled, mostly transient.
+  
+  comments Comment[]
 
   @@index([deckId])
   @@map("presentation_sessions")

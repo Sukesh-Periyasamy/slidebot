@@ -17,6 +17,7 @@ import { useExplorationMode } from '@/features/sync/hooks/useExplorationMode';
 import { SnapBackBanner } from '@/features/sync/components/SnapBackBanner';
 import { useViewerStore } from '@/features/viewer/store/viewerStore';
 import { useSyncStore } from '@/features/sync/store/syncStore';
+import { useUxStore } from '@/features/collaboration/store/uxStore';
 import { ParticipantsList } from '@/features/sync/components/ParticipantsList';
 import { usePdfLoader } from '@/features/viewer/hooks/usePdfLoader';
 import { useDeckStore } from '@/features/decks/store/deckStore';
@@ -25,6 +26,9 @@ import { sessionManager } from '@/features/collaboration/lib/sessionManager';
 import { CursorOverlay } from '@/features/cursors/components/CursorOverlay';
 import { recordRenderCount } from '@/features/debug/lib/renderInspector';
 import { PresencePills } from '@/features/presence/components/PresencePills';
+import { ReactionsOverlay } from '../components/ReactionsOverlay';
+import { HandRaiseQueue } from '@/features/collaboration/components/HandRaiseQueue';
+import { ActivityFeed } from '@/features/collaboration/components/ActivityFeed';
 
 export function RoomPage() {
   if (import.meta.env.DEV) {
@@ -41,6 +45,7 @@ export function RoomPage() {
   const isPresenter = useSyncStore((s) => s.isPresenter);
   const connectionStatus = useSyncStore((s) => s.connectionStatus);
   const currentPage = useViewerStore((s) => s.currentPage);
+  const distractionFreeMode = useUxStore((s) => s.distractionFreeMode);
   const [canvasDims, setCanvasDims] = useState({ w: 0, h: 0 });
   const [participantsPanelOpen, setParticipantsPanelOpen] = useState(false);
   const [resolvedDeckId, setResolvedDeckId] = useState<string | null>(null);
@@ -148,18 +153,20 @@ export function RoomPage() {
 
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-surface-950 text-surface-50">
-      <RoomHeader
-        deckName={deckName}
-        onLeave={() => {
-          void handleLeave();
-        }}
-        participantCount={Object.keys(members).length}
-        participantsPanelOpen={participantsPanelOpen}
-        onToggleParticipants={() => setParticipantsPanelOpen((prev) => !prev)}
-      />
+      {!distractionFreeMode && (
+        <RoomHeader
+          deckName={deckName}
+          onLeave={() => {
+            void handleLeave();
+          }}
+          participantCount={Object.keys(members).length}
+          participantsPanelOpen={participantsPanelOpen}
+          onToggleParticipants={() => setParticipantsPanelOpen((prev) => !prev)}
+        />
+      )}
 
       <div className="flex flex-1 overflow-hidden relative">
-        <ThumbnailSidebar />
+        {!distractionFreeMode && <ThumbnailSidebar />}
 
         <main className="flex-1 relative flex flex-col items-center justify-center bg-surface-900 overflow-hidden">
           <div className="pointer-events-none absolute left-4 top-4 z-20 hidden max-w-[70%] lg:block">
@@ -203,12 +210,15 @@ export function RoomPage() {
           <ConnectionStatusBar />
         </main>
 
-        <ParticipantsList isOpen={participantsPanelOpen} />
+        <ParticipantsList isOpen={participantsPanelOpen && !distractionFreeMode} />
       </div>
 
       <RoomOverlays />
       <OnboardingGuide />
       <KeyboardShortcuts />
+      <ReactionsOverlay />
+      <HandRaiseQueue />
+      {!distractionFreeMode && <ActivityFeed />}
     </div>
   );
 }

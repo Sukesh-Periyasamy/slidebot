@@ -8,6 +8,7 @@ import { logger } from '@/lib/logger';
 import { RealtimeSchemas } from '@slidebot/shared-types';
 import { getQueueForRoom, OfflineQueue } from '../lib/offlineQueue';
 import { useAnnotationStore } from '../store/annotationStore';
+import { useSettingsStore } from '@/features/settings/store/settingsStore';
 import type {
   Annotation,
   CursorPosition,
@@ -91,6 +92,7 @@ export function useAnnotationSync({
   }, []);
   const toolConfig = useAnnotationStore((s) => s.toolConfig);
   const degradationMode = useAnnotationStore((s) => s.degradationMode);
+  const bandwidthSaver = useSettingsStore((s) => s.settings.bandwidthSaver);
 
   const noop = useCallback(() => {}, []);
   const noopAnnotationPoints = useCallback((_points: number[]) => {}, []);
@@ -367,8 +369,8 @@ export function useAnnotationSync({
           } else if (queueRef.current) {
             queueRef.current.enqueue('annotation_draw', payload);
           }
-      }, degradationMode === 'degraded' ? 100 : 33),
-    [enabled, canAnnotate, user, sessionId, slideId, degradationMode]
+      }, bandwidthSaver || degradationMode === 'degraded' ? 100 : 33),
+    [enabled, canAnnotate, user, sessionId, slideId, degradationMode, bandwidthSaver]
   );
 
   const emitAnnotationPoints = useCallback(
@@ -431,8 +433,8 @@ export function useAnnotationSync({
           return;
         }
         socketRef.current.emit('cursor_move', payload);
-      }, degradationMode === 'degraded' ? 150 : 50),
-    [enabled, user, deckId, sessionId, slideId, degradationMode]
+      }, bandwidthSaver || degradationMode === 'degraded' ? 150 : 50),
+    [enabled, user, deckId, sessionId, slideId, degradationMode, bandwidthSaver]
   );
 
   const emitCursorMove = useCallback(
@@ -455,8 +457,8 @@ export function useAnnotationSync({
           return;
         }
         socketRef.current.emit('laser_move', payload);
-      }, degradationMode === 'degraded' ? 64 : 16),
-    [enabled, canAnnotate, user, sessionId, slideId, degradationMode]
+      }, bandwidthSaver || degradationMode === 'degraded' ? 64 : 16),
+    [enabled, canAnnotate, user, sessionId, slideId, degradationMode, bandwidthSaver]
   );
 
   const emitLaserMove = useCallback(

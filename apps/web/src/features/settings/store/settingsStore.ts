@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { UIDensity } from '@/shared/utils/responsive';
 
 export interface SlideBotSettings {
   // Appearance
   theme: 'light' | 'dark' | 'system';
   reducedMotion: boolean;
-  compactMode: boolean;
+  density: UIDensity;
   
   // Collaboration
   showCursors: boolean;
@@ -46,7 +47,7 @@ export interface SlideBotSettings {
 const defaultSettings: SlideBotSettings = {
   theme: 'system',
   reducedMotion: false,
-  compactMode: false,
+  density: 'comfortable',
   
   showCursors: true,
   showParticipantActivity: true,

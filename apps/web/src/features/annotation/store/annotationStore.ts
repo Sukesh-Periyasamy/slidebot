@@ -12,6 +12,7 @@ import type {
 } from '../types/annotation.types';
 import { DEFAULT_TOOL_CONFIG } from '../types/annotation.types';
 import { logger } from '@/lib/logger';
+import { useSettingsStore } from '@/features/settings/store/settingsStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Ownership types
@@ -130,6 +131,42 @@ interface AnnotationState {
    * Returns the annotation that was restored, or null.
    */
   redoLastAnnotation: (ownership: AnnotationOwnershipContext) => Annotation | null;
+  
+  /** 
+   * Internal helper for point compression
+   */
+  _compressPoints: (existingPoints: number[], newPoints: number[]) => number[];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cache bounds — prevents memory leaks in long sessions
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Maximum committed annotations kept in memory per slide session. Oldest evicted on overflow. */
+export const MAX_ANNOTATIONS = 500;
+
+/** Maximum concurrent live strokes (one per remote user). */
+export const MAX_LIVE_STROKES = 50;
+
+/** Maximum concurrent remote cursors tracked. */
+export const MAX_CURSORS = 50;
+
+/** Maximum concurrent laser pointer trails tracked. */
+export const MAX_LASERS = 50;
+
+export const LOW_MEMORY_MAX_ANNOTATIONS = 100;
+export const LOW_MEMORY_MAX_LIVE_STROKES = 10;
+export const LOW_MEMORY_MAX_CURSORS = 10;
+export const LOW_MEMORY_MAX_LASERS = 10;
+
+function getBounds() {
+  const isLowMemory = useSettingsStore.getState().settings.lowMemoryMode;
+  return {
+    maxAnnotations: isLowMemory ? LOW_MEMORY_MAX_ANNOTATIONS : MAX_ANNOTATIONS,
+    maxLiveStrokes: isLowMemory ? LOW_MEMORY_MAX_LIVE_STROKES : MAX_LIVE_STROKES,
+    maxCursors: isLowMemory ? LOW_MEMORY_MAX_CURSORS : MAX_CURSORS,
+    maxLasers: isLowMemory ? LOW_MEMORY_MAX_LASERS : MAX_LASERS,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -198,6 +235,41 @@ export const useAnnotationStore = create<AnnotationState>()(
             s.degradationMode = mode;
           }),
 
+        // ── Point Compression Helper ──────────────────────────────────────
+        // Only keep points if they are far enough from the last point
+        // Or if it's the very first point.
+        // Returns the filtered points array.
+        _compressPoints: (existingPoints: number[], newPoints: number[]) => {
+          if (newPoints.length === 0) return [];
+          const threshold = 0.002; // 0.2% distance threshold
+          const compressed = [];
+          
+          let lastX: number | null = existingPoints.length >= 2 ? (existingPoints[existingPoints.length - 2] ?? null) : null;
+          let lastY: number | null = existingPoints.length >= 2 ? (existingPoints[existingPoints.length - 1] ?? null) : null;
+
+          for (let i = 0; i < newPoints.length; i += 2) {
+            const x = newPoints[i];
+            const y = newPoints[i + 1];
+            if (x === undefined || y === undefined) continue;
+
+            if (lastX === null || lastY === null) {
+              compressed.push(x, y);
+              lastX = x;
+              lastY = y;
+            } else {
+              const dx = x - lastX;
+              const dy = y - lastY;
+              const distSq = dx * dx + dy * dy;
+              if (distSq > threshold * threshold) {
+                compressed.push(x, y);
+                lastX = x;
+                lastY = y;
+              }
+            }
+          }
+          return compressed;
+        },
+
         // ── Active stroke ─────────────────────────────────────────────────
         startStroke: (annotation) =>
           set((s) => {
@@ -208,7 +280,11 @@ export const useAnnotationStore = create<AnnotationState>()(
           set((s) => {
             if (!s.activeStroke) return;
             if (s.activeStroke.data.tool === 'freehand') {
-              (s.activeStroke.data as { points: number[] }).points.push(...points);
+              const freehandData = s.activeStroke.data as { points: number[] };
+              const compressed = (get() as any)._compressPoints(freehandData.points, points);
+              if (compressed.length > 0) {
+                freehandData.points.push(...compressed);
+              }
             }
           }),
 
@@ -242,6 +318,18 @@ export const useAnnotationStore = create<AnnotationState>()(
         // ── Annotations ───────────────────────────────────────────────────
         addAnnotation: (annotation) =>
           set((s) => {
+            const bounds = getBounds();
+            // Enforce bounded cache: evict oldest entry when at capacity
+            const ids = Object.keys(s.annotations);
+            if (ids.length >= bounds.maxAnnotations) {
+              // Remove the oldest annotation (first key in insertion order)
+              const oldestId = ids[0];
+              if (oldestId) {
+                delete s.annotations[oldestId];
+                s.undoStack = s.undoStack.filter((id) => id !== oldestId);
+                logger.warn('[AnnotationStore] MAX_ANNOTATIONS reached, evicting oldest', { evicted: oldestId });
+              }
+            }
             s.annotations[annotation.id] = annotation;
           }),
 
@@ -274,13 +362,26 @@ export const useAnnotationStore = create<AnnotationState>()(
         // ── Live strokes ──────────────────────────────────────────────────
         setLiveStroke: (userId, stroke) =>
           set((s) => {
+            const bounds = getBounds();
+            // Enforce bounded cache: evict oldest live stroke when at capacity
+            const userIds = Object.keys(s.liveStrokes);
+            if (userIds.length >= bounds.maxLiveStrokes && !s.liveStrokes[userId]) {
+              const oldestUserId = userIds[0];
+              if (oldestUserId) {
+                delete s.liveStrokes[oldestUserId];
+                logger.warn('[AnnotationStore] MAX_LIVE_STROKES reached, evicting', { evicted: oldestUserId });
+              }
+            }
             s.liveStrokes[userId] = stroke;
           }),
 
         appendLiveStrokePoints: (userId, points) =>
           set((s) => {
             if (s.liveStrokes[userId]) {
-              s.liveStrokes[userId]!.points.push(...points);
+              const compressed = (get() as any)._compressPoints(s.liveStrokes[userId]!.points, points);
+              if (compressed.length > 0) {
+                s.liveStrokes[userId]!.points.push(...compressed);
+              }
             }
           }),
 
@@ -298,6 +399,13 @@ export const useAnnotationStore = create<AnnotationState>()(
         // ── Cursors ───────────────────────────────────────────────────────
         updateCursor: (userId, cursor) =>
           set((s) => {
+            const bounds = getBounds();
+            // Enforce bounded cursor cache
+            const cursorIds = Object.keys(s.cursors);
+            if (cursorIds.length >= bounds.maxCursors && !s.cursors[userId]) {
+              const oldest = cursorIds[0];
+              if (oldest) delete s.cursors[oldest];
+            }
             s.cursors[userId] = cursor;
           }),
 
@@ -309,6 +417,13 @@ export const useAnnotationStore = create<AnnotationState>()(
         // ── Laser pointers ─────────────────────────────────────────────────────
         updateLaser: (userId, laser) =>
           set((s) => {
+            const bounds = getBounds();
+            // Enforce bounded laser cache
+            const laserIds = Object.keys(s.laserPointers);
+            if (laserIds.length >= bounds.maxLasers && !s.laserPointers[userId]) {
+              const oldest = laserIds[0];
+              if (oldest) delete s.laserPointers[oldest];
+            }
             s.laserPointers[userId] = laser;
           }),
 

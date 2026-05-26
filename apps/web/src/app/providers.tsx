@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { recordRenderCount } from '@/features/debug/lib/renderInspector';
 import { selectIsInitialized, useAuthStore } from '@/features/auth/store/authStore';
 import { SessionProvider } from '@/features/collaboration/providers/SessionProvider';
+import { ThemeManager } from '@/features/theme/lib/ThemeManager';
 
 // ── TanStack Query client config ───────────────────────────────────────────────
 const queryClient = new QueryClient({
@@ -112,6 +113,7 @@ export function AppProviders({ children }: AppProvidersProps) {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <ThemeManager />
       <AuthProvider>
         <SessionProvider>
           <AuthGate>{children}</AuthGate>

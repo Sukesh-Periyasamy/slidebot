@@ -2,6 +2,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 
 import { useSyncStore } from '../store/syncStore';
+import { Teleprompter } from '@/features/viewer/components/Teleprompter';
+import { ConfidenceMonitor } from '@/features/viewer/components/ConfidenceMonitor';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PresenterDisconnectedBanner — shown when presenter loses connection
@@ -74,6 +76,8 @@ export function RoomOverlays() {
     <>
       <PresenterDisconnectedBanner />
       <SessionEndedOverlay />
+      <Teleprompter />
+      <ConfidenceMonitor />
     </>
   );
 }

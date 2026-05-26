@@ -10,7 +10,7 @@
  */
 
 import { memo, useRef, useState, useEffect, useCallback } from 'react';
-import { Crown, Eye } from 'lucide-react';
+import { Crown, Eye, Bookmark } from 'lucide-react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 
 import { useThumbnailRenderer } from '../hooks/useThumbnailRenderer';
@@ -30,6 +30,8 @@ interface SlideThumbnailProps {
   isExploring: boolean;
   /** Is the current user the presenter? */
   isPresenter: boolean;
+  isBookmarked?: boolean;
+  onBookmark?: () => void;
   onClick: (pageNumber: number) => void;
 }
 
@@ -44,6 +46,8 @@ export const SlideThumbnail = memo(function SlideThumbnail({
   isPresenterSlide,
   isExploring,
   isPresenter,
+  isBookmarked,
+  onBookmark,
   onClick,
 }: SlideThumbnailProps) {
   const rootRef = useRef<HTMLButtonElement>(null);
@@ -71,6 +75,11 @@ export const SlideThumbnail = memo(function SlideThumbnail({
   const handleClick = useCallback(() => {
     onClick(pageNumber);
   }, [onClick, pageNumber]);
+
+  const handleBookmarkClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onBookmark?.();
+  }, [onBookmark]);
 
   // ── Visual state ────────────────────────────────────────────────────────
 
@@ -151,6 +160,19 @@ export const SlideThumbnail = memo(function SlideThumbnail({
               <Eye size={7} />
             </div>
           )}
+
+          {/* Bookmark Button */}
+          <button
+            onClick={handleBookmarkClick}
+            className={`absolute bottom-1.5 right-1.5 p-1 rounded transition-opacity ${
+              isBookmarked 
+                ? 'opacity-100 text-brand-400 bg-surface-900/80' 
+                : 'opacity-0 group-hover:opacity-100 text-surface-400 hover:text-brand-300 hover:bg-surface-900/80'
+            }`}
+            aria-label={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+          >
+            <Bookmark size={12} className={isBookmarked ? 'fill-brand-400' : ''} />
+          </button>
         </div>
       </div>
 

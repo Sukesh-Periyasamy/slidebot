@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getRoomById } from '@/features/decks/api/roomsApi';
 import { pdfjsLib } from '@/lib/pdfWorker';
+import { supabase } from '@/lib/supabase';
+import { exportRoomSnapshot, exportRoomReplay } from '../lib/exportUtils';
 
 export function ExportPage() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -54,6 +56,22 @@ export function ExportPage() {
       pagesRendered.current = 0;
       const doc = pdfRef.current;
       
+      // Fetch snapshot to get annotations for flattening
+      let snapshotData: any = null;
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data.session) {
+          const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/rooms/${roomId}/snapshot`, {
+            headers: { Authorization: `Bearer ${data.session.access_token}` }
+          });
+          if (res.ok) {
+            snapshotData = await res.json();
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch snapshot for annotation flattening', err);
+      }
+
       for (let i = 1; i <= numPages; i++) {
         if (cancelled) break;
         
@@ -74,6 +92,15 @@ export function ExportPage() {
           const context = canvas.getContext('2d');
           if (context) {
             await page.render({ canvasContext: context, viewport }).promise;
+            
+            // Flatten annotations for this page (i-1)
+            const slideEntity = snapshotData?.deck?.slideEntities?.[i - 1];
+            if (slideEntity?.annotations) {
+              import('../lib/exportUtils').then(({ drawAnnotationsToContext }) => {
+                drawAnnotationsToContext(context, slideEntity.annotations, viewport.width, viewport.height);
+              });
+            }
+            
             pagesRendered.current += 1;
           }
         } catch (e) {
@@ -90,11 +117,25 @@ export function ExportPage() {
 
     void renderPages();
     return () => { cancelled = true; };
-  }, [numPages]);
+  }, [numPages, roomId]);
 
   if (!deck) {
     return <div className="p-8 text-center text-surface-200">Loading export data...</div>;
   }
+
+  const handleExportSnapshot = async () => {
+    const { data } = await supabase.auth.getSession();
+    if (data.session) {
+      await exportRoomSnapshot(roomId!, data.session.access_token);
+    }
+  };
+
+  const handleExportReplay = async () => {
+    const { data } = await supabase.auth.getSession();
+    if (data.session) {
+      await exportRoomReplay(roomId!, data.session.access_token);
+    }
+  };
 
   return (
     <div className="bg-white min-h-screen">
@@ -103,7 +144,7 @@ export function ExportPage() {
         <div>
           <h1 className="font-semibold text-lg">{deck.name} - Export</h1>
           <p className="text-sm text-surface-400">
-            {loading ? `Rendering slides for print...` : 'Ready to print.'}
+            {loading ? `Rendering slides for print...` : 'Ready to export.'}
           </p>
         </div>
         <div className="flex gap-2">
@@ -112,6 +153,18 @@ export function ExportPage() {
             className="px-4 py-2 bg-surface-800 hover:bg-surface-700 rounded-md text-sm transition-colors"
           >
             Back to Room
+          </button>
+          <button 
+            onClick={handleExportSnapshot}
+            className="px-4 py-2 bg-surface-800 hover:bg-surface-700 rounded-md text-sm transition-colors"
+          >
+            Export Snapshot (JSON)
+          </button>
+          <button 
+            onClick={handleExportReplay}
+            className="px-4 py-2 bg-surface-800 hover:bg-surface-700 rounded-md text-sm transition-colors"
+          >
+            Export Replay (JSON)
           </button>
           <button 
             onClick={() => window.print()}

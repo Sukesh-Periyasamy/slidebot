@@ -48,28 +48,43 @@ export function SettingsPage() {
   const ToggleItem = ({ 
     label, 
     description, 
-    settingKey 
+    settingKey,
+    checked,
+    onChange
   }: { 
     label: string, 
     description: string, 
-    settingKey: keyof SlideBotSettings 
-  }) => (
-    <div>
-      <div className="flex items-start gap-3">
-        <input
-          id={`toggle-${settingKey}`}
-          type="checkbox"
-          checked={settings[settingKey] as boolean}
-          onChange={(e) => updateSetting(settingKey, e.target.checked as any)}
-          className="mt-1 rounded border-surface-700 bg-surface-900 text-brand-500 focus:ring-brand-500 cursor-pointer"
-        />
-        <label htmlFor={`toggle-${settingKey}`} className="cursor-pointer">
-          <span className="block text-sm font-medium text-surface-50">{label}</span>
-          <span className="block text-xs text-surface-400">{description}</span>
-        </label>
+    settingKey?: keyof SlideBotSettings,
+    checked?: boolean,
+    onChange?: (val: boolean) => void
+  }) => {
+    const isChecked = settingKey ? settings[settingKey] as boolean : checked;
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (settingKey) {
+        updateSetting(settingKey, e.target.checked);
+      } else if (onChange) {
+        onChange(e.target.checked);
+      }
+    };
+    
+    return (
+      <div>
+        <div className="flex items-start gap-3">
+          <input
+            id={`toggle-${settingKey || label.replace(/\s+/g, '-')}`}
+            type="checkbox"
+            checked={!!isChecked}
+            onChange={handleChange}
+            className="mt-1 h-4 w-4 rounded border-surface-700 bg-surface-900 text-brand-500 focus:ring-brand-500 focus:ring-offset-surface-900"
+          />
+          <label htmlFor={`toggle-${settingKey || label.replace(/\s+/g, '-')}`} className="flex flex-col cursor-pointer">
+            <span className="text-sm font-medium text-surface-200">{label}</span>
+            <span className="text-xs text-surface-500">{description}</span>
+          </label>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderContent = () => {
     switch (activeCategory) {
@@ -97,10 +112,12 @@ export function SettingsPage() {
               </div>
             </div>
 
-            <ToggleItem 
-              label="Compact Mode" 
-              description="Reduce padding and margins to fit more content on screen." 
-              settingKey="compactMode" 
+            {/* Density toggle - temporary adaptation until UI matches UIDensity enum */}
+            <ToggleItem
+              label="Compact Mode"
+              description="Reduce padding and UI element size"
+              checked={settings.density === 'compact'}
+              onChange={(checked) => updateSettings({ density: checked ? 'compact' : 'comfortable' })}
             />
           </div>
         );

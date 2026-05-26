@@ -11,6 +11,7 @@ import { heartbeatManager } from './heartbeatManager';
 import { socketManager } from './socketManager';
 import { assertSingleSocketListener } from './socketDebug';
 import { RealtimeSchemas } from '@slidebot/shared-types';
+import { useUxStore } from '../store/uxStore';
 import {
   clearReconnectState,
   persistReconnectState,
@@ -94,6 +95,8 @@ class SessionManager {
   private shouldRecoverOnConnect = false;
   private boundPresenterSocket: Socket | null = null;
   private unbindPresenterListeners: (() => void) | null = null;
+  private boundCollabSocket: Socket | null = null;
+  private unbindCollabListeners: (() => void) | null = null;
   private unsubscribers: Array<() => void> = [];
   private sessionState: SessionLifecycleState = 'idle';
   private lastTransitionAt: number | null = null;
@@ -219,6 +222,7 @@ class SessionManager {
         });
         await socketManager.ensureConnected();
         this.bindPresenterSocketListeners();
+        this.bindCollaborationSocketListeners();
         return;
       }
 
@@ -234,6 +238,7 @@ class SessionManager {
       this.setSessionState('joining', { roomId: input.roomId, deckId: input.deckId });
       await socketManager.ensureConnected();
       this.bindPresenterSocketListeners();
+      this.bindCollaborationSocketListeners();
       await this.joinPresenterSession(input.roomId, input.deckId);
       this.setSessionState('active', { roomId: input.roomId, deckId: input.deckId });
     } finally {
@@ -360,9 +365,15 @@ class SessionManager {
     this.sessionJoinPromise = null;
     this.recoveringPromise = null;
     this.shouldRecoverOnConnect = false;
+    this.boundPresenterSocket = null;
     this.unbindPresenterListeners?.();
     this.unbindPresenterListeners = null;
-    this.boundPresenterSocket = null;
+
+    this.boundCollabSocket = null;
+    this.unbindCollabListeners?.();
+    this.unbindCollabListeners = null;
+
+    this.sessionJoinPromise = null;
     clearReconnectState();
     presenceManager.reset();
     cursorManager.reset();
@@ -567,6 +578,66 @@ class SessionManager {
     return this.sessionJoinPromise;
   }
 
+  private bindCollaborationSocketListeners(): void {
+    const socket = socketManager.getCollaborationSocket();
+    if (!socket || this.boundCollabSocket === socket) {
+      return;
+    }
+
+    this.unbindCollabListeners?.();
+    this.boundCollabSocket = socket;
+
+    const onReaction = (payload: any) => {
+      window.dispatchEvent(new CustomEvent('reaction_received', { detail: payload }));
+      useUxStore.getState().addActivity({
+        id: Math.random().toString(36).slice(2),
+        type: 'reaction',
+        userId: payload.userId,
+        displayName: payload.displayName,
+        timestamp: payload.timestamp,
+        metadata: { emoji: payload.emoji }
+      });
+    };
+
+    const onHandRaised = (payload: any) => {
+      useSyncStore.getState().setHandRaised(payload.userId, true);
+      useUxStore.getState().addActivity({
+        id: Math.random().toString(36).slice(2),
+        type: 'hand_raise',
+        userId: payload.userId,
+        displayName: 'Someone', // Can map via syncStore if needed
+        timestamp: payload.timestamp,
+      });
+    };
+
+    const onHandLowered = (payload: any) => {
+      useSyncStore.getState().setHandRaised(payload.userId, false);
+    };
+
+    const onCommentCreated = (payload: any) => {
+      window.dispatchEvent(new CustomEvent('comment_created', { detail: payload }));
+      useUxStore.getState().addActivity({
+        id: Math.random().toString(36).slice(2),
+        type: 'comment',
+        userId: payload.userId,
+        displayName: payload.displayName,
+        timestamp: payload.createdAt,
+      });
+    };
+
+    socket.on('reaction_received', onReaction);
+    socket.on('hand_raised', onHandRaised);
+    socket.on('hand_lowered', onHandLowered);
+    socket.on('comment_created', onCommentCreated);
+
+    this.unbindCollabListeners = () => {
+      socket.off('reaction_received', onReaction);
+      socket.off('hand_raised', onHandRaised);
+      socket.off('hand_lowered', onHandLowered);
+      socket.off('comment_created', onCommentCreated);
+    };
+  }
+
   private bindPresenterSocketListeners(): void {
     const socket = socketManager.getPresenterSocket();
     if (!socket || this.boundPresenterSocket === socket) {
@@ -653,6 +724,13 @@ class SessionManager {
           ...payload.member,
           isConnected: true,
         });
+        useUxStore.getState().addActivity({
+          id: Math.random().toString(36).slice(2),
+          type: 'join',
+          userId: payload.member.userId,
+          displayName: payload.member.displayName,
+          timestamp: new Date().toISOString()
+        });
       });
     };
 
@@ -665,6 +743,16 @@ class SessionManager {
     const onParticipantLeft = (payload: { userId: string }) => {
       this.queueStoreUpdate(() => {
         cursorManager.removeCursor(payload.userId);
+        const member = useSyncStore.getState().members[payload.userId];
+        if (member) {
+          useUxStore.getState().addActivity({
+            id: Math.random().toString(36).slice(2),
+            type: 'leave',
+            userId: payload.userId,
+            displayName: member.displayName,
+            timestamp: new Date().toISOString()
+          });
+        }
         useSyncStore.getState().removeMember(payload.userId);
       });
     };
@@ -815,6 +903,43 @@ class SessionManager {
     });
 
     return this.recoveringPromise;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Collaboration UX Actions
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  sendReaction(reaction: string): void {
+    const store = useSyncStore.getState();
+    const sessionId = store.session?.sessionId;
+    if (!sessionId) return;
+    const socket = socketManager.getCollaborationSocket();
+    if (!socket) return;
+    
+    socket.emit('reaction:send', { roomId: sessionId, reaction });
+  }
+
+  raiseHand(): void {
+    const store = useSyncStore.getState();
+    const sessionId = store.session?.sessionId;
+    if (!sessionId) return;
+    const socket = socketManager.getCollaborationSocket();
+    if (!socket) return;
+    
+    socket.emit('hand:raise', { roomId: sessionId });
+  }
+
+  lowerHand(targetUserId?: string): void {
+    const store = useSyncStore.getState();
+    const sessionId = store.session?.sessionId;
+    const user = useAuthStore.getState().user;
+    if (!sessionId || !user) return;
+    const socket = socketManager.getCollaborationSocket();
+    if (!socket) return;
+    
+    // Presenters can lower anyone's hand, viewers can only lower their own
+    const userIdToLower = (store.isPresenter && targetUserId) ? targetUserId : user.id;
+    socket.emit('hand:lower', { roomId: sessionId, userId: userIdToLower });
   }
 
   private applySessionState(payload: SessionStatePayload): void {

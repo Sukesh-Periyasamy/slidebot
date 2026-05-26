@@ -15,6 +15,10 @@ import {
   Zap,
   Users,
   LogOut,
+  Smile,
+  Hand,
+  FileText,
+  Monitor,
 } from 'lucide-react';
 
 import { useViewerStore, type ZoomPreset } from '@/features/viewer/store/viewerStore';
@@ -23,6 +27,7 @@ import type { AnnotationTool } from '@/features/annotation/types/annotation.type
 import { ANNOTATION_COLORS } from '@/features/annotation/types/annotation.types';
 import { selectIsPresenter, useSyncStore } from '../store/syncStore';
 import type { useExplorationMode } from '../hooks/useExplorationMode';
+import { useUxStore } from '@/features/collaboration/store/uxStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PresenterControls — unified control bar at the bottom of the room
@@ -85,6 +90,12 @@ export function PresenterControls({
   // Use presenter or viewer navigation depending on role
   const handlePrev = isPresenter ? presenterPrev : navigatePrev;
   const handleNext = isPresenter ? presenterNext : navigateNext;
+  const raisedHandsCount = useSyncStore((s) => s.raisedHands.length);
+
+  const teleprompterVisible = useUxStore((s) => s.teleprompterVisible);
+  const confidenceMonitorVisible = useUxStore((s) => s.confidenceMonitorVisible);
+  const toggleTeleprompter = useUxStore((s) => s.toggleTeleprompter);
+  const toggleConfidenceMonitor = useUxStore((s) => s.toggleConfidenceMonitor);
 
   return (
     <div className="relative flex items-center justify-between px-2 md:px-4 py-2 border-t border-surface-800 bg-surface-900/80 backdrop-blur-sm gap-2">
@@ -215,9 +226,78 @@ export function PresenterControls({
           ))}
         </div>
 
+        <div className="w-px h-5 bg-surface-800" />
+
+        <button
+          onClick={() => {
+            const emojis = ['👍', '❤️', '👏', '🔥', '🤔', '🎉'];
+            const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)] || '👍';
+            import('@/features/collaboration/lib/sessionManager').then((m) => m.sessionManager.sendReaction(randomEmoji));
+          }}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-surface-400 hover:bg-surface-800 hover:text-brand-300 transition-all"
+          title="Send Reaction"
+        >
+          <Smile size={16} />
+        </button>
+
+        <button
+          onClick={() => {
+            import('@/features/auth/store/authStore').then((authMod) => {
+              const myId = authMod.useAuthStore.getState().user?.id;
+              const store = useSyncStore.getState();
+              if (myId) {
+                const isRaised = store.raisedHands.includes(myId);
+                import('@/features/collaboration/lib/sessionManager').then((m) => {
+                  if (isRaised) {
+                    m.sessionManager.lowerHand();
+                  } else {
+                    m.sessionManager.raiseHand();
+                  }
+                });
+              }
+            });
+          }}
+          className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+            raisedHandsCount > 0
+              ? 'bg-brand-500/20 text-brand-300 ring-1 ring-brand-500/40'
+              : 'text-surface-400 hover:bg-surface-800 hover:text-surface-100'
+          }`}
+          title="Raise/Lower Hand"
+        >
+          <Hand size={16} />
+          {raisedHandsCount > 0 && (
+            <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand-500 text-[8px] font-bold text-white">
+              {raisedHandsCount}
+            </span>
+          )}
+        </button>
+
         {/* Presenter-only actions */}
         {isPresenter && (
           <>
+            <div className="w-px h-5 bg-surface-800" />
+            <button
+              onClick={toggleTeleprompter}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+                teleprompterVisible
+                  ? 'bg-brand-500/20 text-brand-300 ring-1 ring-brand-500/40'
+                  : 'text-surface-400 hover:bg-surface-800 hover:text-surface-100'
+              }`}
+              title="Toggle Teleprompter"
+            >
+              <FileText size={16} />
+            </button>
+            <button
+              onClick={toggleConfidenceMonitor}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+                confidenceMonitorVisible
+                  ? 'bg-brand-500/20 text-brand-300 ring-1 ring-brand-500/40'
+                  : 'text-surface-400 hover:bg-surface-800 hover:text-surface-100'
+              }`}
+              title="Toggle Confidence Monitor"
+            >
+              <Monitor size={16} />
+            </button>
             <div className="w-px h-5 bg-surface-800" />
             <button
               onClick={onHandoffClick}

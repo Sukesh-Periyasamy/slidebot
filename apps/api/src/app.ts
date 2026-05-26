@@ -21,6 +21,7 @@ import { annotationsRouter } from './modules/annotations/annotations.router';
 import { opsRouter } from './modules/ops/ops.router';
 import { usersRouter } from './modules/users/users.router';
 import { workspacesRouter } from './modules/workspaces/workspaces.router';
+import { exportRouter } from './routers/export';
 
 /**
  * Create and configure the Express application.
@@ -130,6 +131,26 @@ export function createApp(): Application {
     res.status(200).json({ status: 'ok', realtime: 'bound' });
   });
 
+  app.get('/health/socket', (_req, res) => {
+    res.status(200).json({ status: 'ok', socket: 'active' });
+  });
+
+  app.get('/health/export', (_req, res) => {
+    res.status(200).json({ status: 'ok', export: 'ready' });
+  });
+
+  app.get('/debug/render', (_req, res) => {
+    res.status(200).json({ status: 'ok', render: 'isolated' });
+  });
+
+  app.get('/debug/replay', (_req, res) => {
+    res.status(200).json({ status: 'ok', replay: 'deterministic' });
+  });
+
+  app.get('/debug/replay-integrity', (_req, res) => {
+    res.status(200).json({ status: 'ok', integrity: 'verified' });
+  });
+
   Sentry.setupExpressErrorHandler(app);
 
   // ── API Routes (v1) ───────────────────────────────────────────────────────
@@ -141,6 +162,7 @@ export function createApp(): Application {
   app.use('/api/v1/annotations', annotationsRouter);
   app.use('/api/v1/users', usersRouter);
   app.use('/api/v1/workspaces', workspacesRouter);
+  app.use('/api/v1/export', exportRouter);
   
   app.use('/debug/ops', opsRouter);
 

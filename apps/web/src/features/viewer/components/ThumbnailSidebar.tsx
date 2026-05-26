@@ -5,6 +5,7 @@ import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
 import { useViewerStore } from '../../viewer/store/viewerStore';
 import { useSyncStore } from '../../sync/store/syncStore';
+import { useUxStore } from '@/features/collaboration/store/uxStore';
 import { SlideThumbnail } from './SlideThumbnail';
 
 // ThumbnailSidebar
@@ -21,6 +22,8 @@ export function ThumbnailSidebar() {
   const isPresenter = useSyncStore((s) => s.isPresenter);
   const isExploring = useSyncStore((s) => s.isExploring);
   const setIsExploring = useSyncStore((s) => s.setIsExploring);
+  const slideBookmarks = useUxStore((s) => s.slideBookmarks);
+  const toggleSlideBookmark = useUxStore((s) => s.toggleSlideBookmark);
 
   const presenterSlide = session?.currentSlide ?? 1;
   const lastAutoScrollRef = useRef<{ sessionId: string | null; slide: number } | null>(null);
@@ -113,6 +116,8 @@ export function ThumbnailSidebar() {
                         isPresenterSlide={presenterSlide === pageNumber}
                         isExploring={isExploring}
                         isPresenter={isPresenter}
+                        isBookmarked={slideBookmarks.includes(pageNumber)}
+                        onBookmark={() => toggleSlideBookmark(pageNumber)}
                         onClick={handleThumbnailClick}
                       />
                     </div>

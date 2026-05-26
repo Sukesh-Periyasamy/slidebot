@@ -38,18 +38,32 @@ export const SlideCanvas = memo(function SlideCanvas({ onDimensionsChange }: Sli
   useEffect(() => {
     if (!canvasRef.current) return;
 
+    let timeoutId: number;
+    let animationFrameId: number;
+
     const observer = new ResizeObserver(() => {
-      const canvas = canvasRef.current;
-      if (!canvas || !onDimensionsChangeRef.current) return;
-      const w = canvas.clientWidth;
-      const h = canvas.clientHeight;
-      if (w > 0 && h > 0) {
-        onDimensionsChangeRef.current(w, h);
-      }
+      clearTimeout(timeoutId);
+      
+      timeoutId = window.setTimeout(() => {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = requestAnimationFrame(() => {
+          const canvas = canvasRef.current;
+          if (!canvas || !onDimensionsChangeRef.current) return;
+          const w = canvas.clientWidth;
+          const h = canvas.clientHeight;
+          if (w > 0 && h > 0) {
+            onDimensionsChangeRef.current(w, h);
+          }
+        });
+      }, 50); // 50ms debounce for canvas resize
     });
 
     observer.observe(canvasRef.current);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      clearTimeout(timeoutId);
+      cancelAnimationFrame(animationFrameId);
+    };
   }, []);
 
   // ── Loading state ─────────────────────────────────────────────────────────
@@ -91,11 +105,15 @@ export const SlideCanvas = memo(function SlideCanvas({ onDimensionsChange }: Sli
 
   return (
     <div className="relative flex flex-1 min-h-0 min-w-0 w-full h-full items-center justify-center overflow-hidden self-stretch">
-      {/* PDF canvas */}
+      {/* PDF canvas - Using strict object fit properties to maintain letterboxing without DOM updates */}
       <canvas
         ref={canvasRef}
-        className="block shadow-2xl rounded-sm"
-        style={{ maxWidth: '100%', maxHeight: '100%' }}
+        className="block shadow-card rounded-sm"
+        style={{ 
+          maxWidth: '100%', 
+          maxHeight: '100%',
+          objectFit: 'contain'
+        }}
       />
 
       {/* Render-in-progress shimmer overlay */}

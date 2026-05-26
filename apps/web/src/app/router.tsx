@@ -14,6 +14,9 @@ import { RenderDebugPage } from '@/features/debug/pages/RenderDebugPage';
 import { ReplayDebugPage } from '@/features/debug/pages/ReplayDebugPage';
 import { SettingsPage } from '@/features/settings/pages/SettingsPage';
 import { AccountPage } from '@/features/account/pages/AccountPage';
+import { PublicRoomPage } from '@/features/publishing/pages/PublicRoomPage';
+import { EmbedPlaybackPage } from '@/features/publishing/pages/EmbedPlaybackPage';
+import { AdminDashboardPage } from '@/features/admin/pages/AdminDashboardPage';
 
 function HomeRedirect() {
   const isInitialized = useAuthStore(selectIsInitialized);
@@ -69,6 +72,14 @@ const router = createBrowserRouter([
     path: '/auth/callback',
     element: <AuthCallbackPage />,
   },
+  {
+    path: '/p/:roomId',
+    element: <PublicRoomPage />,
+  },
+  {
+    path: '/embed/playback/:replayId',
+    element: <EmbedPlaybackPage />,
+  },
 
   // ── Protected routes (wrapped in AuthGuard + AppLayout) ─────────────────
   {
@@ -89,6 +100,10 @@ const router = createBrowserRouter([
       {
         path: '/settings',
         element: <SettingsPage />,
+      },
+      {
+        path: '/admin/dashboard',
+        element: <AdminDashboardPage />,
       },
     ],
   },

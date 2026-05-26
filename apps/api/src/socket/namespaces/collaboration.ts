@@ -26,6 +26,7 @@ import type {
   SocketData,
 } from '@slidebot/shared-types';
 import { ROOMS, REALTIME_EVENTS, RealtimeSchemas } from '@slidebot/shared-types';
+import { prisma } from '../../config/database';
 
 import { logger } from '../../config/logger';
 import { annotationService } from '../../modules/annotations/annotations.service';
@@ -109,6 +110,9 @@ async function checkAndBroadcastRoomPressure(ns: Namespace, room: string) {
     const mode = isDegraded ? 'degraded' : 'normal';
     
     roomDegradationModes.set(room, isDegraded);
+    metrics.set(`collab:room:${room}:population`, count);
+    metrics.set(`collab:room:${room}:avg_rtt`, avgRtt);
+    
     ns.to(room).emit('room:pressure', { mode, count });
   } catch (err) {
     logger.warn({ err, room }, 'Failed to check room pressure');
@@ -283,7 +287,7 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
       }
       const room = ROOMS.deck(socket.data.currentDeckId ?? '');
       socket.to(room).emit('annotation_started', {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         ...(parsed.data as any),
         userId,
       });
@@ -303,7 +307,7 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
       }
       const room = ROOMS.deck(socket.data.currentDeckId ?? '');
       socket.to(room).emit('annotation_drew', {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         ...(parsed.data as any),
         userId,
       });
@@ -434,6 +438,80 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
       logger.debug({ userId, slideId }, 'Annotation clear broadcast');
     });
 
+    // ── Reactions & Hand Raises ───────────────────────────────────────────────
+    socket.on('reaction_send', (rawPayload) => {
+      const parsed = RealtimeSchemas.reactionSend.safeParse(rawPayload);
+      if (!parsed.success) return;
+      
+      const { roomId, emoji } = parsed.data;
+      // Broadcast to room
+      ns.to(roomId).emit('reaction_received', {
+        sessionId: roomId,
+        userId,
+        displayName,
+        emoji,
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    socket.on('hand_raise', (rawPayload) => {
+      const parsed = RealtimeSchemas.handRaise.safeParse(rawPayload);
+      if (!parsed.success) return;
+      
+      const { roomId } = parsed.data;
+      ns.to(roomId).emit('hand_raised', {
+        userId,
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    socket.on('hand_lower', (rawPayload) => {
+      const parsed = RealtimeSchemas.handLower.safeParse(rawPayload);
+      if (!parsed.success) return;
+      
+      const { roomId, targetUserId } = parsed.data;
+      // If presenter is lowering someone else's hand, targetUserId is set
+      const loweredUserId = targetUserId ?? userId;
+      ns.to(roomId).emit('hand_lowered', {
+        userId: loweredUserId
+      });
+    });
+
+    socket.on('comment_create', async (rawPayload) => {
+      const parsed = RealtimeSchemas.commentCreate.safeParse(rawPayload);
+      if (!parsed.success) return;
+      
+      const { roomId, slideId, text, positionX, positionY } = parsed.data;
+      
+      try {
+        // We will persist this in the DB, but can broadcast immediately for low latency
+        const created = await prisma.comment.create({
+          data: {
+            sessionId: roomId,
+            slideId,
+            userId,
+            text,
+            positionX: positionX ?? null,
+            positionY: positionY ?? null
+          }
+        });
+
+        ns.to(roomId).emit('comment_created', {
+          id: created.id,
+          sessionId: roomId,
+          slideId,
+          userId,
+          displayName,
+          text,
+          positionX: created.positionX,
+          positionY: created.positionY,
+          createdAt: created.createdAt.toISOString()
+        });
+      } catch (err) {
+        logger.error({ err, userId }, 'Failed to create comment');
+      }
+    });
+
     // ── disconnect ────────────────────────────────────────────────────────────
     socket.on('disconnect', (reason) => {
       logger.info({ userId, reason }, 'User disconnected from /collaboration');
@@ -449,6 +527,23 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
       for (const room of rooms) {
         socket.to(room).emit('user_left', { userId });
         checkAndBroadcastRoomPressure(ns, room);
+      }
+    });
+
+    // ── replay_integrity_check ────────────────────────────────────────────────
+    socket.on('replay_integrity_check', async (payload, ack) => {
+      const { deckId, slideId, localEventCount, checksum } = payload;
+      if (!deckId || !slideId) return ack?.({ ok: false, error: 'Invalid payload' });
+      try {
+        const replayEvents = await roomManager.getReplayEvents(deckId, slideId);
+        const serverEventCount = replayEvents.length;
+        // Simple placeholder for checksum comparison
+        const isMatch = localEventCount === serverEventCount; 
+        metrics.inc(isMatch ? 'collab:integrity:match' : 'collab:integrity:mismatch');
+        ack?.({ ok: true, match: isMatch, serverEventCount });
+      } catch (err) {
+        logger.error({ err }, 'Failed replay integrity check');
+        ack?.({ ok: false, error: 'Integrity check failed' });
       }
     });
 
@@ -476,7 +571,7 @@ export function registerCollaborationHandlers(ns: CollabNamespace): void {
       // Broadcast validated event to all others in the deck room
       const room = ROOMS.deck(socket.data.currentDeckId ?? '');
       // The Zod-inferred type is structurally compatible with AnnotationEventIngress
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       socket.to(room).emit('annotation_event_broadcast', result.event as any);
 
       // Enqueue to room manager replay queue

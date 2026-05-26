@@ -54,6 +54,7 @@
     "zustand": "^5.0.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.1",
     "@playwright/test": "^1.60.0",
     "@slidebot/eslint-config": "workspace:*",
     "@slidebot/tsconfig": "workspace:*",

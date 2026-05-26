@@ -532,7 +532,7 @@ export function registerPresenterHandlers(ns: PresenterNamespace): void {
       const sessionId = socket.data.currentSessionId;
       if (!sessionId) return;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       ns.to(`session:${sessionId}`).emit('annotation_event_broadcast', result.event as any);
     });
 

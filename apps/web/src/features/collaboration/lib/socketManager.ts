@@ -1,5 +1,5 @@
 import { io, type Socket, type ManagerOptions, type SocketOptions } from 'socket.io-client';
-import * as Sentry from '@sentry/react';
+import * as Sentry from '@/shared/lib/sentry';
 import type { Subscription } from '@supabase/supabase-js';
 import customParser from 'socket.io-msgpack-parser';
 
@@ -174,9 +174,8 @@ class SocketManager {
         `[SocketManager] /presenter ${wasReconnect ? 're' : ''}connected`,
         presenterSocket.id
       );
-      Sentry.addBreadcrumb({
+      Sentry.captureMessage(`Presenter connected (reconnect: ${wasReconnect})`, {
         category: 'socket',
-        message: `Presenter connected (reconnect: ${wasReconnect})`,
         level: 'info',
         data: { id: presenterSocket.id },
       });
@@ -184,9 +183,8 @@ class SocketManager {
 
     presenterSocket.on('disconnect', (reason) => {
       logger.warn('[SocketManager] /presenter disconnected:', reason);
-      Sentry.addBreadcrumb({
+      Sentry.captureMessage(`Presenter disconnected: ${reason}`, {
         category: 'socket',
-        message: `Presenter disconnected: ${reason}`,
         level: 'warning',
       });
       if (reason === 'io client disconnect') {
@@ -206,11 +204,19 @@ class SocketManager {
       this.emitReconnectAttempts(0);
       this.emitStatus('connected');
       logger.info(`[SocketManager] Reconnected after ${attempt} attempts`);
+      Sentry.captureMessage(`Websocket reconnected after ${attempt} attempts`, {
+        level: 'info',
+        tags: { section: 'socket_reconnect', attempts: String(attempt) }
+      });
     });
 
     presenterSocket.io.on('reconnect_failed', () => {
       logger.error('[SocketManager] Reconnect failed after max attempts');
       this.emitStatus('error');
+      Sentry.captureMessage('Websocket reconnect failed after max attempts', {
+        level: 'error',
+        tags: { section: 'socket_reconnect' }
+      });
     });
 
     presenterSocket.on('connect_error', (err) => {

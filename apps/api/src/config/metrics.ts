@@ -11,6 +11,10 @@ export class MetricsRegistry {
     return this.counters.get(key) || 0;
   }
 
+  set(key: string, val: number) {
+    this.counters.set(key, val);
+  }
+
   toJSON() {
     return {
       instance_id: INSTANCE_ID,
