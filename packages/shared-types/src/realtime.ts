@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AnnotationEvent as AnnotationEventSchema, ReplayRecord as ReplayRecordSchema } from './annotations';
+import { AnnotationEvent as AnnotationEventSchema, ReplayRecord as ReplayRecordSchema } from './annotations.js';
 
 export const REALTIME_EVENTS = {
   SESSION_CREATE: 'session:create',
