@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import * as Sentry from '@sentry/react';
+import { AlertTriangle } from 'lucide-react';
 
 import { useSyncEngine } from '@/features/sync/hooks/useSyncEngine';
 import { useAnnotationSync } from '@/features/annotation/hooks/useAnnotationSync';
@@ -174,23 +176,35 @@ export function RoomPage() {
           </div>
           <PresenterOverlay />
 
-          <SlideCanvas onDimensionsChange={handleDimensionsChange} />
+          <Sentry.ErrorBoundary
+            fallback={
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-2 rounded-lg border border-red-500/20 bg-red-950/20 px-4 py-3 text-center">
+                  <AlertTriangle className="h-5 w-5 text-red-400" />
+                  <p className="text-xs text-red-300">Canvas error — annotations unavailable</p>
+                </div>
+              </div>
+            }
+            onError={(err) => console.error('[CanvasErrorBoundary]', err)}
+          >
+            <SlideCanvas onDimensionsChange={handleDimensionsChange} />
 
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div style={{ width: canvasDims.w, height: canvasDims.h, position: 'relative' }}>
-              <CursorOverlay
-                slideId={`${resolvedDeckId ?? 'deck'}-${currentPage}`}
-                width={canvasDims.w}
-                height={canvasDims.h}
-              />
-              <AnnotationCanvas
-                slideId={`${resolvedDeckId ?? 'deck'}-${currentPage}`}
-                width={canvasDims.w}
-                height={canvasDims.h}
-                sync={annotationSync}
-              />
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div style={{ width: canvasDims.w, height: canvasDims.h, position: 'relative' }}>
+                <CursorOverlay
+                  slideId={`${resolvedDeckId ?? 'deck'}-${currentPage}`}
+                  width={canvasDims.w}
+                  height={canvasDims.h}
+                />
+                <AnnotationCanvas
+                  slideId={`${resolvedDeckId ?? 'deck'}-${currentPage}`}
+                  width={canvasDims.w}
+                  height={canvasDims.h}
+                  sync={annotationSync}
+                />
+              </div>
             </div>
-          </div>
+          </Sentry.ErrorBoundary>
 
           <SnapBackBanner
             presenterName={session?.presenterName ?? ''}

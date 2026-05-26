@@ -51,10 +51,6 @@ export const AnnotationCanvas = memo(function AnnotationCanvas({
   sync,
   canAnnotate = true,
 }: AnnotationCanvasProps) {
-  if (import.meta.env.DEV) {
-    recordRenderCount('ANNOTATION_CANVAS_RENDER');
-  }
-
   const toolConfig = useAnnotationStore((s) => s.toolConfig);
   const annotations = useAnnotationStore(useShallow(selectAnnotationList));
   const activeStroke = useAnnotationStore(selectActiveStroke);
@@ -69,6 +65,11 @@ export const AnnotationCanvas = memo(function AnnotationCanvas({
   const drawing = useDrawing({ slideId, slideWidth: width, slideHeight: height, sync });
   const laser = useLaserPointer({ slideWidth: width, slideHeight: height, sync });
   const activeLineRef = useRef<any>(null);
+
+  // All hooks must be called before any conditional returns (React rules of hooks)
+  if (import.meta.env.DEV) {
+    recordRenderCount('ANNOTATION_CANVAS_RENDER');
+  }
 
   // Denormalise helper: [0-1] → px
   const px = useCallback(

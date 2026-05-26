@@ -34,7 +34,12 @@ function normalise(x: number, y: number, w: number, h: number): CursorPosition {
 export function useDrawing({ slideId, slideWidth, slideHeight, sync }: UseDrawingOptions) {
   const user = useAuthStore((s) => s.user);
   const toolConfig = useAnnotationStore(selectToolConfig);
-  const store = useAnnotationStore();
+  // Select only the stable action functions we need — never the whole store.
+  // useAnnotationStore() with no selector subscribes to the entire Immer-proxied
+  // state and triggers re-renders (and can throw) on every mutation.
+  const startStroke = useAnnotationStore((s) => s.startStroke);
+  const updateActiveStrokePoints = useAnnotationStore((s) => s.updateActiveStrokePoints);
+  const commitStroke = useAnnotationStore((s) => s.commitStroke);
 
   const isDrawingRef = useRef(false);
   const activeAnnotationIdRef = useRef<string | null>(null);
@@ -76,10 +81,10 @@ export function useDrawing({ slideId, slideWidth, slideHeight, sync }: UseDrawin
         data: buildInitialData(toolConfig.tool as Annotation['data']['tool'], normalised),
       };
 
-      store.startStroke(annotation);
+      startStroke(annotation);
       sync.emitAnnotationStart(annotationId, toolConfig.tool, normalised);
     },
-    [user, toolConfig, slideId, slideWidth, slideHeight, store, sync]
+    [user, toolConfig, slideId, slideWidth, slideHeight, startStroke, sync]
   );
 
   const handlePointerMove = useCallback(
@@ -114,17 +119,17 @@ export function useDrawing({ slideId, slideWidth, slideHeight, sync }: UseDrawin
 
       // Commit final points back to the store before committing the stroke
       if (toolConfig.tool === 'freehand' || toolConfig.tool === 'highlight') {
-        store.updateActiveStrokePoints(pointsRef.current);
+        updateActiveStrokePoints(pointsRef.current);
       }
 
-      const committed = store.commitStroke();
+      const committed = commitStroke();
       if (committed) {
         sync.emitAnnotationEnd(committed);
       }
       activeAnnotationIdRef.current = null;
       pointsRef.current = [];
     },
-    [store, sync, toolConfig.tool]
+    [updateActiveStrokePoints, commitStroke, sync, toolConfig.tool]
   );
 
   // Track cursor even when not drawing
