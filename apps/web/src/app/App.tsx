@@ -3,7 +3,6 @@ import { AppRouter } from './router';
 import * as Sentry from '@sentry/react';
 import { Toaster } from '@/shared/components/Toaster';
 import { OnboardingFlow } from '@/features/onboarding/components/OnboardingFlow';
-import { CommandPalette } from '@/shared/components/CommandPalette';
 
 import { ErrorFallback } from '@/shared/components/ErrorFallback';
 
@@ -17,7 +16,6 @@ export default function App() {
           <AppRouter />
           <Toaster />
           <OnboardingFlow />
-          <CommandPalette />
         </SettingsProvider>
       </AppProviders>
     </Sentry.ErrorBoundary>

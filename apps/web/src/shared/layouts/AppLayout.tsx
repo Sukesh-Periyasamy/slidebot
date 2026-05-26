@@ -8,6 +8,7 @@ import { listWorkspaces } from '@/features/workspaces/api/workspaceApi';
 import { useEffect, useState } from 'react';
 import { NotificationCenter } from '@/shared/components/NotificationCenter';
 import { KeyboardShortcutsModal } from '@/shared/components/KeyboardShortcutsModal';
+import { CommandPalette } from '@/shared/components/CommandPalette';
 import { Menu, X } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -48,6 +49,7 @@ export function AppLayout() {
         <Outlet />
       </main>
 
+      <CommandPalette />
       <KeyboardShortcutsModal isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />
     </div>
   );
