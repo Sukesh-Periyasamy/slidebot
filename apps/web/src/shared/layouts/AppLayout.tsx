@@ -6,6 +6,8 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useWorkspaceStore } from '@/features/workspaces/store/workspaceStore';
 import { listWorkspaces } from '@/features/workspaces/api/workspaceApi';
 import { useEffect, useState } from 'react';
+import { useAuthStore } from '@/features/auth/store/authStore';
+
 import { NotificationCenter } from '@/shared/components/NotificationCenter';
 import { KeyboardShortcutsModal } from '@/shared/components/KeyboardShortcutsModal';
 import { CommandPalette } from '@/shared/components/CommandPalette';
@@ -70,10 +72,21 @@ function Sidebar({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: (open: boo
   const navigate = useNavigate();
   const { workspaces, activeWorkspaceId, setActiveWorkspace, setWorkspaces } = useWorkspaceStore();
 
-  useEffect(() => {
-    listWorkspaces().then(setWorkspaces).catch(console.error);
-  }, [setWorkspaces]);
 
+  useEffect(() => {
+    const unsubscribe = useAuthStore.subscribe(
+      (state) => state.isInitialized,
+      (isInitialized) => {
+        if (isInitialized) {
+          const session = useAuthStore.getState().session;
+          if (session) {
+            listWorkspaces().then(setWorkspaces).catch(console.error);
+          }
+        }
+      }
+    );
+    return () => unsubscribe();
+  }, [setWorkspaces]);
   return (
     <>
       {/* Mobile Backdrop */}

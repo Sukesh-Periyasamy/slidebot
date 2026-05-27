@@ -33,11 +33,19 @@ async function bootstrap(): Promise<void> {
     logger.info('✅ Database connected');
 
     // 2. Connect to Redis (Socket.IO adapter + cache)
-    await connectRedis();
-    logger.info('✅ Redis connected');
+    let redisAvailable = false;
+    try {
+      await connectRedis();
+      redisAvailable = true;
+      logger.info('✅ Redis connected');
+    } catch (err) {
+      logger.warn({ err }, '⚠️ Redis unavailable — real-time features degraded');
+    }
 
     // Start instance heartbeat
-    instanceManager.startHeartbeat();
+    if (redisAvailable) {
+      instanceManager.startHeartbeat();
+    }
 
     // 3. Create Express app
     const app = createApp();
@@ -46,12 +54,18 @@ async function bootstrap(): Promise<void> {
     const httpServer = createServer(app);
 
     // 5. Initialize Socket.IO on the HTTP server
-    initializeSocket(httpServer);
-    logger.info('✅ Socket.IO initialized');
+    if (redisAvailable) {
+      initializeSocket(httpServer);
+      logger.info('✅ Socket.IO initialized');
+    } else {
+      logger.warn('⚠️ Socket.IO skipped — Redis unavailable');
+    }
 
     // Start BullMQ persistence worker
-    startPersistenceWorker();
-    startCompactionWorker();
+    if (redisAvailable) {
+      startPersistenceWorker();
+      startCompactionWorker();
+    }
 
     // 7. Start listening
     httpServer.listen(env.PORT, env.HOST, () => {
@@ -65,9 +79,11 @@ async function bootstrap(): Promise<void> {
     const shutdown = async (signal: string): Promise<void> => {
       logger.info({ signal }, 'Received shutdown signal, closing gracefully...');
       
-      await stopPersistenceWorker();
-      await stopCompactionWorker();
-      instanceManager.stopHeartbeat();
+      if (redisAvailable) {
+        await stopPersistenceWorker();
+        await stopCompactionWorker();
+        instanceManager.stopHeartbeat();
+      }
       
       httpServer.close(() => {
         logger.info('HTTP server closed');
