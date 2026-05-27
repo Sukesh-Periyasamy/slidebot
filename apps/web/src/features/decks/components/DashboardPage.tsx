@@ -6,7 +6,6 @@ import { useDeckUpload } from '../hooks/useDeckUpload';
 import { listRecentRooms } from '../api/roomsApi';
 import type { RoomListItem } from '../types/room';
 import { Button } from '@/shared/components/Button';
-import { useAuthStore } from '@/features/auth/store/authStore';
 import { DeleteRoomButton } from './DeleteRoomButton';
 import { DeleteRoomDialog } from './DeleteRoomDialog';
 
@@ -18,7 +17,6 @@ export function DashboardPage() {
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [deleteDialogRoomId, setDeleteDialogRoomId] = useState<string | null>(null);
   const { upload, isUploading, error, clearError } = useDeckUpload();
-  const currentUser = useAuthStore((s) => s.user);
 
   const handleRoomDeleted = useCallback((roomId: string) => {
     setRooms((prev) => prev.filter((r) => r.roomId !== roomId));
@@ -124,7 +122,7 @@ export function DashboardPage() {
                     <div className="flex items-center gap-4">
                       <span className="text-xs text-surface-500 capitalize">{room.status}</span>
                       <DeleteRoomButton
-                        isOwner={room.presenterId === currentUser?.id}
+                        isOwner={true}
                         isDeleting={false}
                         onClick={() => setDeleteDialogRoomId(room.roomId)}
                       />
