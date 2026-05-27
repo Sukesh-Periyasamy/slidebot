@@ -46,6 +46,7 @@ export interface SyncSession {
 interface SyncState {
   // Connection
   connectionStatus: ConnectionStatus;
+  connectionErrorMessage: string | null;
   reconnectAttempts: number;
   lastConnectedAt: number | null;
 
@@ -70,7 +71,7 @@ interface SyncState {
   raisedHands: string[];
 
   // Actions — connection
-  setConnectionStatus: (status: ConnectionStatus) => void;
+  setConnectionStatus: (status: ConnectionStatus, errorMessage?: string) => void;
   setReconnectAttempts: (n: number) => void;
 
   // Actions — session
@@ -109,6 +110,7 @@ interface SyncState {
 
 const initialState = {
   connectionStatus: 'idle' as ConnectionStatus,
+  connectionErrorMessage: null as string | null,
   reconnectAttempts: 0,
   lastConnectedAt: null,
   session: null,
@@ -131,10 +133,11 @@ export const useSyncStore = create<SyncState>()(
         ...initialState,
 
         // ── Connection ────────────────────────────────────────────────────
-        setConnectionStatus: (connectionStatus) =>
+        setConnectionStatus: (connectionStatus, errorMessage) =>
           set((s) => {
-            if (s.connectionStatus === connectionStatus) return;
+            if (s.connectionStatus === connectionStatus && s.connectionErrorMessage === (errorMessage ?? null)) return;
             s.connectionStatus = connectionStatus;
+            s.connectionErrorMessage = connectionStatus === 'error' ? (errorMessage ?? null) : null;
             if (connectionStatus === 'connected') {
               s.lastConnectedAt = Date.now();
               s.reconnectAttempts = 0;
@@ -291,6 +294,7 @@ export const selectMembers = (s: SyncState) => Object.values(s.members);
 export const selectOtherMembers = (userId: string) => (s: SyncState) =>
   Object.values(s.members).filter((m) => m.userId !== userId);
 export const selectConnectionStatus = (s: SyncState) => s.connectionStatus;
+export const selectConnectionErrorMessage = (s: SyncState) => s.connectionErrorMessage;
 export const selectHandoffStatus = (s: SyncState) => s.handoffStatus;
 export const selectPresenterDisconnected = (s: SyncState) => s.presenterDisconnected;
 export const selectCurrentSlide = (s: SyncState) => s.session?.currentSlide ?? 0;

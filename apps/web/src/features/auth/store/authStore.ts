@@ -29,6 +29,7 @@ interface AuthState {
   setLoading: () => void;
   setError: (error: string) => void;
   clearAuth: () => void;
+  updateDisplayName: (displayName: string) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -71,6 +72,11 @@ export const useAuthStore = create<AuthState>()(
       setError: (error) => set({ status: 'unauthenticated', error }),
 
       clearAuth: () => set({ status: 'unauthenticated', user: null, session: null, error: null }),
+
+      updateDisplayName: (displayName) =>
+        set((state) => ({
+          user: state.user ? { ...state.user, displayName } : null,
+        })),
     })),
     { name: 'AuthStore' }
   )

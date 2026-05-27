@@ -76,6 +76,7 @@ export function useThumbnailRenderer({
       renderTaskRef.current = page.render({
         canvasContext: ctx,
         viewport,
+        canvas,
       });
 
       await renderTaskRef.current.promise;

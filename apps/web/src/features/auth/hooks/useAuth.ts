@@ -10,6 +10,8 @@ import {
   selectUser,
   useAuthStore,
 } from '../store/authStore';
+import { useWorkspaceStore } from '@/features/workspaces/store/workspaceStore';
+import { useSettingsStore } from '@/features/settings/store/settingsStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // useAuth — central auth hook
@@ -101,6 +103,16 @@ export function useAuth() {
   // ── Sign Out ──────────────────────────────────────────────────────────────
   const signOut = useCallback(async (): Promise<void> => {
     await supabase.auth.signOut();
+
+    // Clear persisted zustand store keys from localStorage
+    localStorage.removeItem('slidebot-settings');
+
+    // Reset zustand stores to their initial state
+    useWorkspaceStore.getState().setWorkspaces([]);
+    useWorkspaceStore.getState().setError(null);
+    useSettingsStore.getState().resetSettings();
+
+    // Clear auth store state
     clearAuth();
   }, [clearAuth]);
 

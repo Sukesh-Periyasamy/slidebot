@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Settings, LogOut, Presentation, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, Presentation, ChevronRight, AlertTriangle, RefreshCw } from 'lucide-react';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useWorkspaceStore } from '@/features/workspaces/store/workspaceStore';
@@ -70,7 +70,7 @@ const navItems = [
 function Sidebar({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: (open: boolean) => void }) {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
-  const { workspaces, activeWorkspaceId, setActiveWorkspace, setWorkspaces } = useWorkspaceStore();
+  const { workspaces, activeWorkspaceId, setActiveWorkspace, setWorkspaces, error, setError } = useWorkspaceStore();
 
 
   useEffect(() => {
@@ -80,13 +80,20 @@ function Sidebar({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: (open: boo
         if (isInitialized) {
           const session = useAuthStore.getState().session;
           if (session) {
-            listWorkspaces().then(setWorkspaces).catch(console.error);
+            listWorkspaces()
+              .then((ws) => {
+                setWorkspaces(ws);
+                setError(null);
+              })
+              .catch((err) => {
+                setError(err instanceof Error ? err.message : 'Failed to load workspaces');
+              });
           }
         }
       }
     );
     return () => unsubscribe();
-  }, [setWorkspaces]);
+  }, [setWorkspaces, setError]);
   return (
     <>
       {/* Mobile Backdrop */}
@@ -115,22 +122,48 @@ function Sidebar({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: (open: boo
 
       {/* Workspace Switcher */}
       <div className="px-3 pt-3 pb-2 border-b border-surface-800/50">
-        <div className="relative">
-          <select 
-            value={activeWorkspaceId || ''}
-            onChange={(e) => setActiveWorkspace(e.target.value)}
-            className="w-full bg-surface-800 border border-surface-700 text-surface-200 text-sm rounded-lg px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-brand-500"
-          >
-            {workspaces.map(ws => (
-              <option key={ws.id} value={ws.id}>{ws.name}</option>
-            ))}
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-surface-400">
-            <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-              <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-            </svg>
+        {error ? (
+          <div className="flex flex-col gap-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20">
+            <div className="flex items-center gap-2 text-red-400">
+              <AlertTriangle size={14} />
+              <span className="text-xs font-medium">Failed to load workspaces</span>
+            </div>
+            <p className="text-[11px] text-red-300/70 pl-[22px]">{error}</p>
+            <button
+              onClick={() => {
+                listWorkspaces()
+                  .then((ws) => {
+                    setWorkspaces(ws);
+                    setError(null);
+                  })
+                  .catch((err) => {
+                    setError(err instanceof Error ? err.message : 'Failed to load workspaces');
+                  });
+              }}
+              className="flex items-center gap-1.5 self-start ml-[22px] text-xs text-red-300 hover:text-red-200 transition-colors"
+            >
+              <RefreshCw size={12} />
+              Retry
+            </button>
           </div>
-        </div>
+        ) : (
+          <div className="relative">
+            <select 
+              value={activeWorkspaceId || ''}
+              onChange={(e) => setActiveWorkspace(e.target.value)}
+              className="w-full bg-surface-800 border border-surface-700 text-surface-200 text-sm rounded-lg px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              {workspaces.map(ws => (
+                <option key={ws.id} value={ws.id}>{ws.name}</option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-surface-400">
+              <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
+                <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+              </svg>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Navigation */}

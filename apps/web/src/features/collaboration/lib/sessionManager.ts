@@ -239,7 +239,19 @@ class SessionManager {
       await socketManager.ensureConnected();
       this.bindPresenterSocketListeners();
       this.bindCollaborationSocketListeners();
-      await this.joinPresenterSession(input.roomId, input.deckId);
+
+      try {
+        await this.joinPresenterSession(input.roomId, input.deckId);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Failed to join session';
+        useSyncStore
+          .getState()
+          .setConnectionStatus('error', message);
+        this.setSessionState('idle', { roomId: input.roomId, deckId: input.deckId });
+        return;
+      }
+
       this.setSessionState('active', { roomId: input.roomId, deckId: input.deckId });
     } finally {
       this.transitionInFlight = false;
@@ -560,7 +572,7 @@ class SessionManager {
       });
 
       if (!ack.ok || !ack.session) {
-        useSyncStore.getState().setConnectionStatus('error');
+        useSyncStore.getState().setConnectionStatus('error', ack.error ?? 'session:join failed');
         throw new Error(ack.error ?? 'session:join failed');
       }
 

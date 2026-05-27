@@ -13,6 +13,7 @@ import { SlideCanvas } from '@/features/viewer/components/SlideCanvas';
 import { AnnotationCanvas } from '@/features/annotation/components/AnnotationCanvas';
 import { RoomOverlays } from '@/features/sync/components/RoomOverlays';
 import { ConnectionStatusBar } from '@/features/sync/components/ConnectionStatusBar';
+import { SessionJoinErrorOverlay } from '@/features/sync/components/SessionJoinErrorOverlay';
 import { PresenterControls } from '@/features/sync/components/PresenterControls';
 import { PresenterOverlay } from '@/features/sync/components/PresenterOverlay';
 import { useExplorationMode } from '@/features/sync/hooks/useExplorationMode';
@@ -228,6 +229,7 @@ export function RoomPage() {
       </div>
 
       <RoomOverlays />
+      <SessionJoinErrorOverlay />
       <OnboardingGuide />
       <KeyboardShortcuts />
       <ReactionsOverlay />
