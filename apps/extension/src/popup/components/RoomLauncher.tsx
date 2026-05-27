@@ -27,7 +27,7 @@ export function RoomLauncher({ meetCode }: RoomLauncherProps) {
       
       <div className="card" style={{ textAlign: 'center', marginBottom: '24px', backgroundColor: 'transparent', border: '1px solid var(--surface-800)' }}>
         <div className="card-value" style={{ fontSize: '0.875rem', fontWeight: 'normal', color: 'var(--surface-200)', lineHeight: '1.5' }}>
-          Launch a new presentation or join an existing session linked to this Meet.
+          Launch a new room or join an existing session linked to this Meet.
         </div>
       </div>
       

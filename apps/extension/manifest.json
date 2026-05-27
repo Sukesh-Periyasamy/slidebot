@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "SlideBot — Collaborative Presentations",
   "short_name": "SlideBot",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Synchronized multiplayer presentations for Google Meet. Real-time slide sync, annotations, and presenter handoff.",
 
   "icons": {
@@ -42,7 +42,8 @@
   "host_permissions": [
     "https://meet.google.com/*",
     "http://localhost:4000/*",
-    "https://*.slidebot.app/*"
+    "https://slidebot-web.vercel.app/*",
+    "https://slidebot-api-mvb8.onrender.com/*"
   ],
 
   "web_accessible_resources": [

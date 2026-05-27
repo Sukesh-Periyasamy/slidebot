@@ -29,7 +29,7 @@ export function SessionConnector({ onOpenSlideBot }: SessionConnectorProps) {
       });
       setCode('');
     } catch {
-      setError('Could not connect. Check the session code.');
+      setError('Could not connect. Check the room code.');
     } finally {
       setIsConnecting(false);
     }
@@ -50,15 +50,15 @@ export function SessionConnector({ onOpenSlideBot }: SessionConnectorProps) {
         >
           Join a presentation
         </p>
-        <p className="sb-text-xs sb-text-muted">Enter a session code or start a new presentation</p>
+        <p className="sb-text-xs sb-text-muted">Enter a room code or start a new presentation</p>
       </div>
 
-      {/* Session code input */}
+      {/* Room code input */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <input
           className="sb-input"
           type="text"
-          placeholder="Session code..."
+          placeholder="Room code..."
           value={code}
           onChange={(e) => setCode(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -78,7 +78,7 @@ export function SessionConnector({ onOpenSlideBot }: SessionConnectorProps) {
           onClick={handleConnect}
           disabled={!code.trim() || isConnecting}
         >
-          {isConnecting ? 'Connecting...' : 'Join Session'}
+          {isConnecting ? 'Connecting...' : 'Join Room'}
         </button>
       </div>
 
