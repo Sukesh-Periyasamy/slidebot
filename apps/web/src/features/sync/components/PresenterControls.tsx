@@ -98,33 +98,35 @@ export function PresenterControls({
   const toggleConfidenceMonitor = useUxStore((s) => s.toggleConfidenceMonitor);
 
   return (
-    <div className="relative flex items-center justify-between px-2 md:px-4 py-2 border-t border-surface-800 bg-surface-900/80 backdrop-blur-sm gap-2">
+    <div className="relative flex items-center justify-between px-3 md:px-4 py-2 border-t border-surface-800 bg-surface-900/80 backdrop-blur-sm">
       {/* ── Left: Annotation toolbar (hidden on mobile, moved to floating or scrolling) ───────────────────────────────────── */}
-      <div className="hidden md:flex items-center gap-1">
-        {ANNOTATION_TOOLS.map(({ tool, Icon, label }) => (
-          <button
-            key={tool}
-            onClick={() => setTool(tool)}
-            title={label}
-            className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
-              toolConfig.tool === tool
-                ? 'bg-brand-500/20 text-brand-300 ring-1 ring-brand-500/40'
-                : 'text-surface-500 hover:bg-surface-800 hover:text-surface-200'
-            }`}
-          >
-            <Icon size={15} />
-          </button>
-        ))}
+      <div className="hidden md:flex items-center gap-0.5 shrink-0">
+        <div className="flex items-center gap-0.5 rounded-lg border border-surface-800 p-0.5">
+          {ANNOTATION_TOOLS.map(({ tool, Icon, label }) => (
+            <button
+              key={tool}
+              onClick={() => setTool(tool)}
+              title={label}
+              className={`flex h-7 w-7 items-center justify-center rounded-md transition-all ${
+                toolConfig.tool === tool
+                  ? 'bg-brand-500/20 text-brand-300 ring-1 ring-brand-500/40'
+                  : 'text-surface-400 hover:bg-surface-800 hover:text-surface-200'
+              }`}
+            >
+              <Icon size={14} />
+            </button>
+          ))}
+        </div>
 
         {/* Color picker strip */}
-        <div className="ml-2 flex items-center gap-1">
+        <div className="ml-1.5 flex items-center gap-1">
           {ANNOTATION_COLORS.slice(0, 5).map((color) => (
             <button
               key={color}
               onClick={() => setColor(color)}
               title={color}
-              className={`h-4 w-4 rounded-full border-2 transition-transform hover:scale-110 ${
-                toolConfig.color === color ? 'border-white scale-110' : 'border-transparent'
+              className={`h-3.5 w-3.5 rounded-full border-2 transition-transform hover:scale-125 ${
+                toolConfig.color === color ? 'border-white scale-125' : 'border-transparent'
               }`}
               style={{ backgroundColor: color }}
             />
@@ -133,7 +135,7 @@ export function PresenterControls({
       </div>
 
       {/* ── Center: Slide navigation ───────────────────────────────────── */}
-      <div className="flex flex-1 md:flex-none md:absolute md:left-1/2 md:-translate-x-1/2 items-center justify-center gap-2">
+      <div className="flex flex-1 items-center justify-center gap-2 min-w-0">
         {/* Explore mode badge */}
         <AnimatePresence>
           {isExploring && !isPresenter && (
@@ -208,14 +210,14 @@ export function PresenterControls({
       </div>
 
       {/* ── Right: Zoom + Presenter actions ───────────────────────────── */}
-      <div className="hidden md:flex items-center gap-2">
+      <div className="hidden md:flex items-center gap-1.5 shrink-0">
         {/* Zoom selector */}
-        <div className="flex items-center gap-0.5 rounded-lg border border-surface-800 p-0.5">
+        <div className="flex items-center rounded-lg border border-surface-800 p-0.5">
           {ZOOM_PRESETS.map(({ label, value }) => (
             <button
               key={label}
               onClick={() => setZoom(value)}
-              className={`px-2 py-1 rounded-md text-xs font-medium transition-all ${
+              className={`px-1.5 py-1 rounded-md text-xs font-medium transition-all ${
                 zoom === value
                   ? 'bg-surface-700 text-surface-100'
                   : 'text-surface-500 hover:text-surface-200'
@@ -234,10 +236,10 @@ export function PresenterControls({
             const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)] || '👍';
             import('@/features/collaboration/lib/sessionManager').then((m) => m.sessionManager.sendReaction(randomEmoji));
           }}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-surface-400 hover:bg-surface-800 hover:text-brand-300 transition-all"
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-surface-400 hover:bg-surface-800 hover:text-brand-300 transition-all"
           title="Send Reaction"
         >
-          <Smile size={16} />
+          <Smile size={15} />
         </button>
 
         <button
@@ -257,14 +259,14 @@ export function PresenterControls({
               }
             });
           }}
-          className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+          className={`relative flex h-7 w-7 items-center justify-center rounded-lg transition-all ${
             raisedHandsCount > 0
               ? 'bg-brand-500/20 text-brand-300 ring-1 ring-brand-500/40'
               : 'text-surface-400 hover:bg-surface-800 hover:text-surface-100'
           }`}
           title="Raise/Lower Hand"
         >
-          <Hand size={16} />
+          <Hand size={15} />
           {raisedHandsCount > 0 && (
             <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand-500 text-[8px] font-bold text-white">
               {raisedHandsCount}
@@ -278,42 +280,42 @@ export function PresenterControls({
             <div className="w-px h-5 bg-surface-800" />
             <button
               onClick={toggleTeleprompter}
-              className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+              className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all ${
                 teleprompterVisible
                   ? 'bg-brand-500/20 text-brand-300 ring-1 ring-brand-500/40'
                   : 'text-surface-400 hover:bg-surface-800 hover:text-surface-100'
               }`}
               title="Toggle Teleprompter"
             >
-              <FileText size={16} />
+              <FileText size={15} />
             </button>
             <button
               onClick={toggleConfidenceMonitor}
-              className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+              className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all ${
                 confidenceMonitorVisible
                   ? 'bg-brand-500/20 text-brand-300 ring-1 ring-brand-500/40'
                   : 'text-surface-400 hover:bg-surface-800 hover:text-surface-100'
               }`}
               title="Toggle Confidence Monitor"
             >
-              <Monitor size={16} />
+              <Monitor size={15} />
             </button>
             <div className="w-px h-5 bg-surface-800" />
             <button
               onClick={onHandoffClick}
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-surface-400 hover:bg-surface-800 hover:text-surface-100 transition-all"
+              className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-surface-400 hover:bg-surface-800 hover:text-surface-100 transition-all"
               title="Hand off presenter role"
             >
-              <Users size={13} />
-              Hand Off
+              <Users size={12} />
+              <span className="hidden lg:inline">Hand Off</span>
             </button>
             <button
               onClick={onEndSession}
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/10 transition-all"
+              className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/10 transition-all"
               title="End session"
             >
-              <LogOut size={13} />
-              End
+              <LogOut size={12} />
+              <span className="hidden lg:inline">End</span>
             </button>
           </>
         )}
