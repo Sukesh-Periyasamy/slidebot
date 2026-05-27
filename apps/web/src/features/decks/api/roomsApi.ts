@@ -18,3 +18,7 @@ export async function joinRoom(roomId: string): Promise<void> {
 export async function leaveRoom(roomId: string): Promise<void> {
   await apiClient.post(`/rooms/${roomId}/leave`);
 }
+
+export async function deleteRoom(roomId: string): Promise<void> {
+  await apiClient.delete(`/rooms/${roomId}`);
+}

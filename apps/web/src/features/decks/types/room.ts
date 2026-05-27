@@ -1,6 +1,7 @@
 export interface RoomListItem {
   roomId: string;
   deckId: string;
+  presenterId: string;
   status: 'active' | 'ended';
   createdAt: string;
   endedAt: string | null;

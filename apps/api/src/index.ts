@@ -11,6 +11,7 @@ import { connectDatabase } from './config/database';
 import { instanceManager } from './socket/instance-manager';
 import { startPersistenceWorker, stopPersistenceWorker } from './modules/annotations/persistence-worker';
 import { startCompactionWorker, stopCompactionWorker } from './modules/annotations/compaction-worker';
+import { startRoomCleanupWorker, stopRoomCleanupWorker } from './modules/rooms/room-cleanup.job';
 import * as Sentry from '@sentry/node';
 
 if (env.SENTRY_DSN) {
@@ -63,6 +64,7 @@ async function bootstrap(): Promise<void> {
       if (enableWorkers) {
         startPersistenceWorker();
         startCompactionWorker();
+        await startRoomCleanupWorker();
       } else {
         logger.info('⏭️ BullMQ workers skipped in dev (set ENABLE_WORKERS=true to enable)');
       }
@@ -85,6 +87,7 @@ async function bootstrap(): Promise<void> {
         if (enableWorkers) {
           await stopPersistenceWorker();
           await stopCompactionWorker();
+          await stopRoomCleanupWorker();
         }
         instanceManager.stopHeartbeat();
       }

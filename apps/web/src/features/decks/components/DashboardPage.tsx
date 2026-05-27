@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, useCallback, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileUp, PlusCircle, Loader2, AlertCircle, ArrowRight } from 'lucide-react';
 
@@ -6,6 +6,9 @@ import { useDeckUpload } from '../hooks/useDeckUpload';
 import { listRecentRooms } from '../api/roomsApi';
 import type { RoomListItem } from '../types/room';
 import { Button } from '@/shared/components/Button';
+import { useAuthStore } from '@/features/auth/store/authStore';
+import { DeleteRoomButton } from './DeleteRoomButton';
+import { DeleteRoomDialog } from './DeleteRoomDialog';
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -13,7 +16,16 @@ export function DashboardPage() {
   const [lastRoomId, setLastRoomId] = useState<string | null>(null);
   const [rooms, setRooms] = useState<RoomListItem[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
+  const [deleteDialogRoomId, setDeleteDialogRoomId] = useState<string | null>(null);
   const { upload, isUploading, error, clearError } = useDeckUpload();
+  const currentUser = useAuthStore((s) => s.user);
+
+  const handleRoomDeleted = useCallback((roomId: string) => {
+    setRooms((prev) => prev.filter((r) => r.roomId !== roomId));
+    setDeleteDialogRoomId(null);
+  }, []);
+
+  const dialogRoom = rooms.find((r) => r.roomId === deleteDialogRoomId);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +123,11 @@ export function DashboardPage() {
                     <span className="truncate font-medium text-surface-200">{room.deck.name}</span>
                     <div className="flex items-center gap-4">
                       <span className="text-xs text-surface-500 capitalize">{room.status}</span>
+                      <DeleteRoomButton
+                        isOwner={room.presenterId === currentUser?.id}
+                        isDeleting={false}
+                        onClick={() => setDeleteDialogRoomId(room.roomId)}
+                      />
                       <Button size="sm" variant="secondary" onClick={() => navigate(`/room/${room.roomId}`)}>
                         Join
                       </Button>
@@ -135,6 +152,16 @@ export function DashboardPage() {
         accept="application/pdf,.pdf"
         className="hidden"
         onChange={handleFilePick}
+      />
+
+      <DeleteRoomDialog
+        open={deleteDialogRoomId !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteDialogRoomId(null);
+        }}
+        roomId={deleteDialogRoomId ?? ''}
+        deckName={dialogRoom?.deck.name ?? ''}
+        onDeleted={handleRoomDeleted}
       />
     </div>
   );
