@@ -171,10 +171,10 @@ body {
 
 /* ── Utilities ──────────────────────────────────────────────────────────────── */
 .glass {
-  background: rgba(26, 32, 53, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--color-border);
+  background: rgba(17, 24, 39, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .glass-strong {
@@ -217,8 +217,8 @@ body {
 /* Animated gradient background for landing */
 .gradient-mesh {
   background:
-    radial-gradient(ellipse at 20% 50%, rgba(97, 115, 242, 0.15) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
-    radial-gradient(ellipse at 60% 80%, rgba(236, 72, 153, 0.08) 0%, transparent 50%),
-    var(--color-bg);
+    radial-gradient(ellipse at 20% 50%, rgba(97, 115, 242, 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.08) 0%, transparent 45%),
+    radial-gradient(ellipse at 60% 80%, rgba(236, 72, 153, 0.06) 0%, transparent 45%),
+    #0f1629;
 }

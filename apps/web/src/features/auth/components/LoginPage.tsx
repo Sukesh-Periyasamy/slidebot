@@ -71,17 +71,17 @@ export function LoginPage() {
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500">
             <SlideBotLogo />
           </div>
-          <span className="text-lg font-semibold text-surface-50">SlideBot</span>
+          <span className="text-lg font-semibold text-white">SlideBot</span>
         </div>
 
         <div className="space-y-6">
-          <h1 className="text-4xl font-bold leading-tight text-surface-50">
+          <h1 className="text-4xl font-bold leading-tight text-white">
             Figma for{' '}
-            <span className="bg-gradient-to-r from-brand-400 to-purple-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-brand-300 to-purple-300 bg-clip-text text-transparent">
               live presentations
             </span>
           </h1>
-          <p className="text-lg text-surface-400 leading-relaxed">
+          <p className="text-lg text-surface-300 leading-relaxed">
             Synchronized multiplayer presentations. Live cursors, real-time annotations, presenter
             handoff — all with sub-50ms latency.
           </p>
@@ -95,12 +95,12 @@ export function LoginPage() {
               'Personal exploration mode',
               'Chrome Extension for Google Meet',
             ].map((feature) => (
-              <li key={feature} className="flex items-center gap-3 text-surface-300">
-                <div className="h-5 w-5 rounded-full bg-brand-500/20 flex items-center justify-center flex-shrink-0">
+              <li key={feature} className="flex items-center gap-3 text-surface-200">
+                <div className="h-5 w-5 rounded-full bg-brand-500/25 flex items-center justify-center flex-shrink-0">
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                     <path
                       d="M2 6l3 3 5-5"
-                      stroke="#6173F2"
+                      stroke="#8199f8"
                       strokeWidth="1.5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -113,7 +113,7 @@ export function LoginPage() {
           </ul>
         </div>
 
-        <p className="text-sm text-surface-600">
+        <p className="text-sm text-surface-500">
           © {new Date().getFullYear()} SlideBot. Built for collaborative teams.
         </p>
       </div>
@@ -134,12 +134,12 @@ export function LoginPage() {
                 <div className="h-8 w-8 rounded-lg bg-brand-500 flex items-center justify-center">
                   <SlideBotLogo />
                 </div>
-                <span className="font-semibold text-surface-50">SlideBot</span>
+                <span className="font-semibold text-white">SlideBot</span>
               </div>
-              <h2 className="text-2xl font-bold text-surface-50">
+              <h2 className="text-2xl font-bold text-white">
                 {mode === 'signin' ? 'Welcome back' : 'Create your account'}
               </h2>
-              <p className="mt-1 text-surface-400 text-sm">
+              <p className="mt-1 text-surface-300 text-sm">
                 {mode === 'signin'
                   ? 'Sign in to your SlideBot workspace'
                   : 'Start collaborating in minutes'}
@@ -149,7 +149,7 @@ export function LoginPage() {
             {/* Google OAuth button */}
             <button
               onClick={handleGoogleSignIn}
-              className="w-full flex items-center justify-center gap-3 rounded-xl border border-surface-700 bg-surface-800 px-4 py-3 text-sm font-medium text-surface-100 transition-all hover:bg-surface-700 hover:border-surface-600 focus-visible:ring-2 focus-visible:ring-brand-500"
+              className="w-full flex items-center justify-center gap-3 rounded-xl border border-surface-600 bg-surface-800/80 px-4 py-3 text-sm font-medium text-surface-50 transition-all hover:bg-surface-700 hover:border-surface-500 focus-visible:ring-2 focus-visible:ring-brand-500"
             >
               <GoogleIcon />
               Continue with Google
@@ -157,9 +157,9 @@ export function LoginPage() {
 
             {/* Divider */}
             <div className="my-6 flex items-center gap-4">
-              <div className="flex-1 h-px bg-surface-700" />
-              <span className="text-xs text-surface-500">or</span>
-              <div className="flex-1 h-px bg-surface-700" />
+              <div className="flex-1 h-px bg-surface-600" />
+              <span className="text-xs text-surface-400">or</span>
+              <div className="flex-1 h-px bg-surface-600" />
             </div>
 
             {/* Email form */}
@@ -168,7 +168,7 @@ export function LoginPage() {
                 <div>
                   <label
                     htmlFor="displayName"
-                    className="block text-xs font-medium text-surface-300 mb-1.5"
+                    className="block text-xs font-medium text-surface-200 mb-1.5"
                   >
                     Display Name
                   </label>
@@ -187,7 +187,7 @@ export function LoginPage() {
               <div>
                 <label
                   htmlFor="email"
-                  className="block text-xs font-medium text-surface-300 mb-1.5"
+                  className="block text-xs font-medium text-surface-200 mb-1.5"
                 >
                   Email address
                 </label>
@@ -206,7 +206,7 @@ export function LoginPage() {
               <div>
                 <label
                   htmlFor="password"
-                  className="block text-xs font-medium text-surface-300 mb-1.5"
+                  className="block text-xs font-medium text-surface-200 mb-1.5"
                 >
                   Password
                 </label>
@@ -248,7 +248,7 @@ export function LoginPage() {
             </form>
 
             {/* Mode toggle */}
-            <p className="mt-6 text-center text-sm text-surface-500">
+            <p className="mt-6 text-center text-sm text-surface-400">
               {mode === 'signin' ? (
                 <>
                   No account?{' '}
@@ -257,7 +257,7 @@ export function LoginPage() {
                       setMode('signup');
                       setMessage(null);
                     }}
-                    className="text-brand-400 hover:text-brand-300 font-medium"
+                    className="text-brand-300 hover:text-brand-200 font-medium"
                   >
                     Sign up free
                   </button>
@@ -270,7 +270,7 @@ export function LoginPage() {
                       setMode('signin');
                       setMessage(null);
                     }}
-                    className="text-brand-400 hover:text-brand-300 font-medium"
+                    className="text-brand-300 hover:text-brand-200 font-medium"
                   >
                     Sign in
                   </button>
@@ -279,13 +279,13 @@ export function LoginPage() {
             </p>
           </div>
 
-          <p className="mt-6 text-center text-xs text-surface-600">
+          <p className="mt-6 text-center text-xs text-surface-500">
             By continuing, you agree to our{' '}
-            <Link to="/terms" className="text-surface-500 hover:text-surface-400">
+            <Link to="/terms" className="text-surface-400 hover:text-surface-300">
               Terms
             </Link>{' '}
             and{' '}
-            <Link to="/privacy" className="text-surface-500 hover:text-surface-400">
+            <Link to="/privacy" className="text-surface-400 hover:text-surface-300">
               Privacy Policy
             </Link>
           </p>
@@ -297,18 +297,18 @@ export function LoginPage() {
         .auth-input {
           width: 100%;
           border-radius: 0.75rem;
-          border: 1px solid rgb(45 55 72);
-          background: rgb(26 32 53 / 0.5);
+          border: 1px solid rgb(74 85 104);
+          background: rgb(17 24 39 / 0.6);
           padding: 0.625rem 0.875rem;
           font-size: 0.875rem;
           color: rgb(248 249 251);
           transition: border-color 0.15s, box-shadow 0.15s;
           outline: none;
         }
-        .auth-input::placeholder { color: rgb(107 119 141); }
+        .auth-input::placeholder { color: rgb(154 165 184); }
         .auth-input:focus {
-          border-color: rgb(97 115 242 / 0.6);
-          box-shadow: 0 0 0 3px rgb(97 115 242 / 0.15);
+          border-color: rgb(97 115 242 / 0.7);
+          box-shadow: 0 0 0 3px rgb(97 115 242 / 0.2);
         }
       `}</style>
     </div>
