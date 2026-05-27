@@ -53,13 +53,9 @@ async function bootstrap(): Promise<void> {
     // 4. Create HTTP server (required for Socket.IO)
     const httpServer = createServer(app);
 
-    // 5. Initialize Socket.IO on the HTTP server
-    if (redisAvailable) {
-      initializeSocket(httpServer);
-      logger.info('✅ Socket.IO initialized');
-    } else {
-      logger.warn('⚠️ Socket.IO skipped — Redis unavailable');
-    }
+    // 5. Initialize Socket.IO on the HTTP server (always — falls back to memory adapter)
+    initializeSocket(httpServer, { useRedis: redisAvailable });
+    logger.info('✅ Socket.IO initialized' + (redisAvailable ? ' (Redis adapter)' : ' (memory adapter — no horizontal scaling)'));
 
     // Start BullMQ persistence worker (skip in dev unless ENABLE_WORKERS=true to save Redis quota)
     if (redisAvailable) {

@@ -72,7 +72,7 @@ POST   /api/v1/rooms/:id/leave
 ## Frontend (`apps/web/.env`)
 
 ```env
-VITE_API_URL=https://slidebot-api-mvb8.onrender.com/api/v1
+VITE_API_URL=https://slidebot-api-mvb8.onrender.com
 VITE_SOCKET_URL=https://slidebot-api-mvb8.onrender.com
 
 VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co

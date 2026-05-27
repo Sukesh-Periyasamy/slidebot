@@ -18,12 +18,16 @@ import { registerCollaborationHandlers } from './namespaces/collaboration';
 import { registerPresenterHandlers } from './namespaces/presenter';
 
 /**
- * Initialize Socket.IO server with Redis adapter for horizontal scaling.
- * Attaches to the existing HTTP server.
+ * Initialize Socket.IO server.
+ * When `options.useRedis` is true, attaches the Redis adapter for horizontal scaling.
+ * Otherwise uses the default in-memory adapter (single-instance only).
  */
 export function initializeSocket(
-  httpServer: HttpServer
+  httpServer: HttpServer,
+  options: { useRedis?: boolean } = {}
 ): Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData> {
+  const { useRedis = true } = options;
+
   const io = new Server<
     ClientToServerEvents,
     ServerToClientEvents,
@@ -46,31 +50,35 @@ export function initializeSocket(
   });
 
   // ── Redis adapter (required for multi-instance scaling) ───────────────────
-  const pubClient = getRedisClient();
-  const subClient = pubClient.duplicate();
-  
-  // Redis outage fallback mode
-  let isRedisHealthy = true;
-  const setRedisAdapter = () => io.adapter(createAdapter(pubClient, subClient));
-  
-  pubClient.on('error', (err) => {
-    if (isRedisHealthy) {
-      logger.error({ err }, 'Redis pub client error, falling back to memory adapter');
-      isRedisHealthy = false;
-      io.adapter(); // Reverts to the default memory adapter
-    }
-  });
+  if (useRedis) {
+    const pubClient = getRedisClient();
+    const subClient = pubClient.duplicate();
+    
+    // Redis outage fallback mode
+    let isRedisHealthy = true;
+    const setRedisAdapter = () => io.adapter(createAdapter(pubClient, subClient));
+    
+    pubClient.on('error', (err) => {
+      if (isRedisHealthy) {
+        logger.error({ err }, 'Redis pub client error, falling back to memory adapter');
+        isRedisHealthy = false;
+        io.adapter(); // Reverts to the default memory adapter
+      }
+    });
 
-  pubClient.on('ready', () => {
-    if (!isRedisHealthy) {
-      logger.info('Redis recovered, restoring Redis adapter');
-      isRedisHealthy = true;
-      setRedisAdapter();
-    }
-  });
+    pubClient.on('ready', () => {
+      if (!isRedisHealthy) {
+        logger.info('Redis recovered, restoring Redis adapter');
+        isRedisHealthy = true;
+        setRedisAdapter();
+      }
+    });
 
-  setRedisAdapter();
-  logger.info('Socket.IO Redis adapter configured with fallback');
+    setRedisAdapter();
+    logger.info('Socket.IO Redis adapter configured with fallback');
+  } else {
+    logger.warn('Socket.IO using in-memory adapter (no Redis — single instance only)');
+  }
 
   // ── Global middleware ─────────────────────────────────────────────────────
   io.use(socketAuthMiddleware);
