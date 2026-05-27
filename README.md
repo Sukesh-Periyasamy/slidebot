@@ -35,6 +35,7 @@ https://slidebot-api-mvb8.onrender.com
 * Refresh-Resilient Rooms
 * Signed URL Security
 * Socket.IO Realtime Sync
+* Room Cleanup (manual delete + automatic expiration after 10 days)
 
 ---
 
@@ -63,6 +64,7 @@ POST   /api/v1/rooms
 GET    /api/v1/rooms/:id
 POST   /api/v1/rooms/:id/join
 POST   /api/v1/rooms/:id/leave
+DELETE /api/v1/rooms/:id
 ```
 
 ---
@@ -172,6 +174,7 @@ Implemented:
 * PDF rendering
 * Slide sync
 * Refresh resilience
+* Room cleanup (manual delete + auto-expiration)
 
 Planned:
 
@@ -202,6 +205,7 @@ Planned:
 * Socket.IO
 * Supabase
 * Redis
+* BullMQ
 
 ## Infra
 
