@@ -1,5 +1,4 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { LayoutDashboard, Settings, LogOut, Presentation, ChevronRight, AlertTriangle, RefreshCw } from 'lucide-react';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -104,10 +103,8 @@ function Sidebar({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: (open: boo
           aria-hidden="true"
         />
       )}
-      <motion.aside
-        initial={false}
-        animate={{ x: isOpen ? 0 : -280 }}
-        className={`fixed md:relative z-40 flex h-full w-64 flex-col border-r border-surface-800/50 bg-surface-900/50 backdrop-blur-xl transition-transform duration-300 md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      <aside
+        className={`fixed md:relative z-40 flex h-full w-64 flex-col border-r border-surface-800/50 bg-surface-900/50 backdrop-blur-xl transition-transform duration-300 md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
       >
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-5 py-5 border-b border-surface-800/50">
@@ -220,7 +217,7 @@ function Sidebar({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: (open: boo
           </button>
         </div>
       </div>
-    </motion.aside>
+    </aside>
     </>
   );
 }
