@@ -40,6 +40,8 @@ export function startCompactionWorker(): void {
     {
       connection,
       concurrency: 5, // Avoid overloading Redis with massive stream ranges
+      // Reduce Redis polling when idle — wait 10s before checking for new jobs
+      drainDelay: 10_000,
     }
   );
 

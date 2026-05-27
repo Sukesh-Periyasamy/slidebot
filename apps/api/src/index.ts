@@ -61,10 +61,15 @@ async function bootstrap(): Promise<void> {
       logger.warn('⚠️ Socket.IO skipped — Redis unavailable');
     }
 
-    // Start BullMQ persistence worker
+    // Start BullMQ persistence worker (skip in dev unless ENABLE_WORKERS=true to save Redis quota)
     if (redisAvailable) {
-      startPersistenceWorker();
-      startCompactionWorker();
+      const enableWorkers = env.NODE_ENV !== 'development' || process.env['ENABLE_WORKERS'] === 'true';
+      if (enableWorkers) {
+        startPersistenceWorker();
+        startCompactionWorker();
+      } else {
+        logger.info('⏭️ BullMQ workers skipped in dev (set ENABLE_WORKERS=true to enable)');
+      }
     }
 
     // 7. Start listening
@@ -80,8 +85,11 @@ async function bootstrap(): Promise<void> {
       logger.info({ signal }, 'Received shutdown signal, closing gracefully...');
       
       if (redisAvailable) {
-        await stopPersistenceWorker();
-        await stopCompactionWorker();
+        const enableWorkers = env.NODE_ENV !== 'development' || process.env['ENABLE_WORKERS'] === 'true';
+        if (enableWorkers) {
+          await stopPersistenceWorker();
+          await stopCompactionWorker();
+        }
         instanceManager.stopHeartbeat();
       }
       

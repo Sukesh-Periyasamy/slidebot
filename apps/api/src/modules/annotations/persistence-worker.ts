@@ -40,6 +40,8 @@ export function startPersistenceWorker(): void {
     {
       connection,
       concurrency: 50, // Process many annotations concurrently
+      // Reduce Redis polling when idle — wait 5s before checking for new jobs
+      drainDelay: 5000,
     }
   );
 

@@ -36,9 +36,9 @@ export function initializeSocket(
     },
     // Prefer WebSocket, fall back to polling
     transports: ['websocket', 'polling'],
-    // Ping timeout / interval
-    pingTimeout: 20_000,
-    pingInterval: 10_000,
+    // Ping timeout / interval — relaxed in dev to reduce Redis pub/sub commands
+    pingTimeout: env.NODE_ENV === 'development' ? 30_000 : 20_000,
+    pingInterval: env.NODE_ENV === 'development' ? 25_000 : 10_000,
     // Limit payload size (protect against large Yjs updates)
     maxHttpBufferSize: 5 * 1024 * 1024, // 5MB
     // Binary transport parser
