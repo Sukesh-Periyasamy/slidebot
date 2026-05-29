@@ -51,5 +51,8 @@
     "node": "20.x",
     "pnpm": ">=9.0.0"
   },
+  "pnpm": {
+    "neverBuiltDependencies": ["canvas"]
+  },
   "packageManager": "pnpm@9.12.0"
 }
