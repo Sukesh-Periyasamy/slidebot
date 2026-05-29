@@ -5,10 +5,30 @@ import { prisma } from '../../config/database';
 import { env } from '../../config/env';
 import { supabaseAdmin } from '../../config/supabase';
 import { authenticate } from '../../middleware/authenticate';
+import { validatePptx } from './pptx-validator';
+import { extractPptxMetadata } from './pptx-metadata';
+import { enqueueConversionJob } from './conversion-queue';
 
 // TODO: Wire up decks controller
 const router: ExpressRouter = Router();
-const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 100 * 1024 * 1024; // 100MB
+
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+];
+
+function isPptxExtension(filename: string): boolean {
+  return filename.toLowerCase().endsWith('.pptx');
+}
+
+function isAcceptedFile(mimetype: string, originalname: string): boolean {
+  if (ALLOWED_MIME_TYPES.includes(mimetype)) return true;
+  // Accept .pptx extension regardless of reported MIME type (per Requirement 1.2)
+  if (isPptxExtension(originalname)) return true;
+  return false;
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -16,8 +36,8 @@ const upload = multer({
     files: 1,
   },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype !== 'application/pdf') {
-      cb(new Error('Only PDF uploads are allowed'));
+    if (!isAcceptedFile(file.mimetype, file.originalname)) {
+      cb(new Error('Please upload a valid PDF or PPTX file.'));
       return;
     }
     cb(null, true);
@@ -77,7 +97,7 @@ router.post('/', authenticate, (_req, res) => {
 
 /**
  * POST /api/v1/decks/upload
- * Upload a PDF deck (temporary in-memory handling for MVP)
+ * Upload a PDF or PPTX deck
  */
 router.post('/upload', authenticate, (req, res) => {
   upload.single('file')(req, res, (err: unknown) => {
@@ -85,7 +105,7 @@ router.post('/upload', authenticate, (req, res) => {
       const message = err instanceof Error ? err.message : 'Upload failed';
       const isLimitError = message.toLowerCase().includes('file too large');
       res.status(400).json({
-        error: isLimitError ? 'File is too large. Maximum size is 50MB.' : message,
+        error: isLimitError ? 'File is too large. Maximum size is 100MB.' : message,
       });
       return;
     }
@@ -96,10 +116,14 @@ router.post('/upload', authenticate, (req, res) => {
       return;
     }
 
-    if (file.mimetype !== 'application/pdf') {
-      res.status(400).json({ error: 'Only PDF files are supported' });
+    if (!isAcceptedFile(file.mimetype, file.originalname)) {
+      res.status(400).json({ error: 'Please upload a valid PDF or PPTX file.' });
       return;
     }
+
+    const isPptx =
+      file.mimetype === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+      isPptxExtension(file.originalname);
 
     void (async () => {
       try {
@@ -110,58 +134,11 @@ router.post('/upload', authenticate, (req, res) => {
           return;
         }
 
-        const slides = Math.max(1, Math.ceil(file.size / 180_000));
-        const safeName = sanitizeFilename(file.originalname || 'presentation.pdf');
-        const deckId = crypto.randomUUID();
-        const storagePath = `${ownerId}/${deckId}/${Date.now()}-${safeName}`;
-
-        const { error: uploadError } = await supabaseAdmin.storage
-          .from(env.SUPABASE_STORAGE_BUCKET)
-          .upload(storagePath, file.buffer, {
-            contentType: 'application/pdf',
-            upsert: false,
-          });
-
-        if (uploadError) {
-          res.status(500).json({ error: `Storage upload failed: ${uploadError.message}` });
-          return;
+        if (isPptx) {
+          await handlePptxUpload(req, res, file, ownerId, ownerEmail);
+        } else {
+          await handlePdfUpload(req, res, file, ownerId, ownerEmail);
         }
-
-        await ensureUserRecord({ id: ownerId, email: ownerEmail });
-
-        const deck = await prisma.deck.create({
-          data: {
-            id: deckId,
-            ownerId,
-            name: file.originalname || 'presentation.pdf',
-            storagePath,
-            slides,
-          },
-        });
-
-        const room = await prisma.room.create({
-          data: {
-            deckId: deck.id,
-            presenterId: ownerId,
-            participants: {
-              create: {
-                userId: ownerId,
-                role: 'presenter',
-              },
-            },
-          },
-        });
-
-        const signedUrl = await createSignedUrl(storagePath);
-        res.status(201).json({
-          deckId: deck.id,
-          roomId: room.id,
-          name: deck.name,
-          slides: deck.slides,
-          storagePath,
-          signedUrl,
-          signedUrlExpiresIn: env.SUPABASE_SIGNED_URL_EXPIRES_SEC,
-        });
       } catch (uploadFlowErr) {
         const message =
           uploadFlowErr instanceof Error ? uploadFlowErr.message : 'Unexpected upload failure';
@@ -170,6 +147,161 @@ router.post('/upload', authenticate, (req, res) => {
     })();
   });
 });
+
+async function handlePdfUpload(
+  _req: import('express').Request,
+  res: import('express').Response,
+  file: Express.Multer.File,
+  ownerId: string,
+  ownerEmail: string,
+): Promise<void> {
+  const slides = Math.max(1, Math.ceil(file.size / 180_000));
+  const safeName = sanitizeFilename(file.originalname || 'presentation.pdf');
+  const deckId = crypto.randomUUID();
+  const storagePath = `${ownerId}/${deckId}/${Date.now()}-${safeName}`;
+
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from(env.SUPABASE_STORAGE_BUCKET)
+    .upload(storagePath, file.buffer, {
+      contentType: 'application/pdf',
+      upsert: false,
+    });
+
+  if (uploadError) {
+    res.status(500).json({ error: `Storage upload failed: ${uploadError.message}` });
+    return;
+  }
+
+  await ensureUserRecord({ id: ownerId, email: ownerEmail });
+
+  const deck = await prisma.deck.create({
+    data: {
+      id: deckId,
+      ownerId,
+      name: file.originalname || 'presentation.pdf',
+      storagePath,
+      slides,
+      sourceType: 'pdf',
+    },
+  });
+
+  const room = await prisma.room.create({
+    data: {
+      deckId: deck.id,
+      presenterId: ownerId,
+      participants: {
+        create: {
+          userId: ownerId,
+          role: 'presenter',
+        },
+      },
+    },
+  });
+
+  const signedUrl = await createSignedUrl(storagePath);
+  res.status(201).json({
+    deckId: deck.id,
+    roomId: room.id,
+    name: deck.name,
+    slides: deck.slides,
+    storagePath,
+    signedUrl,
+    signedUrlExpiresIn: env.SUPABASE_SIGNED_URL_EXPIRES_SEC,
+  });
+}
+
+async function handlePptxUpload(
+  _req: import('express').Request,
+  res: import('express').Response,
+  file: Express.Multer.File,
+  ownerId: string,
+  ownerEmail: string,
+): Promise<void> {
+  // Structural validation using PPTX Validator
+  const validationResult = await validatePptx(file.buffer);
+
+  if (!validationResult.valid) {
+    res.status(400).json({ error: validationResult.error });
+    return;
+  }
+
+  // Extract metadata from the PPTX file
+  const originalFilename = file.originalname || 'presentation.pptx';
+  const filenameWithoutExt = originalFilename.replace(/\.pptx$/i, '');
+  const userDisplayName = ownerEmail.split('@')[0] || 'slidebot-user';
+
+  const metadata = extractPptxMetadata(file.buffer, {
+    filename: filenameWithoutExt,
+    userDisplayName,
+  });
+
+  // Upload to Supabase Storage
+  const safeName = sanitizeFilename(originalFilename);
+  const deckId = crypto.randomUUID();
+  const storagePath = `${ownerId}/${deckId}/${Date.now()}-${safeName}`;
+
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from(env.SUPABASE_STORAGE_BUCKET)
+    .upload(storagePath, file.buffer, {
+      contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      upsert: false,
+    });
+
+  if (uploadError) {
+    res.status(500).json({ error: `Storage upload failed: ${uploadError.message}` });
+    return;
+  }
+
+  await ensureUserRecord({ id: ownerId, email: ownerEmail });
+
+  // Create Deck record with sourceType: 'pptx'
+  const deck = await prisma.deck.create({
+    data: {
+      id: deckId,
+      ownerId,
+      name: metadata.title,
+      storagePath,
+      slides: metadata.slideCount,
+      sourceType: 'pptx',
+      author: metadata.author,
+      conversionStatus: 'pending',
+    },
+  });
+
+  // Enqueue conversion job for server-side LibreOffice PDF conversion
+  await enqueueConversionJob({
+    deckId,
+    storagePath,
+    ownerId,
+  });
+
+  const room = await prisma.room.create({
+    data: {
+      deckId: deck.id,
+      presenterId: ownerId,
+      participants: {
+        create: {
+          userId: ownerId,
+          role: 'presenter',
+        },
+      },
+    },
+  });
+
+  const signedUrl = await createSignedUrl(storagePath);
+  res.status(201).json({
+    deckId: deck.id,
+    roomId: room.id,
+    name: deck.name,
+    slides: deck.slides,
+    sourceType: 'pptx',
+    author: metadata.author,
+    conversionStatus: 'pending',
+    storagePath,
+    signedUrl,
+    signedUrlExpiresIn: env.SUPABASE_SIGNED_URL_EXPIRES_SEC,
+  });
+}
 
 /**
  * GET /api/v1/decks/:id

@@ -13,10 +13,10 @@ export const SHADOW_HOST_ID = 'slidebot-extension-host';
 export const PANEL_ID = 'slidebot-panel';
 
 /** Extension origins allowed to communicate */
-export const ALLOWED_ORIGINS = ['https://app.slidebot.app', 'http://localhost:3000'] as const;
+export const ALLOWED_ORIGINS = ['https://slidebot-web.vercel.app', 'http://localhost:3000'] as const;
 
 /** Default web app URL */
-export const DEFAULT_WEB_APP_URL = 'https://app.slidebot.app';
+export const DEFAULT_WEB_APP_URL = 'https://slidebot-web.vercel.app';
 
 /** WebSocket reconnect delays (ms) */
 export const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 15000] as const;
@@ -26,7 +26,7 @@ export const MEET_IDLE_TIMEOUT_MS = 60_000;
 
 /** SlideBot API endpoints */
 export const API = {
-  sessions: '/api/v1/sessions',
+  rooms: '/api/v1/rooms',
   decks: '/api/v1/decks',
   auth: '/api/v1/auth',
 } as const;

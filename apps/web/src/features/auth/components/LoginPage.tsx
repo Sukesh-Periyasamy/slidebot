@@ -68,20 +68,20 @@ export function LoginPage() {
       {/* Left panel — branding */}
       <div className="hidden lg:flex w-1/2 flex-col justify-between p-12">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 shadow-glow-sm">
             <SlideBotLogo />
           </div>
-          <span className="text-lg font-semibold text-surface-50">SlideBot</span>
+          <span className="text-lg font-semibold text-slate-900">SlideBot</span>
         </div>
 
         <div className="space-y-6">
-          <h1 className="text-4xl font-bold leading-tight text-surface-50">
+          <h1 className="text-4xl font-bold leading-tight text-slate-900">
             Figma for{' '}
-            <span className="bg-gradient-to-r from-brand-400 to-purple-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-brand-500 to-purple-500 bg-clip-text text-transparent">
               live presentations
             </span>
           </h1>
-          <p className="text-lg text-surface-400 leading-relaxed">
+          <p className="text-lg text-slate-500 leading-relaxed max-w-md">
             Synchronized multiplayer presentations. Live cursors, real-time annotations, presenter
             handoff — all with sub-50ms latency.
           </p>
@@ -95,12 +95,12 @@ export function LoginPage() {
               'Personal exploration mode',
               'Chrome Extension for Google Meet',
             ].map((feature) => (
-              <li key={feature} className="flex items-center gap-3 text-surface-300">
-                <div className="h-5 w-5 rounded-full bg-brand-500/20 flex items-center justify-center flex-shrink-0">
+              <li key={feature} className="flex items-center gap-3 text-slate-600">
+                <div className="h-5 w-5 rounded-full bg-brand-50 border border-brand-100 flex items-center justify-center flex-shrink-0">
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                     <path
                       d="M2 6l3 3 5-5"
-                      stroke="#6173F2"
+                      stroke="#6173f2"
                       strokeWidth="1.5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -113,7 +113,7 @@ export function LoginPage() {
           </ul>
         </div>
 
-        <p className="text-sm text-surface-600">
+        <p className="text-sm text-slate-400">
           © {new Date().getFullYear()} SlideBot. Built for collaborative teams.
         </p>
       </div>
@@ -127,19 +127,19 @@ export function LoginPage() {
           className="w-full max-w-md"
         >
           {/* Card */}
-          <div className="glass rounded-2xl p-8 shadow-panel">
+          <div className="glass-light rounded-2xl p-8">
             {/* Header */}
             <div className="mb-8 text-center lg:text-left">
               <div className="flex lg:hidden items-center justify-center gap-2 mb-6">
-                <div className="h-8 w-8 rounded-lg bg-brand-500 flex items-center justify-center">
+                <div className="h-8 w-8 rounded-lg bg-brand-500 flex items-center justify-center shadow-glow-sm">
                   <SlideBotLogo />
                 </div>
-                <span className="font-semibold text-surface-50">SlideBot</span>
+                <span className="font-semibold text-slate-900">SlideBot</span>
               </div>
-              <h2 className="text-2xl font-bold text-surface-50">
+              <h2 className="text-2xl font-bold text-slate-900">
                 {mode === 'signin' ? 'Welcome back' : 'Create your account'}
               </h2>
-              <p className="mt-1 text-surface-400 text-sm">
+              <p className="mt-1 text-slate-500 text-sm">
                 {mode === 'signin'
                   ? 'Sign in to your SlideBot workspace'
                   : 'Start collaborating in minutes'}
@@ -149,7 +149,7 @@ export function LoginPage() {
             {/* Google OAuth button */}
             <button
               onClick={handleGoogleSignIn}
-              className="w-full flex items-center justify-center gap-3 rounded-xl border border-surface-700 bg-surface-800 px-4 py-3 text-sm font-medium text-surface-100 transition-all hover:bg-surface-700 hover:border-surface-600 focus-visible:ring-2 focus-visible:ring-brand-500"
+              className="w-full flex items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition-all hover:bg-gray-50 hover:border-gray-300 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
             >
               <GoogleIcon />
               Continue with Google
@@ -157,9 +157,9 @@ export function LoginPage() {
 
             {/* Divider */}
             <div className="my-6 flex items-center gap-4">
-              <div className="flex-1 h-px bg-surface-700" />
-              <span className="text-xs text-surface-500">or</span>
-              <div className="flex-1 h-px bg-surface-700" />
+              <div className="flex-1 h-px bg-gray-200" />
+              <span className="text-xs text-slate-400">or</span>
+              <div className="flex-1 h-px bg-gray-200" />
             </div>
 
             {/* Email form */}
@@ -168,7 +168,7 @@ export function LoginPage() {
                 <div>
                   <label
                     htmlFor="displayName"
-                    className="block text-xs font-medium text-surface-300 mb-1.5"
+                    className="block text-xs font-medium text-slate-700 mb-1.5"
                   >
                     Display Name
                   </label>
@@ -187,7 +187,7 @@ export function LoginPage() {
               <div>
                 <label
                   htmlFor="email"
-                  className="block text-xs font-medium text-surface-300 mb-1.5"
+                  className="block text-xs font-medium text-slate-700 mb-1.5"
                 >
                   Email address
                 </label>
@@ -206,7 +206,7 @@ export function LoginPage() {
               <div>
                 <label
                   htmlFor="password"
-                  className="block text-xs font-medium text-surface-300 mb-1.5"
+                  className="block text-xs font-medium text-slate-700 mb-1.5"
                 >
                   Password
                 </label>
@@ -230,8 +230,8 @@ export function LoginPage() {
                   animate={{ opacity: 1, height: 'auto' }}
                   className={`rounded-lg px-4 py-3 text-sm ${
                     message.type === 'error'
-                      ? 'bg-red-500/10 border border-red-500/20 text-red-400'
-                      : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+                      ? 'bg-red-50 border border-red-200 text-red-600'
+                      : 'bg-emerald-50 border border-emerald-200 text-emerald-600'
                   }`}
                 >
                   {message.text}
@@ -241,14 +241,14 @@ export function LoginPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white transition-all hover:bg-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-900 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white shadow-glow-sm transition-all hover:bg-brand-600 hover:shadow-glow-brand focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? 'Please wait...' : mode === 'signin' ? 'Sign in' : 'Create account'}
               </button>
             </form>
 
             {/* Mode toggle */}
-            <p className="mt-6 text-center text-sm text-surface-500">
+            <p className="mt-6 text-center text-sm text-slate-500">
               {mode === 'signin' ? (
                 <>
                   No account?{' '}
@@ -257,7 +257,7 @@ export function LoginPage() {
                       setMode('signup');
                       setMessage(null);
                     }}
-                    className="text-brand-400 hover:text-brand-300 font-medium"
+                    className="text-brand-500 hover:text-brand-600 font-medium"
                   >
                     Sign up free
                   </button>
@@ -270,7 +270,7 @@ export function LoginPage() {
                       setMode('signin');
                       setMessage(null);
                     }}
-                    className="text-brand-400 hover:text-brand-300 font-medium"
+                    className="text-brand-500 hover:text-brand-600 font-medium"
                   >
                     Sign in
                   </button>
@@ -279,13 +279,13 @@ export function LoginPage() {
             </p>
           </div>
 
-          <p className="mt-6 text-center text-xs text-surface-600">
+          <p className="mt-6 text-center text-xs text-slate-400">
             By continuing, you agree to our{' '}
-            <Link to="/terms" className="text-surface-500 hover:text-surface-400">
+            <Link to="/terms" className="text-slate-500 hover:text-brand-500 transition-colors">
               Terms
             </Link>{' '}
             and{' '}
-            <Link to="/privacy" className="text-surface-500 hover:text-surface-400">
+            <Link to="/privacy" className="text-slate-500 hover:text-brand-500 transition-colors">
               Privacy Policy
             </Link>
           </p>
@@ -297,18 +297,21 @@ export function LoginPage() {
         .auth-input {
           width: 100%;
           border-radius: 0.75rem;
-          border: 1px solid rgb(45 55 72);
-          background: rgb(26 32 53 / 0.5);
+          border: 1px solid rgb(229 231 235);
+          background: #ffffff;
           padding: 0.625rem 0.875rem;
           font-size: 0.875rem;
-          color: rgb(248 249 251);
+          color: rgb(15 23 42);
           transition: border-color 0.15s, box-shadow 0.15s;
           outline: none;
         }
-        .auth-input::placeholder { color: rgb(107 119 141); }
+        .auth-input::placeholder { color: rgb(148 163 184); }
         .auth-input:focus {
           border-color: rgb(97 115 242 / 0.6);
-          box-shadow: 0 0 0 3px rgb(97 115 242 / 0.15);
+          box-shadow: 0 0 0 3px rgb(97 115 242 / 0.1);
+        }
+        .auth-input:hover:not(:focus) {
+          border-color: rgb(209 213 219);
         }
       `}</style>
     </div>
@@ -324,10 +327,10 @@ export function AuthCallbackPage() {
   // via detectSessionInUrl: true in the client config.
   // This page just renders while the session is being resolved.
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-surface-950">
+    <div className="flex h-screen w-screen items-center justify-center bg-white">
       <div className="flex flex-col items-center gap-4">
         <div className="h-8 w-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
-        <p className="text-sm text-surface-400">Completing sign in...</p>
+        <p className="text-sm text-slate-500">Completing sign in...</p>
       </div>
     </div>
   );

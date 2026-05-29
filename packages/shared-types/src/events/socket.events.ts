@@ -159,6 +159,10 @@ export interface ServerToClientEvents {
   /** A comment was created */
   comment_created: (payload: CommentCreatedPayload) => void;
 
+  // ── Conversion ──────────────────────────────────────────────────────────────
+  /** PPTX conversion status update (completed or failed) */
+  conversion_status: (payload: ConversionStatusPayload) => void;
+
   // ── System ─────────────────────────────────────────────────────────────────
   /** Typed error from server */
   error: (payload: SocketError) => void;
@@ -253,6 +257,14 @@ export interface CommentCreatedPayload {
   positionX?: number | null;
   positionY?: number | null;
   createdAt: string;
+}
+
+export interface ConversionStatusPayload {
+  deckId: string;
+  status: 'completed' | 'failed';
+  pdfStoragePath?: string;
+  thumbnailPaths?: string[];
+  error?: string;
 }
 
 export interface SocketError {

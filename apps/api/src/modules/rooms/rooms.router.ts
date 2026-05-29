@@ -4,9 +4,17 @@ import { prisma } from '../../config/database';
 import { env } from '../../config/env';
 import { supabaseAdmin } from '../../config/supabase';
 import { authenticate } from '../../middleware/authenticate';
+import { Errors } from '../../middleware/errorHandler';
 import { roomManager } from '../../socket/room-manager';
+import { roomDeletionService } from './room-deletion.service';
 
 const router: ExpressRouter = Router();
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isValidUuid(value: string): boolean {
+  return UUID_REGEX.test(value);
+}
 
 function readParam(param: string | string[] | undefined): string {
   if (Array.isArray(param)) {
@@ -69,6 +77,7 @@ router.get('/', authenticate, async (req, res) => {
     data: rooms.map((room) => ({
       roomId: room.id,
       deckId: room.deckId,
+      presenterId: room.presenterId,
       status: room.status,
       createdAt: room.createdAt.toISOString(),
       endedAt: room.endedAt?.toISOString() ?? null,
@@ -365,6 +374,43 @@ router.get('/:id/replay', authenticate, async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Content-Disposition', `attachment; filename="room-${roomId}.slidereplay"`);
   res.send(JSON.stringify(replayExport, null, 2));
+});
+
+router.delete('/:id', authenticate, async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw Errors.unauthorized();
+    }
+
+    const roomId = readParam(req.params['id']);
+    if (!roomId || !isValidUuid(roomId)) {
+      throw Errors.notFound('Room');
+    }
+
+    const room = await prisma.room.findUnique({
+      where: { id: roomId },
+      select: { presenterId: true },
+    });
+
+    if (!room) {
+      throw Errors.notFound('Room');
+    }
+
+    if (room.presenterId !== userId) {
+      throw Errors.forbidden('Only the room owner can delete this room');
+    }
+
+    const result = await roomDeletionService.deleteRoom(roomId, userId);
+
+    if (result.error) {
+      throw Errors.internal(result.error);
+    }
+
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
 });
 
 export { router as roomsRouter };

@@ -10,17 +10,27 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./scene-graph": {
+      "types": "./dist/scene-graph.d.ts",
+      "default": "./dist/scene-graph.js"
+    },
+    "./scene-graph-normalizer": {
+      "types": "./dist/scene-graph-normalizer.d.ts",
+      "default": "./dist/scene-graph-normalizer.js"
     }
   },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "clean": "rimraf dist"
   },
   "devDependencies": {
     "@slidebot/tsconfig": "workspace:*",
     "rimraf": "^6.0.1",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
   },
   "dependencies": {
     "zod": "^3.23.8"

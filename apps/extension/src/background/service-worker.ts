@@ -243,7 +243,8 @@ async function cleanupStaleTabs(): Promise<void> {
 }
 
 function getWebAppUrl(): string {
-  return 'http://localhost:3000'; // Override in production builds
+  // Uses the stored webAppUrl (defaults to production, overridable via storage)
+  return 'https://slidebot-web.vercel.app';
 }
 
 // Keep service worker alive during active sessions

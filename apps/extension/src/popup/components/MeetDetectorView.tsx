@@ -14,7 +14,7 @@ export function MeetDetectorView() {
   return (
     <div className="container">
       <h2 className="title">Not on Google Meet</h2>
-      <p className="subtitle">Open a Google Meet tab to launch or join a SlideBot presentation.</p>
+      <p className="subtitle">Open a Google Meet tab to launch or join a SlideBot room.</p>
       
       <div className="flex-row" style={{ flexDirection: 'column', gap: '12px' }}>
         <button className="btn btn-primary" onClick={handleOpenMeet}>

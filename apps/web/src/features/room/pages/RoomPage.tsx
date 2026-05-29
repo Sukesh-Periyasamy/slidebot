@@ -121,6 +121,8 @@ export function RoomPage() {
           signedUrl: room.deck.signedUrl,
           signedUrlExpiresAt: Date.now() + room.deck.signedUrlExpiresIn * 1000,
           createdAt: Date.now(),
+          sourceType: room.deck.sourceType ?? 'pdf',
+          conversionStatus: room.deck.conversionStatus ?? 'none',
         });
 
         await loadFromUrl(room.deck.signedUrl);

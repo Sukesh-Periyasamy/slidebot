@@ -31,8 +31,8 @@ const DEFAULTS: ExtensionStorageSchema = {
   authToken: null,
   userId: null,
   activeSessionId: null,
-  webAppUrl: 'https://app.slidebot.app',
-  apiUrl: 'https://api.slidebot.app',
+  webAppUrl: 'https://slidebot-web.vercel.app',
+  apiUrl: 'https://slidebot-api-mvb8.onrender.com',
   overlayDismissed: false,
   meetSessionMap: {},
 };
