@@ -131,8 +131,8 @@ describe('Shape Extractor - extractShapes()', () => {
 
       const paragraphs = props.paragraphs as Array<{ alignment: string }>;
       expect(paragraphs).toHaveLength(2);
-      expect(paragraphs[0].alignment).toBe('left');
-      expect(paragraphs[1].alignment).toBe('right');
+      expect(paragraphs[0]!.alignment).toBe('left');
+      expect(paragraphs[1]!.alignment).toBe('right');
     });
 
     it('should resolve scheme color references in text', () => {
@@ -353,10 +353,10 @@ describe('Shape Extractor - extractShapes()', () => {
       expect(props.columns).toBe(2);
 
       const cells = props.cells as Array<Array<{ content: string }>>;
-      expect(cells[0][0].content).toBe('Cell A1');
-      expect(cells[0][1].content).toBe('Cell B1');
-      expect(cells[1][0].content).toBe('Cell A2');
-      expect(cells[1][1].content).toBe('Cell B2');
+      expect(cells[0]![0]!.content).toBe('Cell A1');
+      expect(cells[0]![1]!.content).toBe('Cell B1');
+      expect(cells[1]![0]!.content).toBe('Cell A2');
+      expect(cells[1]![1]!.content).toBe('Cell B2');
     });
 
     it('should extract cell merge information', () => {
@@ -520,8 +520,8 @@ describe('Shape Extractor - extractShapes()', () => {
       expect(shapes.length).toBe(3);
 
       // z-index should be incrementing
-      expect(shapes[0].zIndex).toBeLessThan(shapes[1].zIndex);
-      expect(shapes[1].zIndex).toBeLessThan(shapes[2].zIndex);
+      expect(shapes[0]!.zIndex).toBeLessThan(shapes[1]!.zIndex);
+      expect(shapes[1]!.zIndex).toBeLessThan(shapes[2]!.zIndex);
     });
   });
 

@@ -13,6 +13,7 @@ export interface ResolvedTheme {
 }
 
 export interface ShapeDefaults {
+  [key: string]: string | number | boolean | undefined;
   fillColor?: string;     // #RRGGBB
   fontFamily?: string;
   fontSize?: number;

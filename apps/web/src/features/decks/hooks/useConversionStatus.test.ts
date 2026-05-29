@@ -101,7 +101,7 @@ describe('useConversionStatus', () => {
     renderHook(() => useConversionStatus('deck-123'));
 
     // Get the handler that was registered
-    const handler = mockSocket!.on.mock.calls[0][1];
+    const handler = mockSocket!.on.mock.calls[0]![1];
 
     act(() => {
       handler({
@@ -123,7 +123,7 @@ describe('useConversionStatus', () => {
   it('should show success toast on conversion completed', () => {
     renderHook(() => useConversionStatus('deck-123'));
 
-    const handler = mockSocket!.on.mock.calls[0][1];
+    const handler = mockSocket!.on.mock.calls[0]![1];
 
     act(() => {
       handler({
@@ -142,7 +142,7 @@ describe('useConversionStatus', () => {
   it('should update deck store on conversion failed', () => {
     renderHook(() => useConversionStatus('deck-123'));
 
-    const handler = mockSocket!.on.mock.calls[0][1];
+    const handler = mockSocket!.on.mock.calls[0]![1];
 
     act(() => {
       handler({
@@ -162,7 +162,7 @@ describe('useConversionStatus', () => {
   it('should show warning toast on conversion failed', () => {
     renderHook(() => useConversionStatus('deck-123'));
 
-    const handler = mockSocket!.on.mock.calls[0][1];
+    const handler = mockSocket!.on.mock.calls[0]![1];
 
     act(() => {
       handler({
@@ -181,7 +181,7 @@ describe('useConversionStatus', () => {
   it('should ignore events for other deck IDs', () => {
     renderHook(() => useConversionStatus('deck-123'));
 
-    const handler = mockSocket!.on.mock.calls[0][1];
+    const handler = mockSocket!.on.mock.calls[0]![1];
 
     act(() => {
       handler({
@@ -210,7 +210,7 @@ describe('useConversionStatus', () => {
     };
 
     act(() => {
-      statusListeners[0]('connected');
+      statusListeners[0]!('connected');
     });
 
     // Now the listener should be attached
@@ -220,7 +220,7 @@ describe('useConversionStatus', () => {
   it('should not include undefined optional fields in the conversion event', () => {
     renderHook(() => useConversionStatus('deck-123'));
 
-    const handler = mockSocket!.on.mock.calls[0][1];
+    const handler = mockSocket!.on.mock.calls[0]![1];
 
     act(() => {
       handler({
@@ -230,7 +230,7 @@ describe('useConversionStatus', () => {
       });
     });
 
-    const callArg = mockApplyConversionStatus.mock.calls[0][0];
+    const callArg = mockApplyConversionStatus.mock.calls[0]![0];
     expect(callArg).toEqual({
       deckId: 'deck-123',
       status: 'completed',

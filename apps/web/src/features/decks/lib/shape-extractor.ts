@@ -270,7 +270,7 @@ function extractTextShape(
   const shapeDefaults = mergeShapeDefaults(context);
 
   const defaults = {
-    fontFamily: shapeDefaults.fontFamily ?? context.theme.minorFont,
+    fontFamily: shapeDefaults.fontFamily ?? context.theme.minorFont ?? 'Calibri',
     fontSize: shapeDefaults.fontSize ?? 18,
     color: shapeDefaults.fontColor ?? '#000000',
   };
@@ -337,7 +337,10 @@ function extractOutline(
   // Outline color from solidFill
   const solidFill = line.solidFill;
   if (solidFill) {
-    result.outlineColor = extractSolidFillColor(solidFill, context);
+    const color = extractSolidFillColor(solidFill, context);
+    if (color) {
+      result.outlineColor = color;
+    }
   }
 
   return result;
@@ -422,7 +425,7 @@ function extractImageShape(
     if (target.startsWith('data:')) {
       dataUri = target;
       const match = target.match(/^data:([^;]+)/);
-      if (match) contentType = match[1];
+      if (match) contentType = match[1] ?? 'image/png';
     } else {
       // It's a path reference — the caller should have resolved it to base64
       contentType = contentTypeFromExtension(target);
@@ -439,7 +442,7 @@ function extractImageShape(
   const cNvPr = nvPicPr?.cNvPr as Record<string, unknown> | undefined;
   const altText = typeof cNvPr?.['@_descr'] === 'string'
     ? cNvPr['@_descr']
-    : undefined;
+    : '';
 
   return {
     type: 'image',
@@ -728,7 +731,7 @@ export function extractShapes(
         type: 'background',
         position: { x: 0, y: 0, width: 0, height: 0 },
         zIndex: zIndex++,
-        properties: background,
+        properties: background as unknown as Record<string, unknown>,
       });
     }
   }
