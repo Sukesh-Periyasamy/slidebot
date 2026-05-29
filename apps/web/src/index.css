@@ -142,6 +142,11 @@ body {
 
 /* ── Selection ──────────────────────────────────────────────────────────────── */
 ::selection {
+  background: rgba(97, 115, 242, 0.2);
+  color: #1e293b;
+}
+
+:root.dark ::selection {
   background: rgba(97, 115, 242, 0.3);
   color: #f8f9fb;
 }
@@ -171,17 +176,47 @@ body {
 
 /* ── Utilities ──────────────────────────────────────────────────────────────── */
 .glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.glass-light {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+:root.dark .glass {
   background: rgba(17, 24, 39, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
 }
 
-.glass-strong {
+:root.dark .glass-strong {
   background: rgba(17, 24, 39, 0.9);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--color-border);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+:root.dark .glass-light {
+  background: rgba(17, 24, 39, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
 }
 
 .shadow-panel-util {
@@ -216,6 +251,14 @@ body {
 
 /* Animated gradient background for landing */
 .gradient-mesh {
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(97, 115, 242, 0.05) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.04) 0%, transparent 45%),
+    radial-gradient(ellipse at 60% 80%, rgba(236, 72, 153, 0.03) 0%, transparent 45%),
+    #ffffff;
+}
+
+:root.dark .gradient-mesh {
   background:
     radial-gradient(ellipse at 20% 50%, rgba(97, 115, 242, 0.12) 0%, transparent 55%),
     radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.08) 0%, transparent 45%),

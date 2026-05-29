@@ -12,6 +12,8 @@ import { instanceManager } from './socket/instance-manager';
 import { startPersistenceWorker, stopPersistenceWorker } from './modules/annotations/persistence-worker';
 import { startCompactionWorker, stopCompactionWorker } from './modules/annotations/compaction-worker';
 import { startRoomCleanupWorker, stopRoomCleanupWorker } from './modules/rooms/room-cleanup.job';
+import { registerConversionSocketHandler } from './modules/decks/conversion-socket-handler';
+import { startConversionQueueEvents, stopConversionQueueEvents } from './modules/decks/conversion-queue';
 import * as Sentry from '@sentry/node';
 
 if (env.SENTRY_DSN) {
@@ -58,6 +60,12 @@ async function bootstrap(): Promise<void> {
     initializeSocket(httpServer, { useRedis: redisAvailable });
     logger.info('✅ Socket.IO initialized' + (redisAvailable ? ' (Redis adapter)' : ' (memory adapter — no horizontal scaling)'));
 
+    // 6. Register conversion queue Socket.IO event handler and start queue events listener
+    registerConversionSocketHandler();
+    if (redisAvailable) {
+      startConversionQueueEvents();
+    }
+
     // Start BullMQ persistence worker (skip in dev unless ENABLE_WORKERS=true to save Redis quota)
     if (redisAvailable) {
       const enableWorkers = env.NODE_ENV !== 'development' || process.env['ENABLE_WORKERS'] === 'true';
@@ -89,6 +97,7 @@ async function bootstrap(): Promise<void> {
           await stopCompactionWorker();
           await stopRoomCleanupWorker();
         }
+        await stopConversionQueueEvents();
         instanceManager.stopHeartbeat();
       }
       

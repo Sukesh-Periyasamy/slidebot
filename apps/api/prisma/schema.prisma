@@ -83,6 +83,14 @@ model Deck {
   storagePath String   @default("")
   slides      Int      @default(1)
 
+  // PPTX ingestion fields
+  sourceType       String   @default("pdf")        // "pdf" | "pptx"
+  author           String?                          // Extracted from docProps/core.xml
+  pdfStoragePath   String?  @map("pdf_storage_path") // Path to converted PDF
+  conversionStatus String   @default("none")       @map("conversion_status") // "none" | "pending" | "processing" | "completed" | "failed"
+  sceneGraphJson   String?  @map("scene_graph_json") // Serialized PresentationDocument
+  thumbnailPrefix  String?  @map("thumbnail_prefix") // Storage prefix for thumbnails
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

@@ -19,6 +19,10 @@ export interface RoomDeckPayload {
   storagePath: string;
   signedUrl: string;
   signedUrlExpiresIn: number;
+  /** Present for PPTX decks */
+  sourceType?: 'pdf' | 'pptx';
+  /** Conversion status for PPTX decks */
+  conversionStatus?: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
 }
 
 export interface RoomDetail {

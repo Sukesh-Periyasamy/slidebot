@@ -16,6 +16,7 @@ import { env } from '../config/env';
 import { socketAuthMiddleware } from './middleware/socketAuth';
 import { registerCollaborationHandlers } from './namespaces/collaboration';
 import { registerPresenterHandlers } from './namespaces/presenter';
+import { setIoInstance } from './io-instance';
 
 /**
  * Initialize Socket.IO server.
@@ -48,6 +49,9 @@ export function initializeSocket(
     // Binary transport parser
     parser: customParser,
   });
+
+  // Store the io instance for use outside socket handlers (e.g., conversion queue events)
+  setIoInstance(io);
 
   // ── Redis adapter (required for multi-instance scaling) ───────────────────
   if (useRedis) {
