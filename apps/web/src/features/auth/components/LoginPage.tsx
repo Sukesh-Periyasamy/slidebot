@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useRedirectIfAuthenticated } from '../hooks/useRequireAuth';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Login Page
+// Login Page — IndiGo-inspired: deep navy + electric blue on clean white
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function LoginPage() {
@@ -64,30 +64,37 @@ export function LoginPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex min-h-screen gradient-mesh">
-      {/* Left panel — branding */}
-      <div className="hidden lg:flex w-1/2 flex-col justify-between p-12">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 shadow-glow-sm">
-            <SlideBotLogo />
+    <div className="flex min-h-screen bg-white">
+      {/* Left panel — deep navy branding */}
+      <div className="hidden lg:flex w-[45%] flex-col justify-between p-12 bg-[#1a1f36] relative overflow-hidden">
+        {/* Subtle gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#1a1f36] via-[#1e2545] to-[#0f1225]" />
+        {/* Decorative accent line */}
+        <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-brand-500 via-brand-400 to-transparent" />
+
+        <div className="relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500">
+              <SlideBotLogo />
+            </div>
+            <span className="text-xl font-bold text-white tracking-tight">SlideBot</span>
           </div>
-          <span className="text-lg font-semibold text-slate-900">SlideBot</span>
         </div>
 
-        <div className="space-y-6">
-          <h1 className="text-4xl font-bold leading-tight text-slate-900">
-            Figma for{' '}
-            <span className="bg-gradient-to-r from-brand-500 to-purple-500 bg-clip-text text-transparent">
-              live presentations
-            </span>
+        <div className="relative z-10 space-y-8">
+          <h1 className="text-[2.75rem] font-extrabold leading-[1.1] text-white tracking-tight">
+            Collaborate on{' '}
+            <span className="text-brand-400">
+              presentations
+            </span>{' '}
+            in real time
           </h1>
-          <p className="text-lg text-slate-500 leading-relaxed max-w-md">
-            Synchronized multiplayer presentations. Live cursors, real-time annotations, presenter
-            handoff — all with sub-50ms latency.
+          <p className="text-lg text-gray-400 leading-relaxed max-w-sm">
+            Live cursors, real-time annotations, instant presenter handoff — all with sub-50ms latency.
           </p>
 
           {/* Feature list */}
-          <ul className="space-y-3">
+          <ul className="space-y-4 pt-2">
             {[
               'Multiplayer slide navigation',
               'Real-time annotations & cursors',
@@ -95,13 +102,13 @@ export function LoginPage() {
               'Personal exploration mode',
               'Chrome Extension for Google Meet',
             ].map((feature) => (
-              <li key={feature} className="flex items-center gap-3 text-slate-600">
-                <div className="h-5 w-5 rounded-full bg-brand-50 border border-brand-100 flex items-center justify-center flex-shrink-0">
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <li key={feature} className="flex items-center gap-3 text-gray-300 text-sm">
+                <div className="h-5 w-5 rounded-full bg-brand-500/20 border border-brand-500/30 flex items-center justify-center flex-shrink-0">
+                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
                     <path
                       d="M2 6l3 3 5-5"
-                      stroke="#6173f2"
-                      strokeWidth="1.5"
+                      stroke="#5996ff"
+                      strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     />
@@ -113,33 +120,33 @@ export function LoginPage() {
           </ul>
         </div>
 
-        <p className="text-sm text-slate-400">
+        <p className="relative z-10 text-xs text-gray-500">
           © {new Date().getFullYear()} SlideBot. Built for collaborative teams.
         </p>
       </div>
 
-      {/* Right panel — auth form */}
-      <div className="flex flex-1 items-center justify-center p-6">
+      {/* Right panel — clean white auth form */}
+      <div className="flex flex-1 items-center justify-center p-8 bg-gray-50/50">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full max-w-md"
+          className="w-full max-w-[400px]"
         >
           {/* Card */}
-          <div className="glass-light rounded-2xl p-8">
+          <div className="bg-white rounded-2xl p-8 shadow-[0_2px_8px_rgba(0,0,0,0.04),0_8px_32px_rgba(0,0,0,0.06)] border border-gray-100">
             {/* Header */}
             <div className="mb-8 text-center lg:text-left">
               <div className="flex lg:hidden items-center justify-center gap-2 mb-6">
-                <div className="h-8 w-8 rounded-lg bg-brand-500 flex items-center justify-center shadow-glow-sm">
+                <div className="h-9 w-9 rounded-xl bg-brand-500 flex items-center justify-center">
                   <SlideBotLogo />
                 </div>
-                <span className="font-semibold text-slate-900">SlideBot</span>
+                <span className="font-bold text-gray-900 text-lg">SlideBot</span>
               </div>
-              <h2 className="text-2xl font-bold text-slate-900">
+              <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
                 {mode === 'signin' ? 'Welcome back' : 'Create your account'}
               </h2>
-              <p className="mt-1 text-slate-500 text-sm">
+              <p className="mt-2 text-gray-500 text-sm">
                 {mode === 'signin'
                   ? 'Sign in to your SlideBot workspace'
                   : 'Start collaborating in minutes'}
@@ -149,7 +156,7 @@ export function LoginPage() {
             {/* Google OAuth button */}
             <button
               onClick={handleGoogleSignIn}
-              className="w-full flex items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition-all hover:bg-gray-50 hover:border-gray-300 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+              className="w-full flex items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
             >
               <GoogleIcon />
               Continue with Google
@@ -158,7 +165,7 @@ export function LoginPage() {
             {/* Divider */}
             <div className="my-6 flex items-center gap-4">
               <div className="flex-1 h-px bg-gray-200" />
-              <span className="text-xs text-slate-400">or</span>
+              <span className="text-xs text-gray-400 font-medium">or</span>
               <div className="flex-1 h-px bg-gray-200" />
             </div>
 
@@ -168,7 +175,7 @@ export function LoginPage() {
                 <div>
                   <label
                     htmlFor="displayName"
-                    className="block text-xs font-medium text-slate-700 mb-1.5"
+                    className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide"
                   >
                     Display Name
                   </label>
@@ -187,9 +194,9 @@ export function LoginPage() {
               <div>
                 <label
                   htmlFor="email"
-                  className="block text-xs font-medium text-slate-700 mb-1.5"
+                  className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide"
                 >
-                  Email address
+                  Email
                 </label>
                 <input
                   id="email"
@@ -206,7 +213,7 @@ export function LoginPage() {
               <div>
                 <label
                   htmlFor="password"
-                  className="block text-xs font-medium text-slate-700 mb-1.5"
+                  className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide"
                 >
                   Password
                 </label>
@@ -230,8 +237,8 @@ export function LoginPage() {
                   animate={{ opacity: 1, height: 'auto' }}
                   className={`rounded-lg px-4 py-3 text-sm ${
                     message.type === 'error'
-                      ? 'bg-red-50 border border-red-200 text-red-600'
-                      : 'bg-emerald-50 border border-emerald-200 text-emerald-600'
+                      ? 'bg-red-50 border border-red-100 text-red-600'
+                      : 'bg-emerald-50 border border-emerald-100 text-emerald-700'
                   }`}
                 >
                   {message.text}
@@ -241,14 +248,14 @@ export function LoginPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white shadow-glow-sm transition-all hover:bg-brand-600 hover:shadow-glow-brand focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full rounded-xl bg-brand-500 px-4 py-3.5 text-sm font-semibold text-white transition-all hover:bg-brand-600 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
               >
                 {isSubmitting ? 'Please wait...' : mode === 'signin' ? 'Sign in' : 'Create account'}
               </button>
             </form>
 
             {/* Mode toggle */}
-            <p className="mt-6 text-center text-sm text-slate-500">
+            <p className="mt-6 text-center text-sm text-gray-500">
               {mode === 'signin' ? (
                 <>
                   No account?{' '}
@@ -257,7 +264,7 @@ export function LoginPage() {
                       setMode('signup');
                       setMessage(null);
                     }}
-                    className="text-brand-500 hover:text-brand-600 font-medium"
+                    className="text-brand-500 hover:text-brand-700 font-semibold transition-colors"
                   >
                     Sign up free
                   </button>
@@ -270,7 +277,7 @@ export function LoginPage() {
                       setMode('signin');
                       setMessage(null);
                     }}
-                    className="text-brand-500 hover:text-brand-600 font-medium"
+                    className="text-brand-500 hover:text-brand-700 font-semibold transition-colors"
                   >
                     Sign in
                   </button>
@@ -279,39 +286,41 @@ export function LoginPage() {
             </p>
           </div>
 
-          <p className="mt-6 text-center text-xs text-slate-400">
+          <p className="mt-6 text-center text-xs text-gray-400">
             By continuing, you agree to our{' '}
-            <Link to="/terms" className="text-slate-500 hover:text-brand-500 transition-colors">
+            <Link to="/terms" className="text-gray-500 hover:text-brand-500 underline underline-offset-2 transition-colors">
               Terms
             </Link>{' '}
             and{' '}
-            <Link to="/privacy" className="text-slate-500 hover:text-brand-500 transition-colors">
+            <Link to="/privacy" className="text-gray-500 hover:text-brand-500 underline underline-offset-2 transition-colors">
               Privacy Policy
             </Link>
           </p>
         </motion.div>
       </div>
 
-      {/* Inline styles for auth input (DRY) */}
+      {/* Inline styles for auth input */}
       <style>{`
         .auth-input {
           width: 100%;
           border-radius: 0.75rem;
-          border: 1px solid rgb(229 231 235);
-          background: #ffffff;
-          padding: 0.625rem 0.875rem;
+          border: 1px solid #e5e7eb;
+          background: #fafafa;
+          padding: 0.75rem 1rem;
           font-size: 0.875rem;
-          color: rgb(15 23 42);
-          transition: border-color 0.15s, box-shadow 0.15s;
+          color: #111827;
+          transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
           outline: none;
         }
-        .auth-input::placeholder { color: rgb(148 163 184); }
+        .auth-input::placeholder { color: #9ca3af; }
         .auth-input:focus {
-          border-color: rgb(97 115 242 / 0.6);
-          box-shadow: 0 0 0 3px rgb(97 115 242 / 0.1);
+          border-color: #0066FF;
+          background: #ffffff;
+          box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.08);
         }
         .auth-input:hover:not(:focus) {
-          border-color: rgb(209 213 219);
+          border-color: #d1d5db;
+          background: #ffffff;
         }
       `}</style>
     </div>
@@ -323,14 +332,11 @@ export function LoginPage() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function AuthCallbackPage() {
-  // Supabase client automatically handles the OAuth code exchange
-  // via detectSessionInUrl: true in the client config.
-  // This page just renders while the session is being resolved.
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-white">
       <div className="flex flex-col items-center gap-4">
         <div className="h-8 w-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
-        <p className="text-sm text-slate-500">Completing sign in...</p>
+        <p className="text-sm text-gray-500">Completing sign in...</p>
       </div>
     </div>
   );
@@ -343,9 +349,9 @@ export function AuthCallbackPage() {
 function SlideBotLogo() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <rect x="3" y="5" width="18" height="14" rx="2" fill="white" fillOpacity="0.9" />
-      <rect x="6" y="8" width="8" height="1.5" rx="0.75" fill="#6173F2" />
-      <rect x="6" y="11" width="12" height="1.5" rx="0.75" fill="#6173F2" fillOpacity="0.6" />
+      <rect x="3" y="5" width="18" height="14" rx="2" fill="white" fillOpacity="0.95" />
+      <rect x="6" y="8" width="8" height="1.5" rx="0.75" fill="#0066FF" />
+      <rect x="6" y="11" width="12" height="1.5" rx="0.75" fill="#0066FF" fillOpacity="0.5" />
     </svg>
   );
 }

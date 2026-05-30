@@ -5,33 +5,33 @@ export default {
   theme: {
     extend: {
       colors: {
-        // SlideBot brand palette — premium light design
+        // SlideBot brand palette — IndiGo-inspired deep navy + electric blue
         brand: {
-          50: '#f0f4ff',
-          100: '#e0e9ff',
-          200: '#c7d7fe',
-          300: '#a5bbfc',
-          400: '#8199f8',
-          500: '#6173f2', // Primary brand
-          600: '#4e55e6',
-          700: '#3f43cc',
-          800: '#3438a4',
-          900: '#2f3482',
-          950: '#1d1f4e',
+          50: '#eef4ff',
+          100: '#d9e6ff',
+          200: '#bcd4ff',
+          300: '#8ebaff',
+          400: '#5996ff',
+          500: '#0066FF', // Primary — electric blue
+          600: '#0052d6',
+          700: '#0042ad',
+          800: '#00368f',
+          900: '#002d75',
+          950: '#001a47',
         },
-        // Neutral grays (cool-tinted for dark mode)
+        // Neutral grays (warm-tinted for premium feel)
         surface: {
-          50: '#f8f9fb',
-          100: '#f1f3f7',
-          200: '#e4e8f0',
-          300: '#cdd3df',
-          400: '#9aa5b8',
-          500: '#6b778d',
-          600: '#4a5568',
-          700: '#2d3748',
-          800: '#1a2035',
-          900: '#111827',
-          950: '#080c14',
+          50: '#fafafa',
+          100: '#f5f5f5',
+          200: '#e8e8e8',
+          300: '#d4d4d4',
+          400: '#a3a3a3',
+          500: '#737373',
+          600: '#525252',
+          700: '#404040',
+          800: '#262626',
+          900: '#171717',
+          950: '#0a0a0a',
         },
         // Premium accent (warm gold for subtle highlights)
         accent: {
@@ -95,11 +95,11 @@ export default {
         },
       },
       boxShadow: {
-        'glow-brand': '0 0 20px rgba(97, 115, 242, 0.3)',
-        'glow-sm': '0 0 10px rgba(97, 115, 242, 0.2)',
-        card: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)',
-        'card-hover': '0 4px 16px rgba(0,0,0,0.16), 0 2px 6px rgba(0,0,0,0.1)',
-        panel: '0 8px 32px rgba(0,0,0,0.24)',
+        'glow-brand': '0 0 20px rgba(0, 102, 255, 0.25)',
+        'glow-sm': '0 0 10px rgba(0, 102, 255, 0.15)',
+        card: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)',
+        'card-hover': '0 4px 16px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.06)',
+        panel: '0 8px 32px rgba(0,0,0,0.12)',
       },
       borderRadius: {
         DEFAULT: '0.5rem',

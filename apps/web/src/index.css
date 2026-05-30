@@ -6,10 +6,10 @@
 
 /* ── CSS Custom Properties (Design Tokens) ─────────────────────────────────── */
 :root {
-  /* Brand */
-  --color-brand: #6173f2;
-  --color-brand-light: #8199f8;
-  --color-brand-dark: #4e55e6;
+  /* Brand — IndiGo-inspired electric blue */
+  --color-brand: #0066FF;
+  --color-brand-light: #5996ff;
+  --color-brand-dark: #0052d6;
 
   /* Surface (light mode defaults) */
   --color-bg: #f8f9fb;
@@ -17,7 +17,7 @@
   --color-surface-2: #f3f4f6;
   --color-surface-3: #e5e7eb;
   --color-border: rgba(0, 0, 0, 0.08);
-  --color-border-focus: rgba(97, 115, 242, 0.6);
+  --color-border-focus: rgba(0, 102, 255, 0.5);
 
   /* Text */
   --color-text-primary: #111827;
@@ -142,13 +142,8 @@ body {
 
 /* ── Selection ──────────────────────────────────────────────────────────────── */
 ::selection {
-  background: rgba(97, 115, 242, 0.2);
-  color: #1e293b;
-}
-
-:root.dark ::selection {
-  background: rgba(97, 115, 242, 0.3);
-  color: #f8f9fb;
+  background: rgba(0, 102, 255, 0.15);
+  color: #111827;
 }
 
 /* ── Scrollbar (custom dark) ────────────────────────────────────────────────── */
@@ -197,28 +192,6 @@ body {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
-:root.dark .glass {
-  background: rgba(17, 24, 39, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: none;
-}
-
-:root.dark .glass-strong {
-  background: rgba(17, 24, 39, 0.9);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: none;
-}
-
-:root.dark .glass-light {
-  background: rgba(17, 24, 39, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
-}
-
 .shadow-panel-util {
   box-shadow: var(--shadow-panel);
 }
@@ -251,17 +224,5 @@ body {
 
 /* Animated gradient background for landing */
 .gradient-mesh {
-  background:
-    radial-gradient(ellipse at 20% 50%, rgba(97, 115, 242, 0.05) 0%, transparent 55%),
-    radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.04) 0%, transparent 45%),
-    radial-gradient(ellipse at 60% 80%, rgba(236, 72, 153, 0.03) 0%, transparent 45%),
-    #ffffff;
-}
-
-:root.dark .gradient-mesh {
-  background:
-    radial-gradient(ellipse at 20% 50%, rgba(97, 115, 242, 0.12) 0%, transparent 55%),
-    radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.08) 0%, transparent 45%),
-    radial-gradient(ellipse at 60% 80%, rgba(236, 72, 153, 0.06) 0%, transparent 45%),
-    #0f1629;
+  background: #ffffff;
 }
